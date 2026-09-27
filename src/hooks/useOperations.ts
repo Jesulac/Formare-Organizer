@@ -235,7 +235,7 @@ function computeSpoolsList(
       const precioBobina = spool ? spool.precioBobina : 15.99;
       const gramos =
         item.gramos && item.gramos > 0
-          ? Math.round(item.gramos * uds)
+          ? Number((item.gramos * uds).toFixed(2))
           : calculateFilamentGrams(costPerPart, precioBobina);
 
       if (gramos <= 0) return;
@@ -258,13 +258,13 @@ function computeSpoolsList(
   return Array.from(spoolsMap.values())
     .filter((item) => filamentAdjustments[`__deleted__:${item.nombre}`] !== 1)
     .map((item, idx) => {
-      const consumidosRedondeados = Math.round(item.gramosConsumidos);
+      const consumidosRedondeados = Number(item.gramosConsumidos.toFixed(2));
       const initAjuste = filamentAdjustments[`__init_adj__:${item.nombre}`] ?? 0;
-      const effectiveGramosIniciales = Math.max(0, Math.round(item.gramosIniciales + initAjuste));
+      const effectiveGramosIniciales = Math.max(0, Number((item.gramosIniciales + initAjuste).toFixed(2)));
       const effectiveBobinas = Number((effectiveGramosIniciales / 1000).toFixed(1));
-      const baseRestantes = Math.round(effectiveGramosIniciales - consumidosRedondeados);
+      const baseRestantes = Number((effectiveGramosIniciales - consumidosRedondeados).toFixed(2));
       const ajuste = filamentAdjustments[item.nombre] ?? 0;
-      const gramosRestantes = Math.max(0, baseRestantes + ajuste);
+      const gramosRestantes = Math.max(0, Number((baseRestantes + ajuste).toFixed(2)));
       return {
         id: `spool-${idx}`,
         nombre: item.nombre,

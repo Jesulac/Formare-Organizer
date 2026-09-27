@@ -202,24 +202,24 @@ export function calculateFilamentGrams(
 ): number {
   const cost = Math.abs(costeGastadoEnVenta || 0);
   const spoolPrice = precioBobina1000g > 0 ? precioBobina1000g : 15.99;
-  return Math.round((cost * 1000) / spoolPrice);
+  return Number(((cost * 1000) / spoolPrice).toFixed(2));
 }
 
 /**
- * Parse a single material chunk like "PETG Negro (Elegoo) (120g)" or "PLA Rojo 45g"
+ * Parse a single material chunk like "PETG Negro (Elegoo) (120.5g)" or "PLA Rojo 45,2g"
  * into { material, gramos }
  */
 export function parseSingleMaterialChunk(chunk: string): MaterialItem {
   const trimmed = chunk.trim();
   if (!trimmed) return { material: '' };
 
-  // Match trailing "(120g)" or "(120 g)" or "- 120g" or "120g"
+  // Match trailing "(120g)" or "(120.5 g)" or "- 120,5g" or "120g"
   const parenMatch = trimmed.match(/^(.*?)\s*\(\s*(\d+(?:[.,]\d+)?)\s*g(?:ramos?)?\s*\)\s*$/i);
   if (parenMatch && parenMatch[1].trim()) {
     const g = parseFloat(parenMatch[2].replace(',', '.'));
     return {
       material: parenMatch[1].trim(),
-      gramos: !isNaN(g) && g > 0 ? Math.round(g) : undefined,
+      gramos: !isNaN(g) && g > 0 ? Number(g.toFixed(2)) : undefined,
     };
   }
 
@@ -228,7 +228,7 @@ export function parseSingleMaterialChunk(chunk: string): MaterialItem {
     const g = parseFloat(suffixMatch[2].replace(',', '.'));
     return {
       material: suffixMatch[1].trim(),
-      gramos: !isNaN(g) && g > 0 ? Math.round(g) : undefined,
+      gramos: !isNaN(g) && g > 0 ? Number(g.toFixed(2)) : undefined,
     };
   }
 
@@ -248,7 +248,7 @@ export function parseMaterialItems(
         material: (item.material || '').trim(),
         gramos:
           typeof item.gramos === 'number' && !isNaN(item.gramos) && item.gramos > 0
-            ? Math.round(item.gramos)
+            ? Number(item.gramos.toFixed(2))
             : undefined,
       }))
       .filter((item) => item.material.length > 0);
@@ -274,13 +274,13 @@ export function parseMaterialItems(
 /**
  * Format MaterialItem[] into display string for Operation.material
  * - If 1 item without grams -> "PETG Negro (Elegoo)"
- * - If multiple items (or with grams) -> "PETG Negro (Elegoo) (120g) + PLA Rojo (Elegoo) (45g)"
+ * - If multiple items (or with grams) -> "PETG Negro (Elegoo) (120.5g) + PLA Rojo (Elegoo) (45g)"
  */
 export function formatMaterialItems(items: MaterialItem[], includeGramsWhenSingle = false): string {
   const valid = items
     .map((i) => ({
       material: (i.material || '').trim(),
-      gramos: typeof i.gramos === 'number' && i.gramos > 0 ? Math.round(i.gramos) : undefined,
+      gramos: typeof i.gramos === 'number' && i.gramos > 0 ? Number(i.gramos.toFixed(2)) : undefined,
     }))
     .filter((i) => i.material.length > 0);
 
@@ -317,7 +317,7 @@ export function getOperationConsumedGrams(
     let totalGrams = 0;
     items.forEach((i) => {
       if (i.gramos && i.gramos > 0) {
-        totalGrams += Math.round(i.gramos * uds);
+        totalGrams += i.gramos * uds;
       }
     });
     if (itemsWithoutGrams.length > 0 && op.costes && op.costes > 0) {
@@ -325,7 +325,7 @@ export function getOperationConsumedGrams(
       totalGrams +=
         itemsWithoutGrams.length * calculateFilamentGrams(shareCost, defaultSpoolPrice);
     }
-    return Math.round(totalGrams);
+    return Number(totalGrams.toFixed(2));
   }
 
   return calculateFilamentGrams(Math.abs(op.costes || 0), defaultSpoolPrice);

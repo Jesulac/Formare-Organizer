@@ -25,7 +25,7 @@ export const PricingCalculatorView: React.FC<PricingCalculatorViewProps> = ({
   const [calcMode, setCalcMode] = useState<'grams' | 'direct'>('grams');
   const [selectedSpool, setSelectedSpool] = useState<string>(spools[0]?.nombre || 'Negro');
   const [spoolPriceStr, setSpoolPriceStr] = useState<string>(
-    String(spools[0]?.costePorBobina || 15.99)
+    String(spools[0]?.precioBobina || 15.99)
   );
   const [gramsStr, setGramsStr] = useState<string>('150');
   const [directMaterialCostStr, setDirectMaterialCostStr] = useState('2.40');
@@ -36,8 +36,8 @@ export const PricingCalculatorView: React.FC<PricingCalculatorViewProps> = ({
   const handleSelectSpool = (name: string) => {
     setSelectedSpool(name);
     const found = spools.find((s) => s.nombre === name);
-    if (found && found.costePorBobina > 0) {
-      setSpoolPriceStr(String(found.costePorBobina));
+    if (found && found.precioBobina > 0) {
+      setSpoolPriceStr(String(found.precioBobina));
     }
   };
 
@@ -57,7 +57,7 @@ export const PricingCalculatorView: React.FC<PricingCalculatorViewProps> = ({
 
   const materialSummary =
     calcMode === 'grams' && grams > 0
-      ? `${selectedSpool} (${Math.round(grams)}g)`
+      ? `${selectedSpool} (${Number(grams.toFixed(2))}g)`
       : selectedSpool || 'PLA';
 
   return (
@@ -150,11 +150,15 @@ export const PricingCalculatorView: React.FC<PricingCalculatorViewProps> = ({
                   <div className="relative">
                     <Scale className="w-3.5 h-3.5 text-sky-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
                     <input
-                      type="number"
-                      min="0"
-                      step="1"
+                      type="text"
+                      inputMode="decimal"
                       value={gramsStr}
-                      onChange={(e) => setGramsStr(e.target.value)}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (val === '' || /^\d*[.,]?\d*$/.test(val)) {
+                          setGramsStr(val);
+                        }
+                      }}
                       className="w-full bg-black/60 border border-white/10 rounded-lg pl-8 pr-2.5 py-2 text-xs text-white font-mono tabular-nums focus:outline-none focus:border-sky-500/50"
                     />
                   </div>
@@ -176,7 +180,7 @@ export const PricingCalculatorView: React.FC<PricingCalculatorViewProps> = ({
 
                 <div className="sm:col-span-3 flex items-center justify-between pt-2 border-t border-white/[0.06] text-xs">
                   <span className="text-zinc-400">
-                    Coste de filamento ({Math.round(grams)}g × {formatEuro(spoolPrice)} / 1000g):
+                    Coste de filamento ({Number(grams.toFixed(2))}g × {formatEuro(spoolPrice)} / 1000g):
                   </span>
                   <span className="font-mono tabular-nums font-bold text-sky-300">
                     {formatEuro(calculatedFilamentCost)}

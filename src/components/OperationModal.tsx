@@ -451,7 +451,7 @@ export const OperationModal: React.FC<OperationModalProps> = ({
         const g = parseFloat((r.gramos || '').replace(',', '.'));
         return {
           material: r.material.trim(),
-          gramos: isMulti && !isNaN(g) && g > 0 ? Math.round(g) : undefined,
+          gramos: isMulti && !isNaN(g) && g > 0 ? Number(g.toFixed(2)) : undefined,
         };
       })
       .filter((i) => i.material.length > 0);
@@ -580,7 +580,7 @@ export const OperationModal: React.FC<OperationModalProps> = ({
         const g = parseFloat((r.gramos || '').replace(',', '.'));
         return {
           material: r.material.trim(),
-          gramos: isMulti && !isNaN(g) && g > 0 ? Math.round(g) : undefined,
+          gramos: isMulti && !isNaN(g) && g > 0 ? Number(g.toFixed(2)) : undefined,
         };
       })
       .filter((i) => i.material.length > 0);
@@ -627,10 +627,14 @@ export const OperationModal: React.FC<OperationModalProps> = ({
   const isMultiMaterialMode =
     materialRows.length > 1 || Boolean(materialRows[0]?.gramos?.trim());
 
-  const totalMultiGramsPerUnit = materialRows.reduce((acc, r) => {
-    const g = parseFloat((r.gramos || '').replace(',', '.'));
-    return acc + (!isNaN(g) && g > 0 ? Math.round(g) : 0);
-  }, 0);
+  const totalMultiGramsPerUnit = Number(
+    materialRows
+      .reduce((acc, r) => {
+        const g = parseFloat((r.gramos || '').replace(',', '.'));
+        return acc + (!isNaN(g) && g > 0 ? g : 0);
+      }, 0)
+      .toFixed(2)
+  );
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
@@ -1097,17 +1101,19 @@ export const OperationModal: React.FC<OperationModalProps> = ({
                             )}
                           </div>
 
-                          {/* Gramos input */}
+                          {/* Gramos input (supports decimals with dot or comma) */}
                           <div className="col-span-4 relative flex items-center min-w-0">
                             <input
-                              type="number"
-                              min="0"
-                              step="1"
+                              type="text"
+                              inputMode="decimal"
                               value={row.gramos}
-                              onChange={(e) =>
-                                handleChangeMaterialRow(idx, 'gramos', e.target.value)
-                              }
-                              placeholder="0"
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                if (val === '' || /^\d*[.,]?\d*$/.test(val)) {
+                                  handleChangeMaterialRow(idx, 'gramos', val);
+                                }
+                              }}
+                              placeholder="0.0"
                               className="w-full bg-black/80 border border-white/15 rounded-xl pl-2.5 pr-6 py-2 text-xs text-emerald-300 font-mono font-bold placeholder-zinc-600 focus:outline-none focus:border-emerald-500"
                             />
                             <span className="absolute right-2 text-[11px] font-mono text-zinc-400 pointer-events-none">
@@ -1138,7 +1144,7 @@ export const OperationModal: React.FC<OperationModalProps> = ({
                               {normalizeFilamentKey(row.material)} ({formatEuro(rowSpoolPrice)}/kg)
                             </span>
                             <span className="text-sky-300">
-                              {Math.round(validRowGrams)}g = {formatEuro(rowCost)} / ud.
+                              {Number(validRowGrams.toFixed(2))}g = {formatEuro(rowCost)} / ud.
                             </span>
                           </div>
                         )}
@@ -1163,7 +1169,9 @@ export const OperationModal: React.FC<OperationModalProps> = ({
                       <Scale className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
                       <span>
                         Total: <strong>{totalMultiGramsPerUnit} g</strong>
-                        {unidades > 1 ? ` × ${unidades} uds = ${totalMultiGramsPerUnit * unidades} g` : ''}
+                        {unidades > 1
+                          ? ` × ${unidades} uds = ${Number((totalMultiGramsPerUnit * unidades).toFixed(2))} g`
+                          : ''}
                       </span>
                     </div>
                   )}
