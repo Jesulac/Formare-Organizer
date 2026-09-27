@@ -13,6 +13,7 @@
     -webkit-tap-highlight-color: transparent;
     -webkit-touch-callout: none;
     overscroll-behavior-y: none;
+    overflow-x: hidden;
   }
 }
 
@@ -34,14 +35,14 @@
 }
 
 .glass-modal {
-  background: rgba(12, 12, 15, 0.92);
+  background: rgba(12, 12, 15, 0.94);
   backdrop-filter: blur(32px);
   -webkit-backdrop-filter: blur(32px);
   border: 1px solid rgba(255, 255, 255, 0.12);
 }
 
 .glass-header {
-  background: rgba(0, 0, 0, 0.8);
+  background: rgba(0, 0, 0, 0.85);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
 }
@@ -52,35 +53,41 @@
   border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-/* Safe areas for iPhone notch & home bar */
+/* Safe areas for mobile notch & home bar */
 .pb-safe {
   padding-bottom: max(1.25rem, env(safe-area-inset-bottom));
 }
 
 .pt-safe {
-  padding-top: max(1rem, env(safe-area-inset-top));
+  padding-top: max(0.75rem, env(safe-area-inset-top));
 }
 
 /* Custom scrollbar */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 7px;
+  height: 7px;
 }
 
 ::-webkit-scrollbar-track {
-  background: transparent;
+  background: rgba(255, 255, 255, 0.03);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.22);
   border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.3);
+  background: rgba(16, 185, 129, 0.6);
 }
 
-/* Input styling override for iOS dark mode look */
+.custom-table-scroll {
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.25) rgba(255, 255, 255, 0.03);
+}
+
+/* Input styling override for dark mode look */
 input, select, textarea {
   color-scheme: dark;
 }

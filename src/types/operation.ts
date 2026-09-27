@@ -60,7 +60,8 @@ export interface FilamentSpool {
   precioBobina: number; // Price per 1000g spool in EUR
   bobinasCompradas: number;
   gramosConsumidos: number; // Calculated via rule of three from sales
-  gramosRestantes: number; // gramosIniciales - gramosConsumidos
+  gramosRestantes: number; // gramosIniciales - gramosConsumidos + ajusteManualGramos
+  ajusteManualGramos?: number; // Manual wear/waste offset in grams so user edits persist alongside automatic sales calculations
   ultimaCompraFecha?: string;
 }
 

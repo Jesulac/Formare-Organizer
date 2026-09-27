@@ -30,21 +30,25 @@ export const QrStorageView: React.FC<QrStorageViewProps> = ({
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [activeUploadOpId, setActiveUploadOpId] = useState<string | null>(null);
 
-  // Sales automatically generate a QR slot
-  const salesOperations = operations.filter((op) => op.tipo === 'venta');
+  // Sales automatically generate a QR slot, EXCLUDING 'Pendiente de cobro' and 'Cancelado'
+  const salesOperations = operations.filter(
+    (op) =>
+      op.tipo === 'venta' &&
+      op.estado !== 'Pendiente de cobro' &&
+      op.estado !== 'Cancelado'
+  );
 
   const displayedSales = salesOperations.filter((op) => {
     if (filterMode === 'todas') return true;
-    // Show sales that have a QR uploaded OR are in production / pending / shipped / recent
+    // Show sales that have a QR uploaded OR are in production / shipped (never 'Pendiente de cobro')
     return (
       Boolean(op.fotoQr) ||
       op.estado === 'En producción' ||
-      op.estado === 'Pendiente de cobro' ||
       op.estado === 'Enviado'
     );
   });
 
-  // Fallback to showing the 15 most recent sales if no active filter matches
+  // Fallback to showing the 15 most recent non-Pendiente-de-cobro sales if no active filter matches
   const finalSales = displayedSales.length > 0 ? displayedSales : salesOperations.slice(0, 15);
 
   const handleTriggerUpload = (opId: string) => {
@@ -99,7 +103,7 @@ export const QrStorageView: React.FC<QrStorageViewProps> = ({
           <div className="flex items-center gap-1.5 text-[11px] text-amber-300/90 mt-1.5">
             <ShieldCheck className="w-3.5 h-3.5 text-amber-400 shrink-0" />
             <span>
-              Auto-limpieza activa: Los QR e información que lleven 10 días subidos se borran automáticamente para no saturar la aplicación.
+              Auto-limpieza activa: Los pedidos en &laquo;Pendiente de cobro&raquo; y los QR con más de 10 días se borran automáticamente del almacén.
             </span>
           </div>
         </div>

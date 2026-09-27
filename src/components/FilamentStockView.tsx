@@ -1,22 +1,28 @@
 import React, { useState } from 'react';
 import { FilamentSpool, Operation } from '../types/operation';
 import { formatEuro, formatDateDisplay, formatDateInput, calculateFilamentGrams } from '../utils/calculations';
-import { Disc, Plus, AlertTriangle, CheckCircle2, Scale, Calculator } from 'lucide-react';
+import { Disc, Plus, AlertTriangle, CheckCircle2, Scale, Calculator, Edit3, Check, X } from 'lucide-react';
 
 interface FilamentStockViewProps {
   spools: FilamentSpool[];
   onAddFilamentOrder: (opData: Omit<Operation, 'id' | 'createdAt' | 'beneficio'>) => void;
+  onUpdateFilamentRemaining: (spoolName: string, newRemainingGrams: number) => void;
 }
 
 export const FilamentStockView: React.FC<FilamentStockViewProps> = ({
   spools,
   onAddFilamentOrder,
+  onUpdateFilamentRemaining,
 }) => {
   const [newSpoolName, setNewSpoolName] = useState('');
   const [newSpoolPrice, setNewSpoolPrice] = useState('15.99');
   const [newSpoolUnits, setNewSpoolUnits] = useState('1');
   const [newSpoolSeller, setNewSpoolSeller] = useState('Jorge');
   const [showAddForm, setShowAddForm] = useState(false);
+
+  // State for editing remaining grams on a specific filament spool
+  const [editingSpoolName, setEditingSpoolName] = useState<string | null>(null);
+  const [editRemainingValue, setEditRemainingValue] = useState<string>('');
 
   // Quick Rule of Three Tester
   const [testSpoolPrice, setTestSpoolPrice] = useState('15.99');
@@ -25,6 +31,24 @@ export const FilamentStockView: React.FC<FilamentStockViewProps> = ({
   const totalInitialGrams = spools.reduce((acc, s) => acc + s.gramosIniciales, 0);
   const totalConsumedGrams = spools.reduce((acc, s) => acc + s.gramosConsumidos, 0);
   const totalRemainingGrams = spools.reduce((acc, s) => acc + s.gramosRestantes, 0);
+
+  const handleStartEditRemaining = (spool: FilamentSpool) => {
+    setEditingSpoolName(spool.nombre);
+    setEditRemainingValue(String(spool.gramosRestantes));
+  };
+
+  const handleSaveRemaining = (spoolName: string) => {
+    const parsed = parseFloat(editRemainingValue.replace(',', '.'));
+    if (!isNaN(parsed) && parsed >= 0) {
+      onUpdateFilamentRemaining(spoolName, Math.round(parsed));
+    }
+    setEditingSpoolName(null);
+  };
+
+  const handleAdjustDraft = (delta: number) => {
+    const current = parseFloat(editRemainingValue.replace(',', '.')) || 0;
+    setEditRemainingValue(String(Math.max(0, Math.round(current + delta))));
+  };
 
   const handleCreateSpoolPurchase = (e: React.FormEvent) => {
     e.preventDefault();
@@ -91,7 +115,7 @@ export const FilamentStockView: React.FC<FilamentStockViewProps> = ({
           </h2>
           <p className="text-xs text-zinc-400 mt-0.5">
             Cada bobina nueva suma <strong className="text-zinc-200">1000 g</strong>. Cada venta resta automáticamente los gramos usados mediante regla de tres:{' '}
-            <span className="font-mono text-emerald-300">(Coste venta × 1000 g) / Precio bobina</span>.
+            <span className="font-mono text-emerald-300">(Coste venta × 1000 g) / Precio bobina</span>. También puedes ajustar manualmente cuánto queda por desgaste o purgas.
           </p>
         </div>
 
@@ -196,7 +220,7 @@ export const FilamentStockView: React.FC<FilamentStockViewProps> = ({
             {totalRemainingGrams.toLocaleString('es-ES')} g
           </div>
           <span className="text-[11px] text-emerald-300/70">
-            Disponible en taller
+            Disponible en taller (incluye ajustes manuales)
           </span>
         </div>
 
@@ -243,6 +267,8 @@ export const FilamentStockView: React.FC<FilamentStockViewProps> = ({
               ? Math.min(100, Math.max(0, Math.round((spool.gramosRestantes / spool.gramosIniciales) * 100)))
               : 0;
           const isLow = spool.gramosRestantes < 250;
+          const isEditingThis = editingSpoolName === spool.nombre;
+          const hasManualAdjust = Boolean(spool.ajusteManualGramos && spool.ajusteManualGramos !== 0);
 
           return (
             <div
@@ -298,25 +324,117 @@ export const FilamentStockView: React.FC<FilamentStockViewProps> = ({
                   </div>
                   <div className="text-right">
                     <span className="text-zinc-500 block">Restante</span>
-                    <span className={`font-mono font-bold text-sm ${isLow ? 'text-amber-300' : 'text-emerald-400'}`}>
-                      {spool.gramosRestantes} g
-                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleStartEditRemaining(spool)}
+                      className={`inline-flex items-center gap-1 font-mono font-bold text-sm cursor-pointer hover:underline ${
+                        isLow ? 'text-amber-300' : 'text-emerald-400'
+                      }`}
+                      title="Editar gramos restantes"
+                    >
+                      <span>{spool.gramosRestantes} g</span>
+                      <Edit3 className="w-3 h-3 opacity-75" />
+                    </button>
                   </div>
                 </div>
+
+                {hasManualAdjust && (
+                  <div className="text-[10px] text-zinc-400 font-mono flex items-center justify-between pt-0.5">
+                    <span>
+                      Ajuste manual/desgaste:{' '}
+                      <strong className={spool.ajusteManualGramos! >= 0 ? 'text-emerald-300' : 'text-amber-300'}>
+                        {spool.ajusteManualGramos! > 0 ? `+${spool.ajusteManualGramos}` : spool.ajusteManualGramos} g
+                      </strong>
+                    </span>
+                  </div>
+                )}
               </div>
 
-              <div className="pt-2 border-t border-white/5 flex items-center justify-between">
-                <span className="text-[10px] text-zinc-500">
+              {/* Inline Editor for Remaining Filament */}
+              {isEditingThis && (
+                <div className="p-3 rounded-xl bg-zinc-900/95 border border-emerald-500/40 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[11px] font-semibold text-emerald-300">
+                      Actualizar filamento restante (g)
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setEditingSpoolName(null)}
+                      className="text-zinc-400 hover:text-white p-0.5 cursor-pointer"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+
+                  <div className="flex items-center gap-1.5">
+                    <input
+                      type="number"
+                      min="0"
+                      step="1"
+                      value={editRemainingValue}
+                      onChange={(e) => setEditRemainingValue(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleSaveRemaining(spool.nombre);
+                        }
+                      }}
+                      className="flex-1 min-w-0 bg-black border border-white/15 rounded-lg px-2.5 py-1.5 text-xs text-white font-mono font-bold focus:outline-none focus:border-emerald-500"
+                      autoFocus
+                    />
+                    <span className="text-xs font-mono text-zinc-400">g</span>
+                    <button
+                      type="button"
+                      onClick={() => handleSaveRemaining(spool.nombre)}
+                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-black font-bold text-xs cursor-pointer"
+                    >
+                      <Check className="w-3.5 h-3.5 stroke-[2.5]" />
+                      <span>Guardar</span>
+                    </button>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-1 text-[10px]">
+                    <span className="text-zinc-400">Ajuste rápido:</span>
+                    <div className="flex items-center gap-1">
+                      {[-100, -50, -10, +10, +50].map((delta) => (
+                        <button
+                          key={delta}
+                          type="button"
+                          onClick={() => handleAdjustDraft(delta)}
+                          className="px-1.5 py-0.5 rounded bg-white/5 hover:bg-white/15 text-zinc-300 font-mono cursor-pointer border border-white/10"
+                        >
+                          {delta > 0 ? `+${delta}g` : `${delta}g`}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="pt-2 border-t border-white/5 flex items-center justify-between gap-2">
+                <span className="text-[10px] text-zinc-500 font-mono">
                   1g = {formatEuro(spool.precioBobina / 1000)}
                 </span>
-                <button
-                  type="button"
-                  onClick={() => handleQuickAdd1000g(spool)}
-                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/5 hover:bg-emerald-500/20 text-zinc-300 hover:text-emerald-300 border border-white/10 text-[11px] font-medium cursor-pointer transition-colors"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>Añadir +1000g</span>
-                </button>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      isEditingThis ? setEditingSpoolName(null) : handleStartEditRemaining(spool)
+                    }
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/15 text-zinc-200 border border-white/10 text-[11px] font-medium cursor-pointer transition-colors"
+                  >
+                    <Edit3 className="w-3 h-3 text-emerald-400" />
+                    <span>Editar restante</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleQuickAdd1000g(spool)}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 text-[11px] font-medium cursor-pointer transition-colors"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>+1000g</span>
+                  </button>
+                </div>
               </div>
             </div>
           );

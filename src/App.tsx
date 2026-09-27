@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useOperations } from './hooks/useOperations';
 import { Header, ViewMode, ActiveSection } from './components/Header';
 import { DashboardSummary } from './components/DashboardSummary';
@@ -11,7 +11,7 @@ import { RevenueSplitModal } from './components/RevenueSplitModal';
 import { FilamentStockView } from './components/FilamentStockView';
 import { QrStorageView } from './components/QrStorageView';
 import { Operation, Status } from './types/operation';
-import { Plus } from 'lucide-react';
+import { Plus, CheckCircle2 } from 'lucide-react';
 
 export default function App() {
   const {
@@ -24,8 +24,12 @@ export default function App() {
     filters,
     setFilters,
     uniqueSellers,
+    lastModifiedId,
+    saveNotification,
+    clearNotification,
     addOperation,
     updateOperation,
+    updateFilamentRemaining,
     attachQrToOperation,
     deleteOperation,
     duplicateOperation,
@@ -49,6 +53,15 @@ export default function App() {
   const [isPricingModalOpen, setIsPricingModalOpen] = useState(false);
   const [isRevenueModalOpen, setIsRevenueModalOpen] = useState(false);
 
+  // Automatically dismiss save notification after 2.8 seconds
+  useEffect(() => {
+    if (!saveNotification) return;
+    const timer = setTimeout(() => {
+      clearNotification();
+    }, 2800);
+    return () => clearTimeout(timer);
+  }, [saveNotification, clearNotification]);
+
   const handleOpenNewOp = () => {
     setSelectedOp(null);
     setInitialModalData(undefined);
@@ -61,8 +74,35 @@ export default function App() {
     setIsOpModalOpen(true);
   };
 
+  const handleSaveNewOp = (opData: Omit<Operation, 'id' | 'createdAt' | 'beneficio'>) => {
+    addOperation(opData);
+    // Ensure active filters do not hide the newly created operation
+    if (
+      filters.search ||
+      filters.platform !== 'all' ||
+      filters.status !== 'all' ||
+      filters.tipo !== 'all' ||
+      filters.vendedor !== 'all' ||
+      filters.timeFilter !== 'todo'
+    ) {
+      setFilters((prev) => ({
+        ...prev,
+        search: '',
+        platform: 'all',
+        status: 'all',
+        tipo: 'all',
+        vendedor: 'all',
+        timeFilter: 'todo',
+      }));
+    }
+  };
+
   const handleQuickStatusChange = (id: string, newStatus: Status) => {
     updateOperation(id, { estado: newStatus });
+  };
+
+  const handleQuickUnitsChange = (id: string, newUnits: number) => {
+    updateOperation(id, { unidades: Math.max(1, newUnits) });
   };
 
   const handleCreateWithCalculatedPrice = (
@@ -90,10 +130,12 @@ export default function App() {
     filters.timeFilter !== 'todo'
   );
 
-  const uploadedQrCount = rawOperations.filter((op) => Boolean(op.fotoQr)).length;
+  const uploadedQrCount = rawOperations.filter(
+    (op) => Boolean(op.fotoQr) && op.estado !== 'Pendiente de cobro' && op.estado !== 'Cancelado'
+  ).length;
 
   return (
-    <div className="min-h-screen bg-black text-zinc-100 flex flex-col font-sans selection:bg-emerald-500/30 selection:text-emerald-200 relative pb-24 lg:pb-12">
+    <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-black text-zinc-100 flex flex-col font-sans selection:bg-emerald-500/30 selection:text-emerald-200 relative pb-24 lg:pb-12">
       
       {/* Top Navigation Header */}
       <Header
@@ -111,8 +153,16 @@ export default function App() {
         qrCount={uploadedQrCount}
       />
 
+      {/* Instant Save / Sync Confirmation Banner */}
+      {saveNotification && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 pointer-events-none flex items-center gap-2 px-4 py-2.5 rounded-full bg-emerald-950/95 border border-emerald-400/40 text-emerald-200 text-xs font-semibold shadow-2xl backdrop-blur-md">
+          <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+          <span>{saveNotification}</span>
+        </div>
+      )}
+
       {/* Main Content Area */}
-      <main className={`flex-1 w-full mx-auto transition-all duration-300 ${
+      <main className={`flex-1 w-full min-w-0 mx-auto transition-all duration-300 ${
         viewMode === 'iphone' ? 'max-w-md' : 'max-w-[1600px]'
       }`}>
         {activeSection === 'ventas' && (
@@ -128,7 +178,7 @@ export default function App() {
             />
 
             {/* Operations List or Empty State */}
-            <section className="px-3 sm:px-4 lg:px-6 py-2">
+            <section className="px-2 sm:px-4 lg:px-6 py-2 w-full min-w-0 max-w-full">
               {operations.length > 0 ? (
                 <OperationsList
                   operations={operations}
@@ -137,8 +187,10 @@ export default function App() {
                   onDuplicateOperation={duplicateOperation}
                   onDeleteOperation={deleteOperation}
                   onStatusChange={handleQuickStatusChange}
+                  onUnitsChange={handleQuickUnitsChange}
                   onAttachQr={attachQrToOperation}
                   viewMode={viewMode}
+                  lastModifiedId={lastModifiedId}
                 />
               ) : (
                 <EmptyState
@@ -153,7 +205,8 @@ export default function App() {
         {activeSection === 'filamentos' && (
           <FilamentStockView
             spools={filamentStock}
-            onAddFilamentOrder={addOperation}
+            onAddFilamentOrder={handleSaveNewOp}
+            onUpdateFilamentRemaining={updateFilamentRemaining}
           />
         )}
 
@@ -185,7 +238,7 @@ export default function App() {
           setSelectedOp(null);
           setInitialModalData(undefined);
         }}
-        onSave={addOperation}
+        onSave={handleSaveNewOp}
         onUpdate={updateOperation}
         onDelete={deleteOperation}
         onDuplicate={duplicateOperation}

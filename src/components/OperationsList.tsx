@@ -15,7 +15,11 @@ import {
   Clock, 
   Layers,
   CalendarClock,
-  BarChart3
+  BarChart3,
+  ChevronLeft,
+  ChevronRight,
+  Minus,
+  Plus
 } from 'lucide-react';
 import { ViewMode } from './Header';
 
@@ -26,8 +30,10 @@ interface OperationsListProps {
   onDuplicateOperation: (id: string) => void;
   onDeleteOperation: (id: string) => void;
   onStatusChange: (id: string, newStatus: Status) => void;
+  onUnitsChange?: (id: string, newUnits: number) => void;
   onAttachQr: (id: string, fotoQr: string | undefined, empresaEnvio?: ShippingCompany) => void;
   viewMode: ViewMode;
+  lastModifiedId?: string | null;
 }
 
 const SHIPPING_COMPANIES: ShippingCompany[] = ['Correos', 'InPost', 'Seur', 'Otro'];
@@ -44,12 +50,15 @@ export const OperationsList: React.FC<OperationsListProps> = ({
   onDuplicateOperation,
   onDeleteOperation,
   onStatusChange,
+  onUnitsChange,
   onAttachQr,
   viewMode,
+  lastModifiedId,
 }) => {
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [previewQrOp, setPreviewQrOp] = useState<Operation | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const tableScrollRef = useRef<HTMLDivElement | null>(null);
   const [uploadingForOpId, setUploadingForOpId] = useState<string | null>(null);
 
   const showMobileCards =
@@ -70,7 +79,7 @@ export const OperationsList: React.FC<OperationsListProps> = ({
     const file = e.target.files?.[0];
     if (!file || !uploadingForOpId) return;
     try {
-      const compressed = await compressImageFile(file, 900);
+      const compressed = await compressImageFile(file, 750);
       onAttachQr(uploadingForOpId, compressed, 'Correos');
       if (previewQrOp && previewQrOp.id === uploadingForOpId) {
         setPreviewQrOp({
@@ -87,8 +96,14 @@ export const OperationsList: React.FC<OperationsListProps> = ({
     }
   };
 
+  const scrollTableHorizontally = (direction: 'left' | 'right') => {
+    if (!tableScrollRef.current) return;
+    const offset = direction === 'left' ? -300 : 300;
+    tableScrollRef.current.scrollBy({ left: offset, behavior: 'smooth' });
+  };
+
   return (
-    <div className="w-full">
+    <div className="w-full min-w-0 max-w-full">
       {/* Hidden shared file input for quick row photo/QR attachment */}
       <input
         ref={fileInputRef}
@@ -102,6 +117,7 @@ export const OperationsList: React.FC<OperationsListProps> = ({
       <div className={`${showMobileCards} space-y-2.5 max-w-lg mx-auto`}>
         {operations.map((op, index) => {
           const isCompra = op.tipo === 'compra' || op.tipo === 'inversion';
+          const isHighlighted = lastModifiedId === op.id;
           const currentMonthKey = getMonthKey(op.fecha);
           const nextOp = operations[index + 1];
           const nextMonthKey = nextOp ? getMonthKey(nextOp.fecha) : null;
@@ -112,9 +128,13 @@ export const OperationsList: React.FC<OperationsListProps> = ({
             <React.Fragment key={op.id}>
               <div
                 onClick={() => onSelectOperation(op)}
-                className="glass-card glass-card-hover rounded-2xl p-3.5 relative cursor-pointer active:scale-[0.99] transition-all flex flex-col gap-2 border border-white/10"
+                className={`glass-card glass-card-hover rounded-2xl p-3.5 relative cursor-pointer active:scale-[0.99] transition-all flex flex-col gap-2 border ${
+                  isHighlighted
+                    ? 'border-emerald-400/80 ring-1 ring-emerald-400/50 bg-emerald-950/20'
+                    : 'border-white/10'
+                }`}
               >
-                {/* Card Top Row: Type badge, Product Title & Status */}
+                {/* Card Top Row: Type badge, Units, Product Title & Status */}
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5 mb-0.5">
@@ -127,7 +147,7 @@ export const OperationsList: React.FC<OperationsListProps> = ({
                       >
                         {isCompra ? 'Compra' : 'Venta'}
                       </span>
-                      <span className="text-[10px] font-mono bg-white/10 text-zinc-200 px-1.5 py-0.5 rounded">
+                      <span className="text-[10px] font-mono font-semibold bg-emerald-500/15 text-emerald-300 border border-emerald-500/25 px-1.5 py-0.5 rounded">
                         {op.unidades || 1} {(op.unidades || 1) === 1 ? 'ud.' : 'uds.'}
                       </span>
                     </div>
@@ -169,9 +189,8 @@ export const OperationsList: React.FC<OperationsListProps> = ({
                   </p>
                 )}
 
-                {/* Card Bottom Row: Financial Values, Deadline & Photo/QR Button */}
+                {/* Card Bottom Row: Financial Values & Units Stepper */}
                 <div className="grid grid-cols-4 items-center gap-2 pt-2 border-t border-white/5 text-xs">
-                  {/* Precio */}
                   <div>
                     <span className="text-[10px] text-zinc-500 uppercase tracking-wider block">
                       Precio
@@ -181,7 +200,6 @@ export const OperationsList: React.FC<OperationsListProps> = ({
                     </span>
                   </div>
 
-                  {/* Costes */}
                   <div>
                     <span className="text-[10px] text-zinc-500 uppercase tracking-wider block">
                       Costes
@@ -191,17 +209,35 @@ export const OperationsList: React.FC<OperationsListProps> = ({
                     </span>
                   </div>
 
-                  {/* Unidades */}
-                  <div>
+                  <div onClick={(e) => e.stopPropagation()}>
                     <span className="text-[10px] text-zinc-500 uppercase tracking-wider block">
                       Unidades
                     </span>
-                    <span className="font-mono text-zinc-200 font-medium">
-                      {op.unidades || 1}
-                    </span>
+                    <div className="inline-flex items-center gap-1 mt-0.5">
+                      {onUnitsChange && (
+                        <button
+                          type="button"
+                          onClick={() => onUnitsChange(op.id, Math.max(1, (op.unidades || 1) - 1))}
+                          className="w-4 h-4 rounded bg-white/10 hover:bg-white/20 text-zinc-300 flex items-center justify-center cursor-pointer"
+                        >
+                          <Minus className="w-2.5 h-2.5" />
+                        </button>
+                      )}
+                      <span className="font-mono text-zinc-100 font-bold px-0.5">
+                        {op.unidades || 1}
+                      </span>
+                      {onUnitsChange && (
+                        <button
+                          type="button"
+                          onClick={() => onUnitsChange(op.id, (op.unidades || 1) + 1)}
+                          className="w-4 h-4 rounded bg-white/10 hover:bg-white/20 text-zinc-300 flex items-center justify-center cursor-pointer"
+                        >
+                          <Plus className="w-2.5 h-2.5" />
+                        </button>
+                      )}
+                    </div>
                   </div>
 
-                  {/* Beneficio */}
                   <div className="text-right">
                     <span className="text-[10px] text-zinc-500 uppercase tracking-wider block">
                       Beneficio
@@ -226,7 +262,7 @@ export const OperationsList: React.FC<OperationsListProps> = ({
                     <CalendarClock className="w-3.5 h-3.5 text-amber-400 shrink-0" />
                     <span>
                       Fecha límite:{' '}
-                      <strong className="text-zinc-200 font-mono">
+                      <strong className="text-amber-300 font-mono">
                         {op.tipo === 'venta' && op.fechaLimite ? formatDateDisplay(op.fechaLimite) : '—'}
                       </strong>
                     </span>
@@ -303,256 +339,320 @@ export const OperationsList: React.FC<OperationsListProps> = ({
         })}
       </div>
 
-      {/* 2. VISTA TABLA COMPLETA (Fits full width without cutting off on the right) */}
-      <div className={`${showDesktopTable} w-full glass-card rounded-2xl border border-white/10 shadow-2xl overflow-x-auto`}>
-        <table className="w-full text-left text-[11px] border-collapse">
-          <thead>
-            <tr className="border-b border-white/10 bg-zinc-950/80 text-zinc-400 text-[10px] font-semibold uppercase tracking-wider">
-              <th className="py-3 px-2.5 whitespace-nowrap">Fecha</th>
-              <th className="py-3 px-2 whitespace-nowrap">Venta/Compra</th>
-              <th className="py-3 px-2.5">Producto</th>
-              <th className="py-3 px-2 text-center whitespace-nowrap">Unidades</th>
-              <th className="py-3 px-2.5">Material</th>
-              <th className="py-3 px-2.5 text-right whitespace-nowrap">Precio</th>
-              <th className="py-3 px-2.5 text-right whitespace-nowrap">Costes</th>
-              <th className="py-3 px-2.5 text-right whitespace-nowrap">Beneficio</th>
-              <th className="py-3 px-2.5 whitespace-nowrap">Lugar</th>
-              <th className="py-3 px-2.5 whitespace-nowrap">Estado</th>
-              <th className="py-3 px-2.5 whitespace-nowrap">Vendedor</th>
-              <th className="py-3 px-2.5">Comentarios</th>
-              <th className="py-3 px-2.5 whitespace-nowrap">Fecha Límite</th>
-              <th className="py-3 px-2 text-center whitespace-nowrap">Foto / QR</th>
-              <th className="py-3 px-2 text-center whitespace-nowrap">Acciones</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-white/5">
-            {operations.map((op, index) => {
-              const isCompra = op.tipo === 'compra' || op.tipo === 'inversion';
-              const isConfirmingDelete = confirmDeleteId === op.id;
+      {/* 2. VISTA TABLA TOTALMENTE RESPONSIVE (Contenedor horizontal con overflow-x-auto y paddings ajustados) */}
+      <div className={`${showDesktopTable} w-full max-w-full glass-card rounded-2xl border border-white/10 shadow-2xl overflow-hidden`}>
+        {/* Top responsive scroll helper bar */}
+        <div className="flex items-center justify-between px-3 py-1.5 bg-zinc-950/90 border-b border-white/10 text-[11px] text-zinc-400">
+          <span className="truncate">
+            Tabla de operaciones ({operations.length} registros) — Toca cualquier fila para editar
+          </span>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <span className="hidden sm:inline text-[10px] text-zinc-500">Desplazar columnas:</span>
+            <button
+              type="button"
+              onClick={() => scrollTableHorizontally('left')}
+              className="p-1 rounded-lg bg-white/5 hover:bg-white/10 text-zinc-300 border border-white/10 cursor-pointer"
+              title="Desplazar tabla a la izquierda"
+            >
+              <ChevronLeft className="w-3.5 h-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={() => scrollTableHorizontally('right')}
+              className="p-1 rounded-lg bg-white/5 hover:bg-white/10 text-zinc-300 border border-white/10 cursor-pointer"
+              title="Desplazar tabla a la derecha"
+            >
+              <ChevronRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
 
-              const currentMonthKey = getMonthKey(op.fecha);
-              const nextOp = operations[index + 1];
-              const nextMonthKey = nextOp ? getMonthKey(nextOp.fecha) : null;
-              const isLastOfMonth = currentMonthKey !== nextMonthKey;
-              const monthSummary = isLastOfMonth ? monthlySummaries[currentMonthKey] : null;
+        {/* Horizontal scroll wrapper */}
+        <div
+          ref={tableScrollRef}
+          className="w-full max-w-full overflow-x-auto overscroll-x-contain scroll-smooth custom-table-scroll"
+        >
+          <table className="w-full min-w-[980px] text-left text-[11px] border-collapse table-auto">
+            <thead>
+              <tr className="border-b border-white/10 bg-zinc-950/95 text-zinc-300 text-[10px] font-bold uppercase tracking-wider">
+                <th className="py-2.5 px-2 whitespace-nowrap">Fecha</th>
+                <th className="py-2.5 px-1.5 whitespace-nowrap">Venta/Compra</th>
+                <th className="py-2.5 px-2 min-w-[130px]">Producto</th>
+                <th className="py-2.5 px-2 text-center whitespace-nowrap">Unidades</th>
+                <th className="py-2.5 px-2 min-w-[110px]">Material</th>
+                <th className="py-2.5 px-2 text-right whitespace-nowrap">Precio</th>
+                <th className="py-2.5 px-2 text-right whitespace-nowrap">Costes</th>
+                <th className="py-2.5 px-2 text-right whitespace-nowrap">Beneficio</th>
+                <th className="py-2.5 px-2 whitespace-nowrap">Lugar</th>
+                <th className="py-2.5 px-2 whitespace-nowrap">Estado</th>
+                <th className="py-2.5 px-2 whitespace-nowrap">Vendedor</th>
+                <th className="py-2.5 px-2 min-w-[95px]">Comentarios</th>
+                <th className="py-2.5 px-2 whitespace-nowrap">Fecha límite</th>
+                <th className="py-2.5 px-2 text-center whitespace-nowrap">Foto / QR</th>
+                <th className="py-2.5 px-2 text-center whitespace-nowrap">Acciones</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-white/5">
+              {operations.map((op, index) => {
+                const isCompra = op.tipo === 'compra' || op.tipo === 'inversion';
+                const isConfirmingDelete = confirmDeleteId === op.id;
+                const isHighlighted = lastModifiedId === op.id;
 
-              return (
-                <React.Fragment key={op.id}>
-                  <tr
-                    onClick={() => onSelectOperation(op)}
-                    className="hover:bg-white/[0.04] transition-colors group cursor-pointer"
-                  >
-                    {/* Fecha */}
-                    <td className="py-2.5 px-2.5 font-mono text-zinc-300 whitespace-nowrap">
-                      {formatDateDisplay(op.fecha)}
-                    </td>
+                const currentMonthKey = getMonthKey(op.fecha);
+                const nextOp = operations[index + 1];
+                const nextMonthKey = nextOp ? getMonthKey(nextOp.fecha) : null;
+                const isLastOfMonth = currentMonthKey !== nextMonthKey;
+                const monthSummary = isLastOfMonth ? monthlySummaries[currentMonthKey] : null;
 
-                    {/* Casilla Venta / Compra */}
-                    <td className="py-2.5 px-2 whitespace-nowrap">
-                      <span
-                        className={`inline-block text-[10px] font-semibold px-2 py-0.5 rounded-md border ${
-                          isCompra
-                            ? 'bg-rose-950/60 text-rose-300 border-rose-500/30'
-                            : 'bg-emerald-950/60 text-emerald-300 border-emerald-500/30'
-                        }`}
-                      >
-                        {isCompra ? 'Compra' : 'Venta'}
-                      </span>
-                    </td>
+                return (
+                  <React.Fragment key={op.id}>
+                    <tr
+                      onClick={() => onSelectOperation(op)}
+                      className={`transition-colors group cursor-pointer ${
+                        isHighlighted
+                          ? 'bg-emerald-500/15 hover:bg-emerald-500/20'
+                          : 'hover:bg-white/[0.04]'
+                      }`}
+                    >
+                      {/* Fecha */}
+                      <td className="py-2 px-2 font-mono text-zinc-300 whitespace-nowrap align-middle">
+                        {formatDateDisplay(op.fecha)}
+                      </td>
 
-                    {/* Producto */}
-                    <td className="py-2.5 px-2.5 font-semibold text-white max-w-[180px] break-words leading-tight">
-                      {op.producto}
-                    </td>
-
-                    {/* Unidades (replaces C. Oper.) */}
-                    <td className="py-2.5 px-2 text-center font-mono font-semibold text-zinc-200 whitespace-nowrap">
-                      {op.unidades || 1}
-                    </td>
-
-                    {/* Material */}
-                    <td className="py-2.5 px-2.5 text-zinc-400 max-w-[160px] break-words leading-tight">
-                      {op.material || '—'}
-                    </td>
-
-                    {/* Precio */}
-                    <td className="py-2.5 px-2.5 text-right font-mono font-medium text-zinc-100 whitespace-nowrap">
-                      {op.precio !== null ? formatEuro(op.precio) : '—'}
-                    </td>
-
-                    {/* Costes */}
-                    <td className="py-2.5 px-2.5 text-right font-mono text-zinc-400 whitespace-nowrap">
-                      {formatEuro(op.costes)}
-                    </td>
-
-                    {/* Beneficio */}
-                    <td className="py-2.5 px-2.5 text-right font-mono font-bold whitespace-nowrap">
-                      <span
-                        className={
-                          op.beneficio > 0
-                            ? 'text-emerald-400'
-                            : op.beneficio < 0
-                            ? 'text-rose-400'
-                            : 'text-zinc-400'
-                        }
-                      >
-                        {op.beneficio > 0 ? `+${formatEuro(op.beneficio)}` : formatEuro(op.beneficio)}
-                      </span>
-                    </td>
-
-                    {/* Lugar */}
-                    <td className="py-2.5 px-2.5 text-zinc-300 font-medium whitespace-nowrap">
-                      {op.lugarVenta}
-                    </td>
-
-                    {/* Estado (Sin emojis) */}
-                    <td className="py-2.5 px-2.5 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
-                      <StatusPill
-                        status={op.estado}
-                        onStatusChange={(newStatus) => onStatusChange(op.id, newStatus)}
-                      />
-                    </td>
-
-                    {/* Vendedor */}
-                    <td className="py-2.5 px-2.5 text-purple-300 font-medium whitespace-nowrap">
-                      {op.vendedor || '—'}
-                    </td>
-
-                    {/* Comentarios */}
-                    <td className="py-2.5 px-2.5 text-zinc-400 max-w-[140px] break-words leading-tight">
-                      {op.comentarios || '—'}
-                    </td>
-
-                    {/* Fecha Límite (al final de la tabla) */}
-                    <td className="py-2.5 px-2.5 font-mono whitespace-nowrap">
-                      {op.tipo === 'venta' && op.fechaLimite ? (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-300 border border-amber-500/20 text-[10px]">
-                          <Clock className="w-3 h-3" />
-                          {formatDateDisplay(op.fechaLimite)}
-                        </span>
-                      ) : (
-                        <span className="text-zinc-600">—</span>
-                      )}
-                    </td>
-
-                    {/* Foto / QR enlazado a este pedido */}
-                    <td className="py-2.5 px-2 text-center whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
-                      {op.fotoQr ? (
-                        <button
-                          type="button"
-                          onClick={() => setPreviewQrOp(op)}
-                          className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 text-[10px] font-semibold cursor-pointer transition-colors"
-                          title="Ver foto / código de barras / QR adjunto"
+                      {/* Casilla Venta / Compra */}
+                      <td className="py-2 px-1.5 whitespace-nowrap align-middle">
+                        <span
+                          className={`inline-block text-[10px] font-semibold px-1.5 py-0.5 rounded-md border ${
+                            isCompra
+                              ? 'bg-rose-950/60 text-rose-300 border-rose-500/30'
+                              : 'bg-emerald-950/60 text-emerald-300 border-emerald-500/30'
+                          }`}
                         >
-                          <QrCode className="w-3.5 h-3.5" />
-                          <span>Ver Foto</span>
-                        </button>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={(e) => handleTriggerPhotoUpload(op.id, e)}
-                          className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-zinc-200 border border-white/10 text-[10px] cursor-pointer transition-colors"
-                          title="Adjuntar foto o código de barras a este pedido"
-                        >
-                          <Upload className="w-3 h-3" />
-                          <span>Adjuntar</span>
-                        </button>
-                      )}
-                    </td>
-
-                    {/* Acciones */}
-                    <td className="py-2.5 px-2 text-center whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
-                      {isConfirmingDelete ? (
-                        <div className="inline-flex items-center gap-1 bg-rose-950/80 border border-rose-500/30 rounded-lg px-1.5 py-0.5">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              onDeleteOperation(op.id);
-                              setConfirmDeleteId(null);
-                            }}
-                            className="p-1 text-rose-300 hover:text-white cursor-pointer"
-                            title="Confirmar eliminación"
-                          >
-                            <Check className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setConfirmDeleteId(null)}
-                            className="p-1 text-zinc-400 hover:text-white cursor-pointer"
-                            title="Cancelar"
-                          >
-                            <X className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="inline-flex items-center gap-0.5">
-                          <button
-                            type="button"
-                            onClick={() => onSelectOperation(op)}
-                            className="p-1 rounded-lg text-zinc-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
-                            title="Editar operación"
-                          >
-                            <Edit3 className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => onDuplicateOperation(op.id)}
-                            className="p-1 rounded-lg text-zinc-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
-                            title="Duplicar operación"
-                          >
-                            <Copy className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setConfirmDeleteId(op.id)}
-                            className="p-1 rounded-lg text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 transition-colors cursor-pointer"
-                            title="Eliminar operación"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      )}
-                    </td>
-                  </tr>
-
-                  {/* Fila de Resumen Mensual automático al final de cada mes */}
-                  {monthSummary && (
-                    <tr className="bg-emerald-950/25 border-y border-emerald-500/30 text-[11px]">
-                      <td colSpan={3} className="py-2.5 px-2.5 font-bold text-emerald-300 uppercase tracking-wider">
-                        <div className="flex items-center gap-1.5">
-                          <Layers className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                          <span>Cierre Mensual: {monthSummary.monthLabel}</span>
-                        </div>
-                      </td>
-                      <td colSpan={2} className="py-2.5 px-2.5 text-zinc-300 font-mono">
-                        <span className="text-emerald-300 font-semibold">{monthSummary.numVentas}</span> ventas ·{' '}
-                        <span className="text-rose-300 font-semibold">{monthSummary.numPedidos}</span> pedidos
-                      </td>
-                      <td className="py-2.5 px-2.5 text-right font-mono font-bold text-white whitespace-nowrap">
-                        <span className="text-[9px] text-zinc-400 block uppercase">Bruto</span>
-                        {formatEuro(monthSummary.dineroBruto)}
-                      </td>
-                      <td className="py-2.5 px-2.5 text-right font-mono font-semibold text-rose-300 whitespace-nowrap">
-                        <span className="text-[9px] text-zinc-400 block uppercase">Gasto Compras</span>
-                        {formatEuro(monthSummary.dineroGastadoCompras)}
-                      </td>
-                      <td className="py-2.5 px-2.5 text-right font-mono font-extrabold whitespace-nowrap">
-                        <span className="text-[9px] text-zinc-400 block uppercase">Neto Mes</span>
-                        <span className={monthSummary.dineroNeto >= 0 ? 'text-emerald-400' : 'text-rose-400'}>
-                          {formatEuro(monthSummary.dineroNeto)}
+                          {isCompra ? 'Compra' : 'Venta'}
                         </span>
                       </td>
-                      <td colSpan={7} className="py-2.5 px-2.5 text-zinc-300 font-mono">
-                        Filamento consumido en {monthSummary.monthLabel}:{' '}
-                        <strong className="text-sky-300">{monthSummary.gramosConsumidos} g</strong>
+
+                      {/* Producto */}
+                      <td className="py-2 px-2 font-semibold text-white max-w-[165px] break-words leading-snug align-middle">
+                        {op.producto}
+                      </td>
+
+                      {/* Unidades (con ajuste rápido +/-) */}
+                      <td
+                        className="py-2 px-2 text-center whitespace-nowrap align-middle"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <div className="inline-flex items-center justify-center gap-1 bg-zinc-900/90 border border-white/10 rounded-lg px-1.5 py-0.5">
+                          {onUnitsChange && (
+                            <button
+                              type="button"
+                              onClick={() => onUnitsChange(op.id, Math.max(1, (op.unidades || 1) - 1))}
+                              className="text-zinc-400 hover:text-white p-0.5 cursor-pointer"
+                              title="Restar 1 unidad"
+                            >
+                              <Minus className="w-2.5 h-2.5" />
+                            </button>
+                          )}
+                          <span className="font-mono font-bold text-emerald-300 text-[11px] min-w-[24px] text-center">
+                            {op.unidades || 1} {(op.unidades || 1) === 1 ? 'ud.' : 'uds.'}
+                          </span>
+                          {onUnitsChange && (
+                            <button
+                              type="button"
+                              onClick={() => onUnitsChange(op.id, (op.unidades || 1) + 1)}
+                              className="text-zinc-400 hover:text-white p-0.5 cursor-pointer"
+                              title="Sumar 1 unidad"
+                            >
+                              <Plus className="w-2.5 h-2.5" />
+                            </button>
+                          )}
+                        </div>
+                      </td>
+
+                      {/* Material */}
+                      <td className="py-2 px-2 text-zinc-300 max-w-[140px] break-words leading-snug align-middle">
+                        {op.material || '—'}
+                      </td>
+
+                      {/* Precio */}
+                      <td className="py-2 px-2 text-right font-mono font-medium text-zinc-100 whitespace-nowrap align-middle">
+                        {op.precio !== null ? formatEuro(op.precio) : '—'}
+                      </td>
+
+                      {/* Costes */}
+                      <td className="py-2 px-2 text-right font-mono text-zinc-400 whitespace-nowrap align-middle">
+                        {formatEuro(op.costes)}
+                      </td>
+
+                      {/* Beneficio */}
+                      <td className="py-2 px-2 text-right font-mono font-bold whitespace-nowrap align-middle">
+                        <span
+                          className={
+                            op.beneficio > 0
+                              ? 'text-emerald-400'
+                              : op.beneficio < 0
+                              ? 'text-rose-400'
+                              : 'text-zinc-400'
+                          }
+                        >
+                          {op.beneficio > 0 ? `+${formatEuro(op.beneficio)}` : formatEuro(op.beneficio)}
+                        </span>
+                      </td>
+
+                      {/* Lugar */}
+                      <td className="py-2 px-2 text-zinc-200 font-medium whitespace-nowrap align-middle">
+                        {op.lugarVenta}
+                      </td>
+
+                      {/* Estado (Sin emojis, con Portal para no cortarse) */}
+                      <td className="py-2 px-2 whitespace-nowrap align-middle" onClick={(e) => e.stopPropagation()}>
+                        <StatusPill
+                          status={op.estado}
+                          onStatusChange={(newStatus) => onStatusChange(op.id, newStatus)}
+                        />
+                      </td>
+
+                      {/* Vendedor */}
+                      <td className="py-2 px-2 text-purple-300 font-medium whitespace-nowrap align-middle">
+                        {op.vendedor || '—'}
+                      </td>
+
+                      {/* Comentarios */}
+                      <td className="py-2 px-2 text-zinc-400 max-w-[125px] break-words leading-snug align-middle">
+                        {op.comentarios || '—'}
+                      </td>
+
+                      {/* Fecha límite */}
+                      <td className="py-2 px-2 font-mono whitespace-nowrap align-middle">
+                        {op.tipo === 'venta' && op.fechaLimite ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-300 border border-amber-500/30 text-[10px] font-semibold">
+                            <Clock className="w-3 h-3 shrink-0" />
+                            <span>{formatDateDisplay(op.fechaLimite)}</span>
+                          </span>
+                        ) : (
+                          <span className="text-zinc-600">—</span>
+                        )}
+                      </td>
+
+                      {/* Foto / QR enlazado a este pedido */}
+                      <td className="py-2 px-2 text-center whitespace-nowrap align-middle" onClick={(e) => e.stopPropagation()}>
+                        {op.fotoQr ? (
+                          <button
+                            type="button"
+                            onClick={() => setPreviewQrOp(op)}
+                            className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 text-[10px] font-semibold cursor-pointer transition-colors"
+                            title="Ver foto / código de barras / QR adjunto"
+                          >
+                            <QrCode className="w-3 h-3" />
+                            <span>Ver Foto</span>
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={(e) => handleTriggerPhotoUpload(op.id, e)}
+                            className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-zinc-300 hover:text-white border border-white/10 text-[10px] cursor-pointer transition-colors"
+                            title="Adjuntar foto o código de barras a este pedido"
+                          >
+                            <Upload className="w-3 h-3" />
+                            <span>Adjuntar</span>
+                          </button>
+                        )}
+                      </td>
+
+                      {/* Acciones */}
+                      <td className="py-2 px-2 text-center whitespace-nowrap align-middle" onClick={(e) => e.stopPropagation()}>
+                        {isConfirmingDelete ? (
+                          <div className="inline-flex items-center gap-1 bg-rose-950/80 border border-rose-500/30 rounded-lg px-1.5 py-0.5">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                onDeleteOperation(op.id);
+                                setConfirmDeleteId(null);
+                              }}
+                              className="p-1 text-rose-300 hover:text-white cursor-pointer"
+                              title="Confirmar eliminación"
+                            >
+                              <Check className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setConfirmDeleteId(null)}
+                              className="p-1 text-zinc-400 hover:text-white cursor-pointer"
+                              title="Cancelar"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="inline-flex items-center gap-0.5">
+                            <button
+                              type="button"
+                              onClick={() => onSelectOperation(op)}
+                              className="p-1 rounded-lg text-zinc-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                              title="Editar operación"
+                            >
+                              <Edit3 className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => onDuplicateOperation(op.id)}
+                              className="p-1 rounded-lg text-zinc-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                              title="Duplicar operación"
+                            >
+                              <Copy className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setConfirmDeleteId(op.id)}
+                              className="p-1 rounded-lg text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 transition-colors cursor-pointer"
+                              title="Eliminar operación"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        )}
                       </td>
                     </tr>
-                  )}
-                </React.Fragment>
-              );
-            })}
-          </tbody>
-        </table>
+
+                    {/* Fila de Resumen Mensual automático al final de cada mes */}
+                    {monthSummary && (
+                      <tr className="bg-emerald-950/30 border-y border-emerald-500/30 text-[11px]">
+                        <td colSpan={3} className="py-2 px-2 font-bold text-emerald-300 uppercase tracking-wider whitespace-nowrap">
+                          <div className="flex items-center gap-1.5">
+                            <Layers className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                            <span>Cierre Mensual: {monthSummary.monthLabel}</span>
+                          </div>
+                        </td>
+                        <td colSpan={2} className="py-2 px-2 text-zinc-300 font-mono whitespace-nowrap">
+                          <span className="text-emerald-300 font-semibold">{monthSummary.numVentas}</span> ventas ·{' '}
+                          <span className="text-rose-300 font-semibold">{monthSummary.numPedidos}</span> pedidos
+                        </td>
+                        <td className="py-2 px-2 text-right font-mono font-bold text-white whitespace-nowrap">
+                          <span className="text-[9px] text-zinc-400 block uppercase">Bruto</span>
+                          {formatEuro(monthSummary.dineroBruto)}
+                        </td>
+                        <td className="py-2 px-2 text-right font-mono font-semibold text-rose-300 whitespace-nowrap">
+                          <span className="text-[9px] text-zinc-400 block uppercase">Gasto Compras</span>
+                          {formatEuro(monthSummary.dineroGastadoCompras)}
+                        </td>
+                        <td className="py-2 px-2 text-right font-mono font-extrabold whitespace-nowrap">
+                          <span className="text-[9px] text-zinc-400 block uppercase">Neto Mes</span>
+                          <span className={monthSummary.dineroNeto >= 0 ? 'text-emerald-400' : 'text-rose-400'}>
+                            {formatEuro(monthSummary.dineroNeto)}
+                          </span>
+                        </td>
+                        <td colSpan={7} className="py-2 px-2 text-zinc-300 font-mono whitespace-nowrap">
+                          Filamento consumido en {monthSummary.monthLabel}:{' '}
+                          <strong className="text-sky-300">{monthSummary.gramosConsumidos} g</strong>
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* Modal Lightbox para ver / gestionar la Foto o Código QR enlazado al pedido */}

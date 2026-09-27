@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <radialGradient id="oledGlow" cx="50%" cy="50%" r="55%">
+      <stop offset="0%" stop-color="#10b981" stop-opacity="0.22" />
+      <stop offset="60%" stop-color="#059669" stop-opacity="0.06" />
+      <stop offset="100%" stop-color="#000000" stop-opacity="0" />
+    </radialGradient>
+    <linearGradient id="fFront" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#6ee7b7" />
+      <stop offset="45%" stop-color="#10b981" />
+      <stop offset="100%" stop-color="#047857" />
+    </linearGradient>
+    <linearGradient id="fSide" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#059669" />
+      <stop offset="100%" stop-color="#064e3b" />
+    </linearGradient>
+    <filter id="neonShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="0" stdDeviation="14" flood-color="#10b981" flood-opacity="0.55" />
+    </filter>
+  </defs>
+
+  <!-- Pure OLED Black Background -->
+  <rect width="512" height="512" rx="112" fill="#000000" />
+  <rect x="6" y="6" width="500" height="500" rx="106" fill="none" stroke="#ffffff" stroke-opacity="0.08" stroke-width="4" />
+
+  <!-- Subtle Ambient Glow -->
+  <circle cx="256" cy="256" r="220" fill="url(#oledGlow)" />
+
+  <!-- 3D Extrusion Depth Layer -->
+  <g transform="translate(18, 16)">
+    <path
+      d="M152 108 H376 L354 172 H224 V232 H336 L316 292 H224 V408 H152 Z"
+      fill="url(#fSide)"
+      opacity="0.85"
+    />
+  </g>
+
+  <!-- Main Geometric 3D 'F' Formare 3D Logo -->
+  <g filter="url(#neonShadow)">
+    <path
+      d="M152 108 H376 L354 172 H224 V232 H336 L316 292 H224 V408 H152 Z"
+      fill="url(#fFront)"
+      stroke="#a7f3d0"
+      stroke-width="3"
+      stroke-linejoin="round"
+    />
+    <!-- 3D Facet Highlights -->
+    <polygon points="376,108 394,124 372,188 354,172" fill="#065f46" />
+    <polygon points="336,232 354,248 334,308 316,292" fill="#065f46" />
+    <polygon points="224,292 242,308 242,424 224,408" fill="#064e3b" />
+  </g>
+</svg>
