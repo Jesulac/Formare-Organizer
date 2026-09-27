@@ -23,6 +23,11 @@ export type Status =
 
 export type ShippingCompany = 'Correos' | 'InPost' | 'Seur' | 'Vinted Go' | 'Otro';
 
+export interface MaterialItem {
+  material: string;
+  gramos?: number; // Grams per unit of product
+}
+
 export interface Operation {
   id: string;
   fecha: string; // ISO format YYYY-MM-DD or DD/MM/YYYY
@@ -30,6 +35,7 @@ export interface Operation {
   unidades: number; // Default 1, multiplies unit cost
   costeUnitario?: number; // Base filament cost per 1 unit
   material?: string;
+  materialesDetalle?: MaterialItem[]; // Multi-material breakdown with filament and grams
   precio: number | null; // Gross sales revenue in EUR
   costes: number; // Total filament or purchase cost in EUR
   costesOperativos: number; // Legacy field kept for compatibility (0)
@@ -41,7 +47,7 @@ export interface Operation {
   tipo: OperationType;
   fechaLimite?: string; // Auto-calculated shipping deadline for sales, empty for purchases
   fotoQr?: string; // Base64 image attached to this order (QR / barcode / photo)
-  empresaEnvio?: ShippingCompany; // Correos, InPost, Seur, Otro
+  empresaEnvio?: ShippingCompany; // Correos, InPost, Seur, Vinted Go, Otro
   fechaSubidaQr?: number; // Timestamp in ms when QR was uploaded (auto-deletes after 10 days)
   esPedidoFilamento?: boolean; // True if purchase is a 1000g filament spool order
   createdAt: number;
@@ -51,6 +57,7 @@ export interface ProductCatalogItem {
   producto: string;
   costeUnitario: number;
   material: string;
+  materialesDetalle?: MaterialItem[];
 }
 
 export interface FilamentSpool {

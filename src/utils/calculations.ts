@@ -1,4 +1,4 @@
-import { OperationType, Platform, Status } from '../types/operation';
+import { MaterialItem, Operation, OperationType, Platform, Status } from '../types/operation';
 
 /**
  * Format number to Euro currency string (e.g., 12.5 -> "12,50 €")
@@ -29,7 +29,7 @@ export function parseEuro(input: string | number | null | undefined): number {
  * Normalize status string by removing emojis or legacy characters
  */
 export function normalizeStatus(rawStatus: string | undefined | null): Status {
-  if (!rawStatus) return 'Cobrado';
+  if (!rawStatus) return 'En producción';
   const cleaned = rawStatus
     .replace(/[✅⭕📦\u200B-\u200D\uFEFF]/g, '')
     .trim()
@@ -167,6 +167,132 @@ export function calculateFilamentGrams(
   const cost = Math.abs(costeGastadoEnVenta || 0);
   const spoolPrice = precioBobina1000g > 0 ? precioBobina1000g : 15.99;
   return Math.round((cost * 1000) / spoolPrice);
+}
+
+/**
+ * Parse a single material chunk like "PETG Negro (Elegoo) (120g)" or "PLA Rojo 45g"
+ * into { material, gramos }
+ */
+export function parseSingleMaterialChunk(chunk: string): MaterialItem {
+  const trimmed = chunk.trim();
+  if (!trimmed) return { material: '' };
+
+  // Match trailing "(120g)" or "(120 g)" or "- 120g" or "120g"
+  const parenMatch = trimmed.match(/^(.*?)\s*\(\s*(\d+(?:[.,]\d+)?)\s*g(?:ramos?)?\s*\)\s*$/i);
+  if (parenMatch && parenMatch[1].trim()) {
+    const g = parseFloat(parenMatch[2].replace(',', '.'));
+    return {
+      material: parenMatch[1].trim(),
+      gramos: !isNaN(g) && g > 0 ? Math.round(g) : undefined,
+    };
+  }
+
+  const suffixMatch = trimmed.match(/^(.*?)(?:\s*[-:]\s*|\s+)(\d+(?:[.,]\d+)?)\s*g(?:ramos?)?\s*$/i);
+  if (suffixMatch && suffixMatch[1].trim() && !/\b(1000)\b/.test(suffixMatch[2])) {
+    const g = parseFloat(suffixMatch[2].replace(',', '.'));
+    return {
+      material: suffixMatch[1].trim(),
+      gramos: !isNaN(g) && g > 0 ? Math.round(g) : undefined,
+    };
+  }
+
+  return { material: trimmed };
+}
+
+/**
+ * Parse raw material string and/or structured materialesDetalle into MaterialItem[]
+ */
+export function parseMaterialItems(
+  rawMaterial?: string,
+  existingDetalle?: MaterialItem[]
+): MaterialItem[] {
+  if (Array.isArray(existingDetalle) && existingDetalle.length > 0) {
+    const cleaned = existingDetalle
+      .map((item) => ({
+        material: (item.material || '').trim(),
+        gramos:
+          typeof item.gramos === 'number' && !isNaN(item.gramos) && item.gramos > 0
+            ? Math.round(item.gramos)
+            : undefined,
+      }))
+      .filter((item) => item.material.length > 0);
+    if (cleaned.length > 0) return cleaned;
+  }
+
+  const str = (rawMaterial || '').trim();
+  if (!str) return [];
+
+  // Split by "+" or " y " (avoid splitting inside parentheses like "(Bambu / Elegoo)" or "(Elegoo / i3D)")
+  const parts = str
+    .split(/\s*\+\s*|\s+y\s+/i)
+    .map((p) => p.trim())
+    .filter(Boolean);
+
+  if (parts.length <= 1) {
+    return [parseSingleMaterialChunk(str)];
+  }
+
+  return parts.map(parseSingleMaterialChunk).filter((item) => item.material.length > 0);
+}
+
+/**
+ * Format MaterialItem[] into display string for Operation.material
+ * - If 1 item without grams -> "PETG Negro (Elegoo)"
+ * - If multiple items (or with grams) -> "PETG Negro (Elegoo) (120g) + PLA Rojo (Elegoo) (45g)"
+ */
+export function formatMaterialItems(items: MaterialItem[], includeGramsWhenSingle = false): string {
+  const valid = items
+    .map((i) => ({
+      material: (i.material || '').trim(),
+      gramos: typeof i.gramos === 'number' && i.gramos > 0 ? Math.round(i.gramos) : undefined,
+    }))
+    .filter((i) => i.material.length > 0);
+
+  if (valid.length === 0) return '';
+  if (valid.length === 1 && !includeGramsWhenSingle) {
+    return valid[0].material;
+  }
+
+  return valid
+    .map((i) => (i.gramos && i.gramos > 0 ? `${i.material} (${i.gramos}g)` : i.material))
+    .join(' + ');
+}
+
+/**
+ * Calculate total filament grams consumed by a sale operation (respects multi-material explicit grams if present)
+ */
+export function getOperationConsumedGrams(
+  op: Pick<Operation, 'tipo' | 'costes' | 'unidades' | 'material' | 'materialesDetalle'>,
+  defaultSpoolPrice: number = 15.99
+): number {
+  if (op.tipo !== 'venta') return 0;
+  const items = parseMaterialItems(op.material, op.materialesDetalle).filter(
+    (item) =>
+      item.material &&
+      !item.material.toLowerCase().includes('tornillo') &&
+      !item.material.toLowerCase().includes('tuerca')
+  );
+
+  const uds = op.unidades && op.unidades > 0 ? op.unidades : 1;
+  const hasExplicitGrams = items.some((i) => i.gramos && i.gramos > 0);
+
+  if (hasExplicitGrams) {
+    const itemsWithoutGrams = items.filter((i) => !i.gramos || i.gramos <= 0);
+    let totalGrams = 0;
+    items.forEach((i) => {
+      if (i.gramos && i.gramos > 0) {
+        totalGrams += Math.round(i.gramos * uds);
+      }
+    });
+    if (itemsWithoutGrams.length > 0 && op.costes && op.costes > 0) {
+      const shareCost = Math.abs(op.costes) / items.length;
+      totalGrams +=
+        itemsWithoutGrams.length * calculateFilamentGrams(shareCost, defaultSpoolPrice);
+    }
+    return Math.round(totalGrams);
+  }
+
+  return calculateFilamentGrams(Math.abs(op.costes || 0), defaultSpoolPrice);
 }
 
 /**

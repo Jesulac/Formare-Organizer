@@ -14,7 +14,10 @@ import {
   Upload,
   Hash,
   Sparkles,
-  Loader2
+  Loader2,
+  Plus,
+  ChevronDown,
+  Scale
 } from 'lucide-react';
 import { 
   Operation, 
@@ -22,7 +25,9 @@ import {
   Platform, 
   Status,
   ProductCatalogItem,
-  ShippingCompany
+  ShippingCompany,
+  FilamentSpool,
+  MaterialItem
 } from '../types/operation';
 import { 
   calculateBeneficio, 
@@ -31,9 +36,12 @@ import {
   formatDateDisplay,
   formatDateInput, 
   formatEuro, 
+  formatMaterialItems,
   normalizeStatus,
-  parseEuro 
+  parseEuro,
+  parseMaterialItems
 } from '../utils/calculations';
+import { normalizeFilamentKey } from '../hooks/useOperations';
 import { parseVoiceOperationSmartFallback } from '../utils/voiceParser';
 
 interface OperationModalProps {
@@ -46,6 +54,26 @@ interface OperationModalProps {
   operationToEdit?: Operation | null;
   initialData?: Partial<Operation>;
   productCatalog: ProductCatalogItem[];
+  filamentStock?: FilamentSpool[];
+}
+
+interface MaterialDraftRow {
+  material: string;
+  gramos: string;
+}
+
+function buildInitialMaterialRows(
+  rawMaterial?: string,
+  existingDetalle?: MaterialItem[]
+): MaterialDraftRow[] {
+  const parsed = parseMaterialItems(rawMaterial, existingDetalle);
+  if (parsed.length === 0) {
+    return [{ material: '', gramos: '' }];
+  }
+  return parsed.map((item) => ({
+    material: item.material || '',
+    gramos: item.gramos && item.gramos > 0 ? String(item.gramos) : '',
+  }));
 }
 
 const platformsList: Platform[] = [
@@ -61,10 +89,10 @@ const platformsList: Platform[] = [
 ];
 
 const statusesList: Status[] = [
+  'En producción',
   'Cobrado',
   'Pagado',
   'Pendiente de pago',
-  'En producción',
   'Pendiente de cobro',
   'Enviado',
   'Cancelado',
@@ -85,6 +113,7 @@ export const OperationModal: React.FC<OperationModalProps> = ({
   operationToEdit,
   initialData,
   productCatalog,
+  filamentStock = [],
 }) => {
   const isEditing = Boolean(operationToEdit);
 
@@ -95,10 +124,14 @@ export const OperationModal: React.FC<OperationModalProps> = ({
   const [fecha, setFecha] = useState(formatDateInput(new Date().toISOString()));
   const [fechaLimiteCustom, setFechaLimiteCustom] = useState<string>('');
   const [material, setMaterial] = useState('');
+  const [materialRows, setMaterialRows] = useState<MaterialDraftRow[]>([
+    { material: '', gramos: '' },
+  ]);
   const [precioStr, setPrecioStr] = useState('');
   const [costesStr, setCostesStr] = useState('');
+  const [otrosCostesStr, setOtrosCostesStr] = useState('');
   const [lugarVenta, setLugarVenta] = useState<Platform>('Wallapop');
-  const [estado, setEstado] = useState<Status>('Cobrado');
+  const [estado, setEstado] = useState<Status>('En producción');
   const [vendedorSelect, setVendedorSelect] = useState<string>('Jorge');
   const [vendedorCustom, setVendedorCustom] = useState<string>('');
   const [comentarios, setComentarios] = useState('');
@@ -129,9 +162,17 @@ export const OperationModal: React.FC<OperationModalProps> = ({
       setProducto(operationToEdit.producto || '');
       const uds = operationToEdit.unidades && operationToEdit.unidades > 0 ? operationToEdit.unidades : 1;
       setUnidades(uds);
+      const savedOtros =
+        typeof operationToEdit.costesOperativos === 'number' && operationToEdit.costesOperativos > 0
+          ? operationToEdit.costesOperativos
+          : 0;
+      const baseCostTotal = Math.max(
+        0,
+        Number(((operationToEdit.costes || 0) - savedOtros).toFixed(2))
+      );
       setCosteUnitario(
         operationToEdit.costeUnitario ??
-          (operationToEdit.costes ? Number((operationToEdit.costes / uds).toFixed(2)) : undefined)
+          (baseCostTotal > 0 ? Number((baseCostTotal / uds).toFixed(2)) : undefined)
       );
       setFecha(editFecha);
       setFechaLimiteCustom(
@@ -140,8 +181,12 @@ export const OperationModal: React.FC<OperationModalProps> = ({
           : ''
       );
       setMaterial(operationToEdit.material || '');
+      setMaterialRows(
+        buildInitialMaterialRows(operationToEdit.material, operationToEdit.materialesDetalle)
+      );
       setPrecioStr(operationToEdit.precio !== null ? String(operationToEdit.precio) : '');
-      setCostesStr(operationToEdit.costes ? String(operationToEdit.costes) : '');
+      setCostesStr(baseCostTotal > 0 ? String(baseCostTotal) : operationToEdit.costes && savedOtros === 0 ? String(operationToEdit.costes) : '');
+      setOtrosCostesStr(savedOtros > 0 ? String(savedOtros) : '');
       setLugarVenta(editLugar);
       setEstado(normalizeStatus(operationToEdit.estado));
 
@@ -174,10 +219,14 @@ export const OperationModal: React.FC<OperationModalProps> = ({
           : ''
       );
       setMaterial(initialData.material || '');
+      setMaterialRows(
+        buildInitialMaterialRows(initialData.material, initialData.materialesDetalle)
+      );
       setPrecioStr(initialData.precio !== null && initialData.precio !== undefined ? String(initialData.precio) : '');
       setCostesStr(initialData.costes ? String(initialData.costes) : '');
+      setOtrosCostesStr(initialData.costesOperativos ? String(initialData.costesOperativos) : '');
       setLugarVenta(initLugar);
-      setEstado(normalizeStatus(initialData.estado || 'Cobrado'));
+      setEstado(normalizeStatus(initialData.estado || 'En producción'));
       setVendedorSelect('Jorge');
       setVendedorCustom('');
       setComentarios(initialData.comentarios || '');
@@ -192,10 +241,12 @@ export const OperationModal: React.FC<OperationModalProps> = ({
       setFecha(defaultToday);
       setFechaLimiteCustom(calculateDeadlineDate(defaultToday, 'Wallapop', 'venta'));
       setMaterial('');
+      setMaterialRows([{ material: '', gramos: '' }]);
       setPrecioStr('');
       setCostesStr('');
+      setOtrosCostesStr('');
       setLugarVenta('Wallapop');
-      setEstado('Cobrado');
+      setEstado('En producción');
       setVendedorSelect('Jorge');
       setVendedorCustom('');
       setComentarios('');
@@ -208,7 +259,9 @@ export const OperationModal: React.FC<OperationModalProps> = ({
   if (!isOpen) return null;
 
   const precioNum = precioStr !== '' ? parseEuro(precioStr) : null;
-  const costesNum = parseEuro(costesStr);
+  const costesBaseNum = parseEuro(costesStr);
+  const otrosCostesNum = parseEuro(otrosCostesStr);
+  const costesNum = Number((costesBaseNum + otrosCostesNum).toFixed(2));
   const autoFechaLimite = calculateDeadlineDate(fecha, lugarVenta, tipo);
   const effectiveFechaLimite = tipo === 'venta' ? (fechaLimiteCustom || autoFechaLimite) : '';
   const previewBeneficio = calculateBeneficio(precioNum, costesNum, 0, tipo);
@@ -254,9 +307,17 @@ export const OperationModal: React.FC<OperationModalProps> = ({
     );
 
     if (data.material && typeof data.material === 'string' && data.material.trim()) {
-      setMaterial(data.material.trim());
+      const aiMat = data.material.trim();
+      setMaterial(aiMat);
+      setMaterialRows(buildInitialMaterialRows(aiMat));
     } else if (matchedCatalogItem?.material) {
       setMaterial(matchedCatalogItem.material);
+      setMaterialRows(
+        buildInitialMaterialRows(
+          matchedCatalogItem.material,
+          matchedCatalogItem.materialesDetalle
+        )
+      );
     }
 
     if (aiTipo === 'venta') {
@@ -279,7 +340,7 @@ export const OperationModal: React.FC<OperationModalProps> = ({
     if (data.estado) {
       setEstado(normalizeStatus(data.estado));
     } else {
-      setEstado(aiTipo === 'venta' ? 'Cobrado' : 'Pagado');
+      setEstado(aiTipo === 'venta' ? 'En producción' : 'Pagado');
     }
 
     if (data.vendedor && typeof data.vendedor === 'string') {
@@ -359,6 +420,91 @@ export const OperationModal: React.FC<OperationModalProps> = ({
     }
   };
 
+  // Helper to get spool price per 1000g for any filament name
+  const getSpoolPriceForMaterial = (matName: string): number => {
+    if (!matName.trim()) return 15.99;
+    const normalized = normalizeFilamentKey(matName);
+    const matched =
+      filamentStock.find((s) => s.nombre.toLowerCase() === matName.trim().toLowerCase()) ||
+      filamentStock.find((s) => s.nombre.toLowerCase() === normalized.toLowerCase());
+    return matched ? matched.precioBobina : 15.99;
+  };
+
+  // Sync materialRows changes to `material` string and auto-calculate filament cost when grams are provided
+  const updateMaterialRowsAndSync = (
+    nextRows: MaterialDraftRow[],
+    currentUnidades: number = unidades
+  ) => {
+    setMaterialRows(nextRows);
+
+    const isMulti = nextRows.length > 1 || Boolean(nextRows[0]?.gramos?.trim());
+    const structuredItems: MaterialItem[] = nextRows
+      .map((r) => {
+        const g = parseFloat((r.gramos || '').replace(',', '.'));
+        return {
+          material: r.material.trim(),
+          gramos: isMulti && !isNaN(g) && g > 0 ? Math.round(g) : undefined,
+        };
+      })
+      .filter((i) => i.material.length > 0);
+
+    const formattedStr = formatMaterialItems(structuredItems, isMulti);
+    setMaterial(formattedStr);
+
+    // If in multi-material/grams mode and at least one row has positive grams, auto-calculate unit and total filament cost
+    if (isMulti && tipo === 'venta') {
+      let totalGramsPerUnit = 0;
+      let calculatedUnitCost = 0;
+
+      nextRows.forEach((r) => {
+        const g = parseFloat((r.gramos || '').replace(',', '.'));
+        if (!isNaN(g) && g > 0) {
+          totalGramsPerUnit += g;
+          const spoolPrice = getSpoolPriceForMaterial(r.material);
+          calculatedUnitCost += (g * spoolPrice) / 1000;
+        }
+      });
+
+      if (totalGramsPerUnit > 0) {
+        const roundedUnitCost = Number(calculatedUnitCost.toFixed(2));
+        const totalCost = Number((roundedUnitCost * (currentUnidades || 1)).toFixed(2));
+        setCosteUnitario(roundedUnitCost);
+        setCostesStr(String(totalCost));
+      }
+    }
+  };
+
+  const handleAddMaterialRow = () => {
+    const nextRows = [...materialRows, { material: '', gramos: '' }];
+    updateMaterialRowsAndSync(nextRows);
+  };
+
+  const handleRemoveMaterialRow = (idxToRemove: number) => {
+    if (materialRows.length <= 1) {
+      updateMaterialRowsAndSync([{ material: '', gramos: '' }]);
+      return;
+    }
+    const filtered = materialRows.filter((_, idx) => idx !== idxToRemove);
+    // If only 1 row remains after deleting, clear its grams so it returns to single-material mode without grams
+    if (filtered.length === 1) {
+      const singleRow = [{ material: filtered[0].material, gramos: '' }];
+      updateMaterialRowsAndSync(singleRow);
+    } else {
+      updateMaterialRowsAndSync(filtered);
+    }
+  };
+
+  const handleChangeMaterialRow = (
+    idx: number,
+    field: 'material' | 'gramos',
+    value: string
+  ) => {
+    const nextRows = materialRows.map((row, i) =>
+      i === idx ? { ...row, [field]: value } : row
+    );
+    updateMaterialRowsAndSync(nextRows);
+  };
+
   // Handle selecting an existing product from catalog
   const handleSelectCatalogProduct = (selectedName: string) => {
     if (!selectedName) return;
@@ -370,8 +516,11 @@ export const OperationModal: React.FC<OperationModalProps> = ({
       setCosteUnitario(found.costeUnitario);
       const totalCost = Number((found.costeUnitario * (unidades || 1)).toFixed(2));
       setCostesStr(String(totalCost));
-      if (found.material) {
-        setMaterial(found.material);
+      if (found.material || found.materialesDetalle) {
+        setMaterial(found.material || '');
+        setMaterialRows(
+          buildInitialMaterialRows(found.material, found.materialesDetalle)
+        );
       }
     }
   };
@@ -414,8 +563,23 @@ export const OperationModal: React.FC<OperationModalProps> = ({
       costeUnitario !== undefined
         ? costeUnitario
         : unidades > 0
-        ? Number((costesNum / unidades).toFixed(2))
-        : costesNum;
+        ? Number((costesBaseNum / unidades).toFixed(2))
+        : costesBaseNum;
+
+    const isMulti = materialRows.length > 1 || Boolean(materialRows[0]?.gramos?.trim());
+    const validDetalle: MaterialItem[] = materialRows
+      .map((r) => {
+        const g = parseFloat((r.gramos || '').replace(',', '.'));
+        return {
+          material: r.material.trim(),
+          gramos: isMulti && !isNaN(g) && g > 0 ? Math.round(g) : undefined,
+        };
+      })
+      .filter((i) => i.material.length > 0);
+
+    const finalMaterialStr = isMulti
+      ? formatMaterialItems(validDetalle, true)
+      : (materialRows[0]?.material || material).trim();
 
     const payload: Omit<Operation, 'id' | 'createdAt' | 'beneficio'> = {
       tipo,
@@ -423,10 +587,11 @@ export const OperationModal: React.FC<OperationModalProps> = ({
       unidades: unidades || 1,
       costeUnitario: unitCostFinal,
       fecha,
-      material: material.trim() || undefined,
+      material: finalMaterialStr || undefined,
+      materialesDetalle: isMulti && validDetalle.length > 0 ? validDetalle : undefined,
       precio: tipo === 'compra' || tipo === 'inversion' ? null : precioNum,
       costes: costesNum,
-      costesOperativos: 0,
+      costesOperativos: otrosCostesNum,
       lugarVenta,
       estado,
       vendedor: finalVendedor,
@@ -439,7 +604,7 @@ export const OperationModal: React.FC<OperationModalProps> = ({
         tipo === 'compra' &&
         (esPedidoFilamento ||
           producto.toLowerCase().includes('filamento') ||
-          /(pla|petg|asa|tpu)/i.test(material)),
+          /(pla|petg|asa|tpu)/i.test(finalMaterialStr)),
     };
 
     if (isEditing && operationToEdit && onUpdate) {
@@ -450,6 +615,14 @@ export const OperationModal: React.FC<OperationModalProps> = ({
 
     onClose();
   };
+
+  const isMultiMaterialMode =
+    materialRows.length > 1 || Boolean(materialRows[0]?.gramos?.trim());
+
+  const totalMultiGramsPerUnit = materialRows.reduce((acc, r) => {
+    const g = parseFloat((r.gramos || '').replace(',', '.'));
+    return acc + (!isNaN(g) && g > 0 ? Math.round(g) : 0);
+  }, 0);
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
@@ -634,7 +807,7 @@ export const OperationModal: React.FC<OperationModalProps> = ({
                       setLugarVenta('Internet');
                       setFechaLimiteCustom('');
                     } else if (newTipo === 'venta') {
-                      setEstado('Cobrado');
+                      setEstado('En producción');
                       setLugarVenta('Wallapop');
                       setFechaLimiteCustom(calculateDeadlineDate(fecha, 'Wallapop', 'venta'));
                     }
@@ -778,23 +951,221 @@ export const OperationModal: React.FC<OperationModalProps> = ({
             </label>
           )}
 
-          {/* Material empleado */}
-          <div>
-            <label className="block text-zinc-300 font-medium mb-1 flex items-center gap-1">
-              <Boxes className="w-3.5 h-3.5 text-zinc-400" />
-              Material
-            </label>
-            <input
-              type="text"
-              value={material}
-              onChange={(e) => setMaterial(e.target.value)}
-              placeholder="Ej: PETG negro (Elegoo), ASA negro (Winkle), PLA negro..."
-              className="w-full bg-zinc-900/90 border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-emerald-500/50"
-            />
+          {/* Material / Filamento (1 material sin gramos por defecto, al pulsar + se convierte en lista de Filamento + Gramos) */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <label className="text-zinc-300 font-medium flex items-center gap-1.5">
+                <Boxes className="w-3.5 h-3.5 text-emerald-400" />
+                <span>
+                  {isMultiMaterialMode
+                    ? 'Lista de Materiales (Filamento y Gramos)'
+                    : 'Material / Filamento'}
+                </span>
+              </label>
+
+              <button
+                type="button"
+                onClick={handleAddMaterialRow}
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/35 text-[11px] font-semibold transition-all active:scale-95 cursor-pointer"
+                title="Añadir más filamento y especificar gramos"
+              >
+                <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+                <span>{isMultiMaterialMode ? 'Añadir otro filamento' : 'Añadir material (+)'}</span>
+              </button>
+            </div>
+
+            {/* Datalist of stock filaments for autocomplete */}
+            <datalist id="stock-filaments-datalist">
+              {filamentStock.map((spool) => (
+                <option key={spool.nombre} value={spool.nombre}>
+                  {formatEuro(spool.precioBobina)} / kg · {spool.gramosRestantes}g disp.
+                </option>
+              ))}
+            </datalist>
+
+            {!isMultiMaterialMode ? (
+              /* MODO 1 SOLO MATERIAL: Sin casilla de gramos, con selector rápido + botón + */
+              <div className="flex items-center gap-2">
+                <div className="relative flex-1 min-w-0 flex items-center">
+                  <input
+                    type="text"
+                    list="stock-filaments-datalist"
+                    value={materialRows[0]?.material || ''}
+                    onChange={(e) => handleChangeMaterialRow(0, 'material', e.target.value)}
+                    placeholder="Ej: PETG Negro (Elegoo), ASA Negro (Winkle)..."
+                    className="w-full bg-zinc-900/90 border border-white/10 rounded-xl pl-3 pr-9 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-emerald-500/50"
+                  />
+                  {filamentStock.length > 0 && (
+                    <div
+                      className="absolute right-1.5 inset-y-1 w-7 flex items-center justify-center rounded-lg bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white cursor-pointer"
+                      title="Elegir filamento del stock"
+                    >
+                      <ChevronDown className="w-3.5 h-3.5 pointer-events-none" />
+                      <select
+                        value=""
+                        onChange={(e) => {
+                          if (e.target.value) {
+                            handleChangeMaterialRow(0, 'material', e.target.value);
+                          }
+                        }}
+                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                        aria-label="Seleccionar filamento del stock"
+                      >
+                        <option value="">Seleccionar filamento del stock...</option>
+                        {filamentStock.map((spool) => (
+                          <option key={spool.nombre} value={spool.nombre}>
+                            {spool.nombre} ({spool.gramosRestantes}g disp.)
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleAddMaterialRow}
+                  className="h-[36px] w-[36px] rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black flex items-center justify-center shadow-md shadow-emerald-500/20 active:scale-95 transition-all cursor-pointer shrink-0"
+                  title="Añadir otro filamento con gramos"
+                >
+                  <Plus className="w-4 h-4 stroke-[2.8]" />
+                </button>
+              </div>
+            ) : (
+              /* MODO LISTA MULTIMATERIAL: Cada fila tiene Filamento + Gramos + botón borrar y se puede seguir dando a + */
+              <div className="p-3 rounded-2xl bg-zinc-900/70 border border-emerald-500/30 space-y-2.5">
+                <div className="grid grid-cols-12 gap-2 text-[10px] font-bold uppercase tracking-wider text-zinc-400 px-1">
+                  <div className="col-span-7">Filamento</div>
+                  <div className="col-span-4">Gramos (g)</div>
+                  <div className="col-span-1 text-right"></div>
+                </div>
+
+                <div className="space-y-2">
+                  {materialRows.map((row, idx) => {
+                    const rowGrams = parseFloat((row.gramos || '').replace(',', '.'));
+                    const validRowGrams = !isNaN(rowGrams) && rowGrams > 0 ? rowGrams : 0;
+                    const rowSpoolPrice = getSpoolPriceForMaterial(row.material);
+                    const rowCost = (validRowGrams * rowSpoolPrice) / 1000;
+
+                    return (
+                      <div key={idx} className="space-y-1">
+                        <div className="grid grid-cols-12 gap-2 items-center">
+                          {/* Filamento input + quick dropdown */}
+                          <div className="col-span-7 relative flex items-center min-w-0">
+                            <input
+                              type="text"
+                              list="stock-filaments-datalist"
+                              value={row.material}
+                              onChange={(e) =>
+                                handleChangeMaterialRow(idx, 'material', e.target.value)
+                              }
+                              placeholder={`Filamento ${idx + 1}...`}
+                              className="w-full bg-black/80 border border-white/15 rounded-xl pl-2.5 pr-8 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-emerald-500"
+                            />
+                            {filamentStock.length > 0 && (
+                              <div
+                                className="absolute right-1 inset-y-1 w-6 flex items-center justify-center rounded-lg bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white cursor-pointer"
+                                title="Seleccionar filamento del stock"
+                              >
+                                <ChevronDown className="w-3.5 h-3.5 pointer-events-none" />
+                                <select
+                                  value=""
+                                  onChange={(e) => {
+                                    if (e.target.value) {
+                                      handleChangeMaterialRow(idx, 'material', e.target.value);
+                                    }
+                                  }}
+                                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                  aria-label={`Seleccionar filamento ${idx + 1}`}
+                                >
+                                  <option value="">Elegir del stock...</option>
+                                  {filamentStock.map((spool) => (
+                                    <option key={spool.nombre} value={spool.nombre}>
+                                      {spool.nombre} ({formatEuro(spool.precioBobina)}/kg)
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Gramos input */}
+                          <div className="col-span-4 relative flex items-center min-w-0">
+                            <input
+                              type="number"
+                              min="0"
+                              step="1"
+                              value={row.gramos}
+                              onChange={(e) =>
+                                handleChangeMaterialRow(idx, 'gramos', e.target.value)
+                              }
+                              placeholder="0"
+                              className="w-full bg-black/80 border border-white/15 rounded-xl pl-2.5 pr-6 py-2 text-xs text-emerald-300 font-mono font-bold placeholder-zinc-600 focus:outline-none focus:border-emerald-500"
+                            />
+                            <span className="absolute right-2 text-[11px] font-mono text-zinc-400 pointer-events-none">
+                              g
+                            </span>
+                          </div>
+
+                          {/* Delete row button */}
+                          <div className="col-span-1 flex justify-end">
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveMaterialRow(idx)}
+                              className="p-1.5 rounded-xl bg-rose-500/15 hover:bg-rose-500/30 text-rose-300 transition-colors cursor-pointer"
+                              title={
+                                materialRows.length <= 2
+                                  ? 'Quitar y volver a 1 material sin gramos'
+                                  : 'Quitar este filamento'
+                              }
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+
+                        {row.material.trim() && validRowGrams > 0 && (
+                          <div className="flex items-center justify-between px-2 text-[10px] font-mono text-zinc-400">
+                            <span>
+                              {normalizeFilamentKey(row.material)} ({formatEuro(rowSpoolPrice)}/kg)
+                            </span>
+                            <span className="text-sky-300">
+                              {Math.round(validRowGrams)}g = {formatEuro(rowCost)} / ud.
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Footer inside multi-material list: + button & live summary */}
+                <div className="pt-2 border-t border-white/10 flex flex-wrap items-center justify-between gap-2">
+                  <button
+                    type="button"
+                    onClick={handleAddMaterialRow}
+                    className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-bold text-[11px] shadow-sm active:scale-95 transition-all cursor-pointer"
+                  >
+                    <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+                    <span>Añadir más filamento</span>
+                  </button>
+
+                  {totalMultiGramsPerUnit > 0 && (
+                    <div className="text-[11px] font-mono text-emerald-300 flex items-center gap-1.5">
+                      <Scale className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                      <span>
+                        Total: <strong>{totalMultiGramsPerUnit} g</strong>
+                        {unidades > 1 ? ` × ${unidades} uds = ${totalMultiGramsPerUnit * unidades} g` : ''}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
 
-          {/* Financials Row: Precio, Costes, Nº Unidades */}
-          <div className="grid grid-cols-3 gap-2.5 pt-0.5">
+          {/* Financials Row: Precio, Costes, Otros Costes, Nº Unidades */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-0.5">
             {/* Precio */}
             <div>
               <label className="block text-zinc-300 font-medium mb-1">
@@ -832,6 +1203,21 @@ export const OperationModal: React.FC<OperationModalProps> = ({
               />
             </div>
 
+            {/* Otros costes (se suman a Costes) */}
+            <div>
+              <label className="block text-zinc-300 font-medium mb-1">
+                Otros costes (€)
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                value={otrosCostesStr}
+                onChange={(e) => setOtrosCostesStr(e.target.value)}
+                placeholder="0.00"
+                className="w-full bg-zinc-900/90 border border-white/10 rounded-xl px-2.5 py-2 text-xs text-white font-mono placeholder-zinc-600 focus:outline-none focus:border-emerald-500/50"
+              />
+            </div>
+
             {/* Nº de Unidades (por defecto 1, multiplica el coste unitario) */}
             <div>
               <label className="block text-zinc-300 font-medium mb-1 flex items-center gap-1">
@@ -853,10 +1239,18 @@ export const OperationModal: React.FC<OperationModalProps> = ({
           <div className="bg-zinc-900/90 border border-white/10 rounded-2xl p-3 flex items-center justify-between">
             <div>
               <span className="text-xs text-zinc-400 font-medium block">Beneficio Calculado</span>
-              {costeUnitario !== undefined && costeUnitario > 0 && unidades > 1 && (
-                <span className="text-[10px] text-zinc-500 font-mono">
-                  Coste base {formatEuro(costeUnitario)} × {unidades} uds = {formatEuro(costesNum)}
+              {otrosCostesNum > 0 ? (
+                <span className="text-[10px] text-zinc-400 font-mono">
+                  Costes {formatEuro(costesBaseNum)} + Otros costes {formatEuro(otrosCostesNum)} = Total {formatEuro(costesNum)}
                 </span>
+              ) : (
+                costeUnitario !== undefined &&
+                costeUnitario > 0 &&
+                unidades > 1 && (
+                  <span className="text-[10px] text-zinc-500 font-mono">
+                    Coste base {formatEuro(costeUnitario)} × {unidades} uds = {formatEuro(costesNum)}
+                  </span>
+                )
               )}
             </div>
             <span className={`text-base font-bold font-mono ${

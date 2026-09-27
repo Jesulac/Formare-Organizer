@@ -140,7 +140,7 @@ export function parseVoiceOperationSmartFallback(
   else if (/\b(internet|web|aliexpress|temu)\b/.test(norm)) lugarVenta = 'Internet';
 
   // 5. Detect status (estado)
-  let estado = tipo === 'venta' ? 'Cobrado' : 'Pagado';
+  let estado = tipo === 'venta' ? 'En producción' : 'Pagado';
   if (/\b(en produccion|produccion|imprimiendo|fabricando)\b/.test(norm)) {
     estado = 'En producción';
   } else if (/\b(pendiente de cobro|por cobrar|falta cobrar)\b/.test(norm)) {

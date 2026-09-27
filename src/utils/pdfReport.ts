@@ -1,9 +1,9 @@
 import { jsPDF } from 'jspdf';
 import { Operation } from '../types/operation';
 import {
-  calculateFilamentGrams,
   formatDateDisplay,
   formatEuro,
+  getOperationConsumedGrams,
   parseDate,
 } from './calculations';
 
@@ -90,17 +90,14 @@ export function generateMonthlySalesPdf(
     (acc, op) => acc + Math.abs(op.costes || 0),
     0
   );
-  const beneficioVentas = salesOps.reduce(
-    (acc, op) => acc + (op.beneficio || 0),
-    0
-  );
+  const beneficioVentas = ingresosBrutos - costesVentas;
   const gastosCompras = purchaseOps.reduce(
     (acc, op) => acc + Math.abs(op.costes || 0),
     0
   );
-  const balanceNetoTotal = ingresosBrutos - costesVentas - gastosCompras;
+  const balanceNetoTotal = beneficioVentas;
   const gramosConsumidos = salesOps.reduce(
-    (acc, op) => acc + calculateFilamentGrams(Math.abs(op.costes || 0), 15.99),
+    (acc, op) => acc + getOperationConsumedGrams(op, 15.99),
     0
   );
   const pendienteCobro = salesOps
@@ -223,9 +220,12 @@ export function generateMonthlySalesPdf(
       accent: [244, 63, 94] as [number, number, number],
     },
     {
-      title: 'BALANCE NETO MES',
+      title: 'BENEFICIO NETO MES',
       value: `${balanceNetoTotal >= 0 ? '+' : ''}${formatEuro(balanceNetoTotal)}`,
-      sub: `Benef. ventas: +${formatEuro(beneficioVentas)}`,
+      sub:
+        ingresosBrutos > 0
+          ? `Ventas - Producción (${Math.round((balanceNetoTotal / ingresosBrutos) * 100)}%)`
+          : 'Ventas - Gastos producción',
       color:
         balanceNetoTotal >= 0
           ? ([5, 150, 105] as [number, number, number])

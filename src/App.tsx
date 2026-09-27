@@ -299,6 +299,7 @@ export default function App() {
         operationToEdit={selectedOp}
         initialData={initialModalData}
         productCatalog={productCatalog}
+        filamentStock={filamentStock}
       />
 
       <PricingCalculatorModal

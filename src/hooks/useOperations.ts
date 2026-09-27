@@ -13,8 +13,10 @@ import {
   calculateDeadlineDate, 
   calculateFilamentGrams, 
   extractUnits, 
+  getOperationConsumedGrams,
   normalizeStatus, 
-  parseDate 
+  parseDate,
+  parseMaterialItems
 } from '../utils/calculations';
 import {
   loadFromLocalStorageSync,
@@ -48,12 +50,17 @@ export function sanitizeAndMigrateOperations(rawList: any[]): Operation[] {
           ? op.fechaLimite || calculateDeadlineDate(op.fecha, op.lugarVenta || 'Wallapop', tipo)
           : '';
       const costes = typeof op.costes === 'number' ? op.costes : 0;
+      const otrosCostes =
+        typeof op.costesOperativos === 'number' && op.costesOperativos > 0
+          ? op.costesOperativos
+          : 0;
+      const baseCostes = Math.max(0, Number((costes - otrosCostes).toFixed(2)));
       const costeUnitario =
         typeof op.costeUnitario === 'number' && op.costeUnitario > 0
           ? op.costeUnitario
           : unidades > 0
-          ? Number((costes / unidades).toFixed(2))
-          : costes;
+          ? Number((baseCostes / unidades).toFixed(2))
+          : baseCostes;
 
       // Auto-delete QR data older than 10 days OR when status is 'Pendiente de cobro'
       let fotoQr = op.fotoQr;
@@ -87,7 +94,7 @@ export function sanitizeAndMigrateOperations(rawList: any[]): Operation[] {
         unidades,
         costeUnitario,
         costes,
-        costesOperativos: 0,
+        costesOperativos: otrosCostes,
         beneficio,
         estado,
         tipo,
@@ -198,21 +205,37 @@ function computeSpoolsList(
   });
 
   operations.forEach((op) => {
-    if (op.tipo !== 'venta' || !op.costes || op.costes <= 0) return;
-    const rawMat = op.material || 'PETG Negro (Elegoo)';
-    const parts = rawMat
-      .split(/[+/]|\s+y\s+/i)
-      .map((p) => p.trim())
-      .filter((p) => p && !p.toLowerCase().includes('tornillo') && !p.toLowerCase().includes('tuerca'));
+    if (op.tipo !== 'venta') return;
+    const parsedItems = parseMaterialItems(op.material, op.materialesDetalle).filter(
+      (item) =>
+        item.material &&
+        !item.material.toLowerCase().includes('tornillo') &&
+        !item.material.toLowerCase().includes('tuerca')
+    );
 
-    const targetParts = parts.length > 0 ? parts : [rawMat];
-    const costPerPart = Math.abs(op.costes) / targetParts.length;
+    const hasExplicitGrams = parsedItems.some((item) => item.gramos && item.gramos > 0);
+    if (!hasExplicitGrams && (!op.costes || op.costes <= 0)) return;
 
-    targetParts.forEach((part) => {
-      const key = normalizeFilamentKey(part);
+    const targetItems =
+      parsedItems.length > 0 ? parsedItems : [{ material: op.material || 'PETG Negro (Elegoo)' }];
+    const uds = op.unidades && op.unidades > 0 ? op.unidades : 1;
+    const pureFilamentCost = Math.max(
+      0,
+      Math.abs(op.costes || 0) - Math.abs(op.costesOperativos || 0)
+    );
+    const effectiveCost = pureFilamentCost > 0 ? pureFilamentCost : Math.abs(op.costes || 0);
+    const costPerPart = effectiveCost / targetItems.length;
+
+    targetItems.forEach((item) => {
+      const key = normalizeFilamentKey(item.material);
       const spool = spoolsMap.get(key);
       const precioBobina = spool ? spool.precioBobina : 15.99;
-      const gramos = calculateFilamentGrams(costPerPart, precioBobina);
+      const gramos =
+        item.gramos && item.gramos > 0
+          ? Math.round(item.gramos * uds)
+          : calculateFilamentGrams(costPerPart, precioBobina);
+
+      if (gramos <= 0) return;
 
       if (spool) {
         spool.gramosConsumidos += gramos;
@@ -487,11 +510,17 @@ export function useOperations() {
               (opData.material && /(pla|petg|asa|tpu)/i.test(opData.material))))
       );
 
+      const otrosCostes =
+        typeof opData.costesOperativos === 'number' && opData.costesOperativos > 0
+          ? opData.costesOperativos
+          : 0;
+      const baseCostes = Math.max(0, Number(((opData.costes || 0) - otrosCostes).toFixed(2)));
+
       const newOp: Operation = {
         ...opData,
         unidades,
-        costeUnitario: opData.costeUnitario ?? Number((opData.costes / unidades).toFixed(2)),
-        costesOperativos: 0,
+        costeUnitario: opData.costeUnitario ?? Number((baseCostes / unidades).toFixed(2)),
+        costesOperativos: otrosCostes,
         estado,
         fechaLimite,
         fotoQr: clearQrForPending ? undefined : opData.fotoQr,
@@ -566,14 +595,20 @@ export function useOperations() {
           updated.fechaLimite = '';
         }
 
-        // If units changed and we have unit cost, recalculate total filament cost unless costes was explicitly passed
+        // If units changed and we have unit cost, recalculate total filament cost (+ otrosCostes) unless costes was explicitly passed
         if (
           opData.unidades !== undefined &&
           opData.costes === undefined &&
           updated.costeUnitario &&
           updated.costeUnitario > 0
         ) {
-          updated.costes = Number((updated.costeUnitario * updated.unidades).toFixed(2));
+          const extraOtros =
+            typeof updated.costesOperativos === 'number' && updated.costesOperativos > 0
+              ? updated.costesOperativos
+              : 0;
+          updated.costes = Number(
+            (updated.costeUnitario * updated.unidades + extraOtros).toFixed(2)
+          );
         }
 
         const beneficio = calculateBeneficio(
@@ -778,6 +813,7 @@ export function useOperations() {
           producto: existing ? existing.producto : name,
           costeUnitario: unitCost > 0 ? unitCost : existing?.costeUnitario || 0,
           material: op.material || existing?.material || '',
+          materialesDetalle: op.materialesDetalle || existing?.materialesDetalle,
         });
       });
 
@@ -1008,13 +1044,13 @@ export function useOperations() {
         summary.numVentas += 1;
         summary.dineroBruto += op.precio || 0;
         summary.costesVentas += Math.abs(op.costes || 0);
-        summary.gramosConsumidos += calculateFilamentGrams(Math.abs(op.costes || 0), 15.99);
+        summary.gramosConsumidos += getOperationConsumedGrams(op, 15.99);
       } else if (op.tipo === 'compra' || op.tipo === 'inversion') {
         summary.numPedidos += 1;
         summary.dineroGastadoCompras += Math.abs(op.costes || 0);
       }
-      summary.dineroNeto =
-        summary.dineroBruto - summary.costesVentas - summary.dineroGastadoCompras;
+      // Beneficio neto del mes se calcula únicamente con los gastos de producción (costesVentas), sin restar compras generales
+      summary.dineroNeto = summary.dineroBruto - summary.costesVentas;
     });
 
     return map;
@@ -1025,24 +1061,20 @@ export function useOperations() {
     let totalIngresos = 0;
     let gastosProduccion = 0;
     let gastosGenerales = 0;
-    let totalBeneficio = 0;
     let pendienteCobro = 0;
 
     filteredOperations.forEach((op) => {
       if (op.tipo === 'cierre') return;
 
-      if (op.precio && op.precio > 0) {
-        totalIngresos += op.precio;
-      }
-
       const costTotal = Math.abs(op.costes || 0);
       if (op.tipo === 'venta') {
+        if (op.precio && op.precio > 0) {
+          totalIngresos += op.precio;
+        }
         gastosProduccion += costTotal;
       } else if (op.tipo === 'compra' || op.tipo === 'inversion') {
         gastosGenerales += costTotal;
       }
-
-      totalBeneficio += op.beneficio;
 
       if (
         op.estado === 'Pendiente de cobro' ||
@@ -1056,6 +1088,9 @@ export function useOperations() {
         }
       }
     });
+
+    // El beneficio neto se calcula exclusivamente con los gastos de producción (Ventas - Gastos de Producción), sin restar Gastos en General
+    const totalBeneficio = totalIngresos - gastosProduccion;
 
     return {
       totalIngresos,

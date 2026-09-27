@@ -133,7 +133,7 @@ function enrichWithCatalog(
       raw.lugarVenta || fallback.lugarVenta || (tipo === 'venta' ? 'Wallapop' : 'Internet')
     ),
     estado: String(
-      raw.estado || fallback.estado || (tipo === 'venta' ? 'Cobrado' : 'Pagado')
+      raw.estado || fallback.estado || (tipo === 'venta' ? 'En producción' : 'Pagado')
     ),
     vendedor: String(raw.vendedor || fallback.vendedor || 'Jorge'),
     comentarios: String(raw.comentarios || ''),
