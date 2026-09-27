@@ -305,30 +305,30 @@ export const OperationModal: React.FC<OperationModalProps> = ({
           </div>
 
           {/* Fecha & Platform Row */}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
+          <div className="grid grid-cols-2 gap-3 items-start">
+            <div className="min-w-0 pr-2 sm:pr-0 overflow-hidden">
               <label className="block text-zinc-300 font-medium mb-1 flex items-center gap-1">
-                <Calendar className="w-3.5 h-3.5 text-zinc-400" />
-                Fecha
+                <Calendar className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
+                <span className="truncate">Fecha</span>
               </label>
               <input
                 type="date"
                 required
                 value={fecha}
                 onChange={(e) => setFecha(e.target.value)}
-                className="w-full bg-zinc-900/90 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500/50"
+                className="block w-[92%] sm:w-full min-w-0 max-w-full appearance-none box-border bg-zinc-900/90 border border-white/10 rounded-xl px-2.5 sm:px-3 py-2 h-[38px] text-xs text-white focus:outline-none focus:border-emerald-500/50"
               />
             </div>
 
-            <div>
+            <div className="min-w-0">
               <label className="block text-zinc-300 font-medium mb-1 flex items-center gap-1">
-                <Tag className="w-3.5 h-3.5 text-zinc-400" />
-                Lugar de venta
+                <Tag className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
+                <span className="truncate">Lugar de venta</span>
               </label>
               <select
                 value={lugarVenta}
                 onChange={(e) => setLugarVenta(e.target.value as Platform)}
-                className="w-full bg-zinc-900/90 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500/50"
+                className="block w-full min-w-0 bg-zinc-900/90 border border-white/10 rounded-xl px-3 py-2 h-[38px] text-xs text-white focus:outline-none focus:border-emerald-500/50"
               >
                 {platformsList.map((p) => (
                   <option key={p} value={p}>{p}</option>

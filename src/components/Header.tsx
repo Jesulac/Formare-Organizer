@@ -63,9 +63,6 @@ export const Header: React.FC<HeaderProps> = ({
             <h1 className="text-xl lg:text-2xl font-bold tracking-tight text-white">
               Ventas
             </h1>
-            <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-              iOS 26 OLED
-            </span>
           </div>
           <span className="text-xs font-normal text-zinc-400 -mt-0.5">
             Tu actividad · Wallapop & Vinted
@@ -84,7 +81,7 @@ export const Header: React.FC<HeaderProps> = ({
                   ? 'bg-emerald-500 text-black font-semibold shadow-sm'
                   : 'text-zinc-400 hover:text-white'
               }`}
-              title="Ver diseño móvil iPhone iOS 26"
+              title="Ver diseño móvil"
             >
               <Smartphone className="w-3.5 h-3.5" />
               <span>Vista iPhone</span>
