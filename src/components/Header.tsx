@@ -1,460 +1,173 @@
-import React, { useState } from 'react';
-import { 
-  Plus, 
-  Calculator, 
-  PieChart, 
-  Download, 
-  Upload, 
-  RotateCcw, 
-  Trash2,
-  MoreVertical,
+import React from 'react';
+import {
+  Plus,
   Smartphone,
   Monitor,
-  Disc,
-  QrCode,
-  Table2,
-  FileText
+  FileText,
+  Menu,
+  Calculator,
 } from 'lucide-react';
 
 export type ViewMode = 'iphone' | 'desktop' | 'auto';
-export type ActiveSection = 'ventas' | 'filamentos' | 'qr';
+export type ActiveSection =
+  | 'ventas'
+  | 'produccion'
+  | 'gastos'
+  | 'filamentos'
+  | 'qr'
+  | 'calculadora';
 
 interface HeaderProps {
   activeSection: ActiveSection;
   onSectionChange: (section: ActiveSection) => void;
   onNewOperation: () => void;
   onOpenPricingCalculator: () => void;
-  onOpenRevenueSplit: () => void;
-  onExportJSON: () => void;
   onExportMonthlyPDF?: () => void;
-  onImportJSON: (fileContent: string) => void;
-  onResetData: () => void;
-  onClearAllData: () => void;
   viewMode: ViewMode;
   onViewModeChange: (mode: ViewMode) => void;
-  qrCount?: number;
+  onOpenMobileSidebar: () => void;
 }
+
+const SECTION_META: Record<
+  ActiveSection,
+  { title: string; subtitle: string }
+> = {
+  ventas: {
+    title: 'Panel General de Operaciones',
+    subtitle: 'Control completo de ventas, producción, compras y cierres mensuales',
+  },
+  produccion: {
+    title: 'Cola de Producción y Envíos',
+    subtitle: 'Pedidos actualmente en impresión, enviados o pendientes de cobro',
+  },
+  gastos: {
+    title: 'Gastos en General y Compras',
+    subtitle: 'Compras de bobinas, material, inversiones y comisión 15% Sandra',
+  },
+  filamentos: {
+    title: 'Stock de Filamentos (1000g)',
+    subtitle: 'Inventario en gramos por bobina, consumo real y reposición',
+  },
+  qr: {
+    title: 'Almacén de QR y Etiquetas',
+    subtitle: 'Códigos de envío listos para escanear en Correos, InPost, Seur y Vinted Go',
+  },
+  calculadora: {
+    title: 'Calculadora de Precios 3D',
+    subtitle: 'Cálculo de costes por gramos de filamento, tornillería y multiplicadores',
+  },
+};
 
 export const Header: React.FC<HeaderProps> = ({
   activeSection,
-  onSectionChange,
   onNewOperation,
   onOpenPricingCalculator,
-  onOpenRevenueSplit,
-  onExportJSON,
   onExportMonthlyPDF,
-  onImportJSON,
-  onResetData,
-  onClearAllData,
   viewMode,
   onViewModeChange,
-  qrCount = 0,
+  onOpenMobileSidebar,
 }) => {
-  const [showMenu, setShowMenu] = useState(false);
-  const [confirmAction, setConfirmAction] = useState<'reset' | 'clear' | null>(null);
-
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const content = event.target?.result as string;
-      if (content) {
-        onImportJSON(content);
-      }
-    };
-    reader.readAsText(file);
-    setShowMenu(false);
-  };
+  const currentMeta = SECTION_META[activeSection] || SECTION_META.ventas;
+  const showViewSwitcher =
+    activeSection === 'ventas' ||
+    activeSection === 'produccion' ||
+    activeSection === 'gastos';
 
   return (
-    <header className="sticky top-0 z-30 glass-header border-b border-white/10 px-3 sm:px-4 lg:px-6 py-2.5 pt-safe transition-all duration-200">
-      <div className="max-w-[1600px] mx-auto flex flex-col gap-2.5">
-        <div className="flex items-center justify-between gap-2">
-          {/* Left: Title & Subtitle */}
-          <div className="flex flex-col justify-center min-w-0">
-            <div className="flex items-center gap-2">
-              <h1 className="text-lg sm:text-xl lg:text-2xl font-bold tracking-tight text-white truncate">
-                Formare 3D
-              </h1>
-            </div>
-            <span className="text-[11px] font-normal text-zinc-400 -mt-0.5 truncate">
-              Producción, ventas y aprovisionamiento
-            </span>
+    <header className="sticky top-0 z-20 glass-header border-b border-white/[0.08] px-3 sm:px-5 lg:px-6 h-16 flex items-center justify-between gap-3 transition-all duration-200">
+      {/* Zone 1: Mobile Menu Trigger + Section Breadcrumb & Title */}
+      <div className="flex items-center gap-3 min-w-0">
+        <button
+          type="button"
+          onClick={onOpenMobileSidebar}
+          className="lg:hidden p-2 -ml-1 rounded-xl text-zinc-300 hover:text-white bg-white/[0.05] hover:bg-white/[0.1] border border-white/10 transition-colors cursor-pointer shrink-0"
+          aria-label="Abrir menú de navegación"
+        >
+          <Menu className="w-5 h-5" />
+        </button>
+
+        <div className="min-w-0">
+          <div className="flex items-center gap-2 text-xs text-zinc-500">
+            <span className="hidden sm:inline font-medium text-zinc-400">Formare 3D</span>
+            <span className="hidden sm:inline" aria-hidden="true">/</span>
+            <h1 className="text-sm sm:text-base lg:text-lg font-bold tracking-tight text-white truncate">
+              {currentMeta.title}
+            </h1>
           </div>
-
-          {/* Center: Section Tabs (Desktop) */}
-          <nav className="hidden lg:flex items-center gap-1 p-1 rounded-2xl bg-zinc-900/90 border border-white/10">
-            <button
-              type="button"
-              onClick={() => onSectionChange('ventas')}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-medium transition-all cursor-pointer ${
-                activeSection === 'ventas'
-                  ? 'bg-emerald-500 text-black font-semibold shadow-sm'
-                  : 'text-zinc-400 hover:text-white'
-              }`}
-            >
-              <Table2 className="w-3.5 h-3.5" />
-              <span>Control Ventas / Compras</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => onSectionChange('filamentos')}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-medium transition-all cursor-pointer ${
-                activeSection === 'filamentos'
-                  ? 'bg-emerald-500 text-black font-semibold shadow-sm'
-                  : 'text-zinc-400 hover:text-white'
-              }`}
-            >
-              <Disc className="w-3.5 h-3.5" />
-              <span>Stock Filamentos (1000g)</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => onSectionChange('qr')}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-medium transition-all cursor-pointer ${
-                activeSection === 'qr'
-                  ? 'bg-emerald-500 text-black font-semibold shadow-sm'
-                  : 'text-zinc-400 hover:text-white'
-              }`}
-            >
-              <QrCode className="w-3.5 h-3.5" />
-              <span>Almacenamiento QR</span>
-              {qrCount > 0 && (
-                <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
-                  activeSection === 'qr' ? 'bg-black/20 text-black' : 'bg-emerald-500/20 text-emerald-300'
-                }`}>
-                  {qrCount}
-                </span>
-              )}
-            </button>
-          </nav>
-
-          {/* Right: Actions */}
-          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-            {/* View Switcher: Vista móvil vs Tabla */}
-            <div className="flex items-center p-0.5 rounded-full bg-zinc-900/90 border border-white/10">
-              <button
-                type="button"
-                onClick={() => onViewModeChange('iphone')}
-                className={`flex items-center gap-1 px-2 sm:px-2.5 py-1 rounded-full text-[11px] font-medium transition-all cursor-pointer ${
-                  viewMode === 'iphone'
-                    ? 'bg-emerald-500 text-black font-semibold shadow-sm'
-                    : 'text-zinc-400 hover:text-white'
-                }`}
-                title="Ver en formato Vista móvil"
-              >
-                <Smartphone className="w-3.5 h-3.5" />
-                <span>Vista móvil</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => onViewModeChange('desktop')}
-                className={`flex items-center gap-1 px-2 sm:px-2.5 py-1 rounded-full text-[11px] font-medium transition-all cursor-pointer ${
-                  viewMode === 'desktop'
-                    ? 'bg-emerald-500 text-black font-semibold shadow-sm'
-                    : 'text-zinc-400 hover:text-white'
-                }`}
-                title="Ver tabla completa"
-              >
-                <Monitor className="w-3.5 h-3.5" />
-                <span>Tabla</span>
-              </button>
-            </div>
-
-            {/* Quick Tool: Calculator */}
-            <button
-              type="button"
-              onClick={onOpenPricingCalculator}
-              className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium text-zinc-200 bg-white/5 hover:bg-white/10 border border-white/10 transition-all active:scale-95 cursor-pointer"
-              title="Calcular precio recomendado"
-            >
-              <Calculator className="w-3.5 h-3.5 text-emerald-400" />
-              <span className="hidden md:inline">Calcular precio</span>
-            </button>
-
-            {/* Quick Tool: Revenue Split */}
-            <button
-              type="button"
-              onClick={onOpenRevenueSplit}
-              className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium text-zinc-200 bg-white/5 hover:bg-white/10 border border-white/10 transition-all active:scale-95 cursor-pointer"
-              title="Calculadora de reparto de ingresos"
-            >
-              <PieChart className="w-3.5 h-3.5 text-blue-400" />
-              <span className="hidden md:inline">Reparto</span>
-            </button>
-
-            {/* Quick Tool: Monthly PDF Report */}
-            {onExportMonthlyPDF && (
-              <button
-                type="button"
-                onClick={onExportMonthlyPDF}
-                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium text-emerald-200 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 transition-all active:scale-95 cursor-pointer"
-                title="Descargar resumen de ventas y beneficios del mes actual en PDF"
-              >
-                <FileText className="w-3.5 h-3.5 text-emerald-400" />
-                <span className="hidden sm:inline">Resumen PDF</span>
-              </button>
-            )}
-
-            {/* Extra Options Dropdown */}
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => {
-                  setShowMenu(!showMenu);
-                  setConfirmAction(null);
-                }}
-                className="p-2 rounded-full text-zinc-300 bg-white/5 hover:bg-white/10 border border-white/10 transition-all active:scale-95 cursor-pointer"
-                aria-label="Opciones"
-              >
-                <MoreVertical className="w-4 h-4" />
-              </button>
-
-              {showMenu && (
-                <>
-                  <div 
-                    className="fixed inset-0 z-40" 
-                    onClick={() => {
-                      setShowMenu(false);
-                      setConfirmAction(null);
-                    }} 
-                  />
-                  <div className="absolute right-0 mt-2 w-60 z-50 glass-modal rounded-2xl p-1.5 shadow-2xl border border-white/15 text-xs">
-                    <div className="px-3 py-2 border-b border-white/10 font-semibold text-zinc-400 uppercase tracking-wider text-[10px]">
-                      Vista y Herramientas
-                    </div>
-
-                    <div className="px-2 py-1.5 flex gap-1 border-b border-white/10 mb-1">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          onViewModeChange('iphone');
-                          setShowMenu(false);
-                        }}
-                        className={`flex-1 flex items-center justify-center gap-1 py-1.5 rounded-xl text-[11px] font-medium cursor-pointer ${
-                          viewMode === 'iphone' ? 'bg-emerald-500 text-black font-semibold' : 'bg-white/5 text-zinc-300'
-                        }`}
-                      >
-                        <Smartphone className="w-3.5 h-3.5" />
-                        Vista móvil
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          onViewModeChange('desktop');
-                          setShowMenu(false);
-                        }}
-                        className={`flex-1 flex items-center justify-center gap-1 py-1.5 rounded-xl text-[11px] font-medium cursor-pointer ${
-                          viewMode === 'desktop' ? 'bg-emerald-500 text-black font-semibold' : 'bg-white/5 text-zinc-300'
-                        }`}
-                      >
-                        <Monitor className="w-3.5 h-3.5" />
-                        Tabla
-                      </button>
-                    </div>
-                    
-                    <button
-                      type="button"
-                      onClick={() => {
-                        onOpenPricingCalculator();
-                        setShowMenu(false);
-                      }}
-                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-zinc-200 hover:bg-white/10 transition-colors text-left cursor-pointer"
-                    >
-                      <Calculator className="w-4 h-4 text-emerald-400" />
-                      Calcular Precio
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        onOpenRevenueSplit();
-                        setShowMenu(false);
-                      }}
-                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-zinc-200 hover:bg-white/10 transition-colors text-left cursor-pointer"
-                    >
-                      <PieChart className="w-4 h-4 text-blue-400" />
-                      Calculadora Reparto
-                    </button>
-
-                    <div className="my-1 border-t border-white/10" />
-
-                    {onExportMonthlyPDF && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          onExportMonthlyPDF();
-                          setShowMenu(false);
-                        }}
-                        className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-emerald-300 hover:bg-emerald-500/10 transition-colors text-left cursor-pointer font-medium"
-                      >
-                        <FileText className="w-4 h-4 text-emerald-400" />
-                        Descargar Resumen Mes (PDF)
-                      </button>
-                    )}
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        onExportJSON();
-                        setShowMenu(false);
-                      }}
-                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-zinc-200 hover:bg-white/10 transition-colors text-left cursor-pointer"
-                    >
-                      <Download className="w-4 h-4 text-zinc-400" />
-                      Exportar Copia (JSON)
-                    </button>
-
-                    <label className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-zinc-200 hover:bg-white/10 transition-colors cursor-pointer text-left">
-                      <Upload className="w-4 h-4 text-zinc-400" />
-                      Importar Copia (JSON)
-                      <input
-                        type="file"
-                        accept=".json"
-                        onChange={handleFileUpload}
-                        className="hidden"
-                      />
-                    </label>
-
-                    <div className="my-1 border-t border-white/10" />
-
-                    {confirmAction === 'reset' ? (
-                      <div className="p-2 rounded-xl bg-amber-500/10 border border-amber-500/30 space-y-2">
-                        <p className="text-[11px] text-amber-300 font-medium">
-                          ¿Restaurar las operaciones originales de Formare 3D?
-                        </p>
-                        <div className="flex gap-1.5">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              onResetData();
-                              setConfirmAction(null);
-                              setShowMenu(false);
-                            }}
-                            className="flex-1 py-1.5 rounded-lg bg-amber-500 text-black font-semibold text-[11px] cursor-pointer"
-                          >
-                            Sí, restaurar
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setConfirmAction(null)}
-                            className="flex-1 py-1.5 rounded-lg bg-white/10 text-zinc-300 text-[11px] cursor-pointer"
-                          >
-                            Cancelar
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => setConfirmAction('reset')}
-                        className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-amber-400 hover:bg-amber-500/10 transition-colors text-left cursor-pointer"
-                      >
-                        <RotateCcw className="w-4 h-4" />
-                        Restaurar Datos Iniciales
-                      </button>
-                    )}
-
-                    {confirmAction === 'clear' ? (
-                      <div className="p-2 rounded-xl bg-rose-500/10 border border-rose-500/30 space-y-2 mt-1">
-                        <p className="text-[11px] text-rose-300 font-medium">
-                          ¿Vaciar todas las operaciones y empezar de cero?
-                        </p>
-                        <div className="flex gap-1.5">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              onClearAllData();
-                              setConfirmAction(null);
-                              setShowMenu(false);
-                            }}
-                            className="flex-1 py-1.5 rounded-lg bg-rose-500 text-white font-semibold text-[11px] cursor-pointer"
-                          >
-                            Vaciar todo
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setConfirmAction(null)}
-                            className="flex-1 py-1.5 rounded-lg bg-white/10 text-zinc-300 text-[11px] cursor-pointer"
-                          >
-                            Cancelar
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => setConfirmAction('clear')}
-                        className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-rose-400 hover:bg-rose-500/10 transition-colors text-left cursor-pointer"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                        Eliminar Datos de Ejemplo
-                      </button>
-                    )}
-                  </div>
-                </>
-              )}
-            </div>
-
-            {/* Primary Action Button: + Nueva Operación */}
-            <button
-              type="button"
-              onClick={onNewOperation}
-              className="flex items-center gap-1.5 px-3 sm:px-3.5 py-2 rounded-full bg-emerald-500 hover:bg-emerald-400 text-black font-semibold text-xs lg:text-sm shadow-lg shadow-emerald-500/20 active:scale-95 transition-all cursor-pointer shrink-0"
-            >
-              <Plus className="w-4 h-4 stroke-[3]" />
-              <span>Nueva</span>
-            </button>
-          </div>
+          <p className="text-[11px] text-zinc-400 truncate hidden sm:block">
+            {currentMeta.subtitle}
+          </p>
         </div>
+      </div>
 
-        {/* Mobile / Tablet Section Navigation Bar */}
-        <nav className="flex lg:hidden items-center gap-1 p-1 rounded-2xl bg-zinc-900/90 border border-white/10">
+      {/* Zone 3: Contextual Controls & Primary Actions (No "Reparto" button) */}
+      <div className="flex items-center gap-2 shrink-0">
+        {showViewSwitcher && (
+          <div className="flex items-center p-0.5 rounded-xl bg-zinc-900/90 border border-white/10">
+            <button
+              type="button"
+              onClick={() => onViewModeChange('iphone')}
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer whitespace-nowrap ${
+                viewMode === 'iphone'
+                  ? 'bg-emerald-500 text-black font-semibold shadow-sm'
+                  : 'text-zinc-400 hover:text-white'
+              }`}
+              title="Ver en formato tarjetas móviles"
+            >
+              <Smartphone className="w-3.5 h-3.5 shrink-0" />
+              <span className="hidden md:inline">Tarjetas</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => onViewModeChange('desktop')}
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer whitespace-nowrap ${
+                viewMode === 'desktop'
+                  ? 'bg-emerald-500 text-black font-semibold shadow-sm'
+                  : 'text-zinc-400 hover:text-white'
+              }`}
+              title="Ver tabla completa"
+            >
+              <Monitor className="w-3.5 h-3.5 shrink-0" />
+              <span className="hidden md:inline">Tabla</span>
+            </button>
+          </div>
+        )}
+
+        {/* Quick Calculator Modal Trigger when not already in Calculator section */}
+        {activeSection !== 'calculadora' && (
           <button
             type="button"
-            onClick={() => onSectionChange('ventas')}
-            className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-xl text-[11px] font-medium transition-all cursor-pointer ${
-              activeSection === 'ventas'
-                ? 'bg-emerald-500 text-black font-semibold shadow-sm'
-                : 'text-zinc-400 hover:text-white'
-            }`}
+            onClick={onOpenPricingCalculator}
+            className="hidden sm:inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium text-zinc-200 bg-white/[0.04] hover:bg-white/[0.09] border border-white/10 transition-all active:scale-95 cursor-pointer whitespace-nowrap"
+            title="Abrir calculadora rápida de precios"
           >
-            <Table2 className="w-3.5 h-3.5 shrink-0" />
-            <span className="truncate">Ventas / Compras</span>
+            <Calculator className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+            <span className="hidden xl:inline">Calcular precio</span>
           </button>
+        )}
+
+        {/* Monthly PDF Report */}
+        {onExportMonthlyPDF && (
           <button
             type="button"
-            onClick={() => onSectionChange('filamentos')}
-            className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-xl text-[11px] font-medium transition-all cursor-pointer ${
-              activeSection === 'filamentos'
-                ? 'bg-emerald-500 text-black font-semibold shadow-sm'
-                : 'text-zinc-400 hover:text-white'
-            }`}
+            onClick={onExportMonthlyPDF}
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium text-emerald-200 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 transition-all active:scale-95 cursor-pointer whitespace-nowrap"
+            title="Descargar resumen mensual en PDF"
           >
-            <Disc className="w-3.5 h-3.5 shrink-0" />
-            <span className="truncate">Filamentos (g)</span>
+            <FileText className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+            <span className="hidden sm:inline">Resumen PDF</span>
           </button>
-          <button
-            type="button"
-            onClick={() => onSectionChange('qr')}
-            className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-xl text-[11px] font-medium transition-all cursor-pointer ${
-              activeSection === 'qr'
-                ? 'bg-emerald-500 text-black font-semibold shadow-sm'
-                : 'text-zinc-400 hover:text-white'
-            }`}
-          >
-            <QrCode className="w-3.5 h-3.5 shrink-0" />
-            <span className="truncate">Almacén QR</span>
-            {qrCount > 0 && (
-              <span className={`px-1.5 rounded-full text-[10px] font-bold ${
-                activeSection === 'qr' ? 'bg-black/20 text-black' : 'bg-emerald-500/20 text-emerald-300'
-              }`}>
-                {qrCount}
-              </span>
-            )}
-          </button>
-        </nav>
+        )}
+
+        {/* Primary Action: + Nueva Operación */}
+        <button
+          type="button"
+          onClick={onNewOperation}
+          className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-semibold text-xs transition-all active:scale-95 cursor-pointer shadow-lg shadow-emerald-500/15 whitespace-nowrap"
+        >
+          <Plus className="w-4 h-4 stroke-[2.75] shrink-0" />
+          <span>Nueva Operación</span>
+        </button>
       </div>
     </header>
   );
