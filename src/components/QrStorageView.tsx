@@ -1,6 +1,7 @@
-import React, { useState, useRef } from 'react';
-import { Operation, ShippingCompany } from '../types/operation';
-import { formatDateDisplay, compressImageFile } from '../utils/calculations';
+import React, { useState, useRef, useMemo } from 'react';
+import { Operation, ShippingCompany, Status } from '../types/operation';
+import { formatDateDisplay, compressImageFile, parseDate } from '../utils/calculations';
+import { StatusPill } from './StatusPill';
 import { 
   QrCode, 
   Upload, 
@@ -16,6 +17,7 @@ import {
 interface QrStorageViewProps {
   operations: Operation[];
   onAttachQr: (id: string, fotoQr: string | undefined, empresaEnvio?: ShippingCompany) => void;
+  onStatusChange?: (id: string, newStatus: Status) => void;
 }
 
 const SHIPPING_COMPANIES: ShippingCompany[] = ['Correos', 'InPost', 'Seur', 'Otro'];
@@ -24,32 +26,46 @@ const TEN_DAYS_MS = 10 * 24 * 60 * 60 * 1000;
 export const QrStorageView: React.FC<QrStorageViewProps> = ({
   operations,
   onAttachQr,
+  onStatusChange,
 }) => {
   const [filterMode, setFilterMode] = useState<'activos' | 'todas'>('activos');
-  const [scanModalOp, setScanModalOp] = useState<Operation | null>(null);
+  const [scanModalOpId, setScanModalOpId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [activeUploadOpId, setActiveUploadOpId] = useState<string | null>(null);
 
-  // Sales automatically generate a QR slot, EXCLUDING 'Pendiente de cobro' and 'Cancelado'
-  const salesOperations = operations.filter(
-    (op) =>
-      op.tipo === 'venta' &&
-      op.estado !== 'Pendiente de cobro' &&
-      op.estado !== 'Cancelado'
-  );
+  // Sales automatically generate a QR slot, EXCLUDING 'Pendiente de cobro' and 'Cancelado', sorted newest-first
+  const salesOperations = useMemo(() => {
+    return operations
+      .filter(
+        (op) =>
+          op.tipo === 'venta' &&
+          op.estado !== 'Pendiente de cobro' &&
+          op.estado !== 'Cancelado'
+      )
+      .sort((a, b) => {
+        const diff = parseDate(b.fecha).getTime() - parseDate(a.fecha).getTime();
+        if (diff !== 0) return diff;
+        return (b.createdAt || 0) - (a.createdAt || 0);
+      });
+  }, [operations]);
 
-  const displayedSales = salesOperations.filter((op) => {
-    if (filterMode === 'todas') return true;
-    // Show sales that have a QR uploaded OR are in production / shipped (never 'Pendiente de cobro')
-    return (
-      Boolean(op.fotoQr) ||
-      op.estado === 'En producción' ||
-      op.estado === 'Enviado'
-    );
-  });
+  const displayedSales = useMemo(() => {
+    return salesOperations.filter((op) => {
+      if (filterMode === 'todas') return true;
+      return (
+        Boolean(op.fotoQr) ||
+        op.estado === 'En producción' ||
+        op.estado === 'Enviado'
+      );
+    });
+  }, [salesOperations, filterMode]);
 
-  // Fallback to showing the 15 most recent non-Pendiente-de-cobro sales if no active filter matches
   const finalSales = displayedSales.length > 0 ? displayedSales : salesOperations.slice(0, 15);
+
+  const scanModalOp = useMemo(
+    () => operations.find((op) => op.id === scanModalOpId) || null,
+    [operations, scanModalOpId]
+  );
 
   const handleTriggerUpload = (opId: string) => {
     setActiveUploadOpId(opId);
@@ -170,9 +186,19 @@ export const QrStorageView: React.FC<QrStorageViewProps> = ({
                   )}
                 </h3>
 
-                <p className="text-[11px] text-zinc-400">
-                  Venta del {formatDateDisplay(op.fecha)} · Estado: <strong className="text-zinc-200">{op.estado}</strong>
-                </p>
+                <div className="flex items-center justify-between gap-2 pt-0.5">
+                  <span className="text-[11px] text-zinc-400">
+                    Venta del {formatDateDisplay(op.fecha)}
+                  </span>
+                  <StatusPill
+                    status={op.estado}
+                    onStatusChange={
+                      onStatusChange
+                        ? (newStatus) => onStatusChange(op.id, newStatus)
+                        : undefined
+                    }
+                  />
+                </div>
               </div>
 
               {/* Shipping Carrier Selector (Correos, InPost, Seur, otro) */}
@@ -200,7 +226,7 @@ export const QrStorageView: React.FC<QrStorageViewProps> = ({
               {op.fotoQr ? (
                 <div className="space-y-2">
                   <div
-                    onClick={() => setScanModalOp(op)}
+                    onClick={() => setScanModalOpId(op.id)}
                     className="relative group bg-white rounded-xl p-2.5 flex items-center justify-center cursor-pointer overflow-hidden h-40 border border-emerald-500/30"
                     title="Toca para abrir en pantalla completa para escanear"
                   >
@@ -261,7 +287,7 @@ export const QrStorageView: React.FC<QrStorageViewProps> = ({
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div
             className="fixed inset-0 bg-black/90 backdrop-blur-md"
-            onClick={() => setScanModalOp(null)}
+            onClick={() => setScanModalOpId(null)}
           />
           <div className="relative z-10 w-full max-w-md bg-zinc-950 border border-white/20 rounded-3xl p-5 shadow-2xl space-y-4">
             <div className="flex items-center justify-between">
@@ -278,7 +304,7 @@ export const QrStorageView: React.FC<QrStorageViewProps> = ({
               </div>
               <button
                 type="button"
-                onClick={() => setScanModalOp(null)}
+                onClick={() => setScanModalOpId(null)}
                 className="p-2 rounded-full bg-white/10 text-white hover:bg-white/20 cursor-pointer"
               >
                 <X className="w-5 h-5" />

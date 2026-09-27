@@ -45,9 +45,11 @@ export const FilamentStockView: React.FC<FilamentStockViewProps> = ({
     setEditingSpoolName(null);
   };
 
-  const handleAdjustDraft = (delta: number) => {
+  const handleAdjustDraftAndSave = (spoolName: string, delta: number) => {
     const current = parseFloat(editRemainingValue.replace(',', '.')) || 0;
-    setEditRemainingValue(String(Math.max(0, Math.round(current + delta))));
+    const nextVal = Math.max(0, Math.round(current + delta));
+    setEditRemainingValue(String(nextVal));
+    onUpdateFilamentRemaining(spoolName, nextVal);
   };
 
   const handleCreateSpoolPurchase = (e: React.FormEvent) => {
@@ -142,7 +144,7 @@ export const FilamentStockView: React.FC<FilamentStockViewProps> = ({
             <button
               type="button"
               onClick={() => setShowAddForm(false)}
-              className="text-zinc-400 hover:text-white"
+              className="text-zinc-400 hover:text-white cursor-pointer"
             >
               Cerrar
             </button>
@@ -272,7 +274,7 @@ export const FilamentStockView: React.FC<FilamentStockViewProps> = ({
 
           return (
             <div
-              key={spool.id}
+              key={spool.nombre}
               className={`glass-card rounded-2xl p-4 border transition-all flex flex-col justify-between gap-3 ${
                 isLow ? 'border-amber-500/40 bg-amber-950/10' : 'border-white/10'
               }`}
@@ -400,7 +402,7 @@ export const FilamentStockView: React.FC<FilamentStockViewProps> = ({
                         <button
                           key={delta}
                           type="button"
-                          onClick={() => handleAdjustDraft(delta)}
+                          onClick={() => handleAdjustDraftAndSave(spool.nombre, delta)}
                           className="px-1.5 py-0.5 rounded bg-white/5 hover:bg-white/15 text-zinc-300 font-mono cursor-pointer border border-white/10"
                         >
                           {delta > 0 ? `+${delta}g` : `${delta}g`}

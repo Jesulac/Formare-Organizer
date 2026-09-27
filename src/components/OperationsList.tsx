@@ -56,10 +56,18 @@ export const OperationsList: React.FC<OperationsListProps> = ({
   lastModifiedId,
 }) => {
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
-  const [previewQrOp, setPreviewQrOp] = useState<Operation | null>(null);
+  const [previewQrOpId, setPreviewQrOpId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const tableScrollRef = useRef<HTMLDivElement | null>(null);
   const [uploadingForOpId, setUploadingForOpId] = useState<string | null>(null);
+
+  const previewQrOp = operations.find((o) => o.id === previewQrOpId) || null;
+
+  // Map each monthKey to its last index in the current operations list so month summaries never duplicate
+  const lastIndexByMonth = new Map<string, number>();
+  operations.forEach((op, idx) => {
+    lastIndexByMonth.set(getMonthKey(op.fecha), idx);
+  });
 
   const showMobileCards =
     viewMode === 'iphone' ? 'block' : viewMode === 'desktop' ? 'hidden' : 'block lg:hidden';
@@ -81,14 +89,6 @@ export const OperationsList: React.FC<OperationsListProps> = ({
     try {
       const compressed = await compressImageFile(file, 750);
       onAttachQr(uploadingForOpId, compressed, 'Correos');
-      if (previewQrOp && previewQrOp.id === uploadingForOpId) {
-        setPreviewQrOp({
-          ...previewQrOp,
-          fotoQr: compressed,
-          empresaEnvio: previewQrOp.empresaEnvio || 'Correos',
-          fechaSubidaQr: Date.now(),
-        });
-      }
     } catch (err) {
       console.error('Error al procesar la imagen', err);
     } finally {
@@ -119,9 +119,7 @@ export const OperationsList: React.FC<OperationsListProps> = ({
           const isCompra = op.tipo === 'compra' || op.tipo === 'inversion';
           const isHighlighted = lastModifiedId === op.id;
           const currentMonthKey = getMonthKey(op.fecha);
-          const nextOp = operations[index + 1];
-          const nextMonthKey = nextOp ? getMonthKey(nextOp.fecha) : null;
-          const isLastOfMonth = currentMonthKey !== nextMonthKey;
+          const isLastOfMonth = lastIndexByMonth.get(currentMonthKey) === index;
           const monthSummary = isLastOfMonth ? monthlySummaries[currentMonthKey] : null;
 
           return (
@@ -272,7 +270,7 @@ export const OperationsList: React.FC<OperationsListProps> = ({
                     {op.fotoQr ? (
                       <button
                         type="button"
-                        onClick={() => setPreviewQrOp(op)}
+                        onClick={() => setPreviewQrOpId(op.id)}
                         className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 text-[11px] font-medium cursor-pointer"
                       >
                         <QrCode className="w-3.5 h-3.5" />
@@ -399,9 +397,7 @@ export const OperationsList: React.FC<OperationsListProps> = ({
                 const isHighlighted = lastModifiedId === op.id;
 
                 const currentMonthKey = getMonthKey(op.fecha);
-                const nextOp = operations[index + 1];
-                const nextMonthKey = nextOp ? getMonthKey(nextOp.fecha) : null;
-                const isLastOfMonth = currentMonthKey !== nextMonthKey;
+                const isLastOfMonth = lastIndexByMonth.get(currentMonthKey) === index;
                 const monthSummary = isLastOfMonth ? monthlySummaries[currentMonthKey] : null;
 
                 return (
@@ -539,7 +535,7 @@ export const OperationsList: React.FC<OperationsListProps> = ({
                         {op.fotoQr ? (
                           <button
                             type="button"
-                            onClick={() => setPreviewQrOp(op)}
+                            onClick={() => setPreviewQrOpId(op.id)}
                             className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 text-[10px] font-semibold cursor-pointer transition-colors"
                             title="Ver foto / código de barras / QR adjunto"
                           >
@@ -660,7 +656,7 @@ export const OperationsList: React.FC<OperationsListProps> = ({
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div
             className="fixed inset-0 bg-black/85 backdrop-blur-md"
-            onClick={() => setPreviewQrOp(null)}
+            onClick={() => setPreviewQrOpId(null)}
           />
           <div className="relative z-10 w-full max-w-md glass-modal rounded-3xl p-5 border border-white/15 shadow-2xl space-y-4">
             <div className="flex items-center justify-between border-b border-white/10 pb-3">
@@ -673,7 +669,7 @@ export const OperationsList: React.FC<OperationsListProps> = ({
               </div>
               <button
                 type="button"
-                onClick={() => setPreviewQrOp(null)}
+                onClick={() => setPreviewQrOpId(null)}
                 className="p-1.5 rounded-full text-zinc-400 hover:text-white hover:bg-white/10 cursor-pointer"
               >
                 <X className="w-5 h-5" />
@@ -698,7 +694,6 @@ export const OperationsList: React.FC<OperationsListProps> = ({
                   onChange={(e) => {
                     const emp = e.target.value as ShippingCompany;
                     onAttachQr(previewQrOp.id, previewQrOp.fotoQr, emp);
-                    setPreviewQrOp({ ...previewQrOp, empresaEnvio: emp });
                   }}
                   className="w-full bg-zinc-900 border border-white/10 rounded-xl px-3 py-2 text-xs text-white"
                 >
@@ -720,7 +715,7 @@ export const OperationsList: React.FC<OperationsListProps> = ({
                   type="button"
                   onClick={() => {
                     onAttachQr(previewQrOp.id, undefined, undefined);
-                    setPreviewQrOp(null);
+                    setPreviewQrOpId(null);
                   }}
                   className="px-3 py-2 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 text-xs font-medium cursor-pointer"
                 >

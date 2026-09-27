@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useOperations } from './hooks/useOperations';
 import { Header, ViewMode, ActiveSection } from './components/Header';
 import { DashboardSummary } from './components/DashboardSummary';
@@ -12,6 +12,9 @@ import { FilamentStockView } from './components/FilamentStockView';
 import { QrStorageView } from './components/QrStorageView';
 import { Operation, Status } from './types/operation';
 import { Plus, CheckCircle2 } from 'lucide-react';
+
+const SECTION_STORAGE_KEY = 'formare3d_active_section';
+const VIEW_MODE_STORAGE_KEY = 'formare3d_view_mode';
 
 export default function App() {
   const {
@@ -39,16 +42,59 @@ export default function App() {
     importJSON,
   } = useOperations();
 
-  // Active Section ('ventas' | 'filamentos' | 'qr')
-  const [activeSection, setActiveSection] = useState<ActiveSection>('ventas');
+  // Active Section ('ventas' | 'filamentos' | 'qr'), persisted across reloads
+  const [activeSection, setActiveSection] = useState<ActiveSection>(() => {
+    try {
+      const saved = localStorage.getItem(SECTION_STORAGE_KEY);
+      if (saved === 'ventas' || saved === 'filamentos' || saved === 'qr') {
+        return saved;
+      }
+    } catch {
+      // Ignore storage error
+    }
+    return 'ventas';
+  });
 
-  // View Mode ('auto' adapts to screen width; user can also toggle 'iphone' (Vista móvil) or 'desktop' (Tabla))
-  const [viewMode, setViewMode] = useState<ViewMode>('auto');
+  // View Mode ('auto' | 'iphone' | 'desktop'), persisted across reloads
+  const [viewMode, setViewMode] = useState<ViewMode>(() => {
+    try {
+      const saved = localStorage.getItem(VIEW_MODE_STORAGE_KEY);
+      if (saved === 'auto' || saved === 'iphone' || saved === 'desktop') {
+        return saved;
+      }
+    } catch {
+      // Ignore storage error
+    }
+    return 'auto';
+  });
+
+  const handleSectionChange = (section: ActiveSection) => {
+    setActiveSection(section);
+    try {
+      localStorage.setItem(SECTION_STORAGE_KEY, section);
+    } catch {
+      // Ignore storage error
+    }
+  };
+
+  const handleViewModeChange = (mode: ViewMode) => {
+    setViewMode(mode);
+    try {
+      localStorage.setItem(VIEW_MODE_STORAGE_KEY, mode);
+    } catch {
+      // Ignore storage error
+    }
+  };
 
   // Modal States
   const [isOpModalOpen, setIsOpModalOpen] = useState(false);
-  const [selectedOp, setSelectedOp] = useState<Operation | null>(null);
+  const [selectedOpId, setSelectedOpId] = useState<string | null>(null);
   const [initialModalData, setInitialModalData] = useState<Partial<Operation> | undefined>(undefined);
+
+  const selectedOp = useMemo(
+    () => (selectedOpId ? rawOperations.find((op) => op.id === selectedOpId) || null : null),
+    [rawOperations, selectedOpId]
+  );
 
   const [isPricingModalOpen, setIsPricingModalOpen] = useState(false);
   const [isRevenueModalOpen, setIsRevenueModalOpen] = useState(false);
@@ -63,13 +109,13 @@ export default function App() {
   }, [saveNotification, clearNotification]);
 
   const handleOpenNewOp = () => {
-    setSelectedOp(null);
+    setSelectedOpId(null);
     setInitialModalData(undefined);
     setIsOpModalOpen(true);
   };
 
   const handleSelectOp = (op: Operation) => {
-    setSelectedOp(op);
+    setSelectedOpId(op.id);
     setInitialModalData(undefined);
     setIsOpModalOpen(true);
   };
@@ -110,7 +156,7 @@ export default function App() {
     materialCost: number,
     recommendedPrice: number
   ) => {
-    setSelectedOp(null);
+    setSelectedOpId(null);
     setInitialModalData({
       producto: productName,
       precio: recommendedPrice,
@@ -140,7 +186,7 @@ export default function App() {
       {/* Top Navigation Header */}
       <Header
         activeSection={activeSection}
-        onSectionChange={setActiveSection}
+        onSectionChange={handleSectionChange}
         onNewOperation={handleOpenNewOp}
         onOpenPricingCalculator={() => setIsPricingModalOpen(true)}
         onOpenRevenueSplit={() => setIsRevenueModalOpen(true)}
@@ -149,7 +195,7 @@ export default function App() {
         onResetData={resetToDefaultData}
         onClearAllData={clearAllData}
         viewMode={viewMode}
-        onViewModeChange={setViewMode}
+        onViewModeChange={handleViewModeChange}
         qrCount={uploadedQrCount}
       />
 
@@ -205,7 +251,7 @@ export default function App() {
         {activeSection === 'filamentos' && (
           <FilamentStockView
             spools={filamentStock}
-            onAddFilamentOrder={handleSaveNewOp}
+            onAddFilamentOrder={addOperation}
             onUpdateFilamentRemaining={updateFilamentRemaining}
           />
         )}
@@ -214,6 +260,7 @@ export default function App() {
           <QrStorageView
             operations={rawOperations}
             onAttachQr={attachQrToOperation}
+            onStatusChange={handleQuickStatusChange}
           />
         )}
       </main>
@@ -235,7 +282,7 @@ export default function App() {
         isOpen={isOpModalOpen}
         onClose={() => {
           setIsOpModalOpen(false);
-          setSelectedOp(null);
+          setSelectedOpId(null);
           setInitialModalData(undefined);
         }}
         onSave={handleSaveNewOp}

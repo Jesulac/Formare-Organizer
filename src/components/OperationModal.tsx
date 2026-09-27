@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   X, 
   Trash2, 
@@ -12,7 +12,11 @@ import {
   Clock,
   QrCode,
   Upload,
-  Hash
+  Hash,
+  Mic,
+  Square,
+  Sparkles,
+  Loader2
 } from 'lucide-react';
 import { 
   Operation, 
@@ -32,6 +36,7 @@ import {
   normalizeStatus,
   parseEuro 
 } from '../utils/calculations';
+import { parseVoiceOperationSmartFallback } from '../utils/voiceParser';
 
 interface OperationModalProps {
   isOpen: boolean;
@@ -70,6 +75,38 @@ const statusesList: Status[] = [
 
 const shippingCompanies: ShippingCompany[] = ['Correos', 'InPost', 'Seur', 'Otro'];
 
+const KNOWN_SELLERS = ['Jorge', 'Sandra', 'Alejandro', 'Jorge, Sandra'];
+
+function getSupportedAudioMimeType(): string {
+  if (typeof MediaRecorder === 'undefined') return 'audio/webm';
+  const candidates = [
+    'audio/webm;codecs=opus',
+    'audio/webm',
+    'audio/mp4',
+    'audio/ogg;codecs=opus',
+    'audio/wav',
+  ];
+  for (const type of candidates) {
+    if (MediaRecorder.isTypeSupported(type)) {
+      return type;
+    }
+  }
+  return '';
+}
+
+function blobToBase64(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const dataUrl = reader.result as string;
+      const base64 = dataUrl.includes(',') ? dataUrl.split(',')[1] : dataUrl;
+      resolve(base64);
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
 export const OperationModal: React.FC<OperationModalProps> = ({
   isOpen,
   onClose,
@@ -88,6 +125,7 @@ export const OperationModal: React.FC<OperationModalProps> = ({
   const [unidades, setUnidades] = useState<number>(1);
   const [costeUnitario, setCosteUnitario] = useState<number | undefined>(undefined);
   const [fecha, setFecha] = useState(formatDateInput(new Date().toISOString()));
+  const [fechaLimiteCustom, setFechaLimiteCustom] = useState<string>('');
   const [material, setMaterial] = useState('');
   const [precioStr, setPrecioStr] = useState('');
   const [costesStr, setCostesStr] = useState('');
@@ -102,11 +140,56 @@ export const OperationModal: React.FC<OperationModalProps> = ({
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
+  // Voice AI Dictation States
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingSeconds, setRecordingSeconds] = useState(0);
+  const [isProcessingVoice, setIsProcessingVoice] = useState(false);
+  const [voiceTranscript, setVoiceTranscript] = useState('');
+  const [voiceStatusMsg, setVoiceStatusMsg] = useState<string | null>(null);
+
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const mediaStreamRef = useRef<MediaStream | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const speechRecognitionRef = useRef<any>(null);
+  const timerIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const liveTranscriptRef = useRef<string>('');
+
+  const cleanupVoiceResources = () => {
+    if (timerIntervalRef.current) {
+      clearInterval(timerIntervalRef.current);
+      timerIntervalRef.current = null;
+    }
+    if (speechRecognitionRef.current) {
+      try {
+        speechRecognitionRef.current.stop();
+      } catch {
+        // Ignore stop error
+      }
+      speechRecognitionRef.current = null;
+    }
+    if (mediaStreamRef.current) {
+      mediaStreamRef.current.getTracks().forEach((track) => track.stop());
+      mediaStreamRef.current = null;
+    }
+    mediaRecorderRef.current = null;
+    setIsRecording(false);
+  };
+
   useEffect(() => {
     setConfirmingDelete(false);
     setErrorMsg(null);
+    setVoiceStatusMsg(null);
+    setVoiceTranscript('');
+    liveTranscriptRef.current = '';
+    cleanupVoiceResources();
+
+    const defaultToday = formatDateInput(new Date().toISOString());
+
     if (operationToEdit) {
-      setTipo(operationToEdit.tipo || 'venta');
+      const editTipo = operationToEdit.tipo || 'venta';
+      const editFecha = formatDateInput(operationToEdit.fecha);
+      const editLugar = operationToEdit.lugarVenta || 'Wallapop';
+      setTipo(editTipo);
       setProducto(operationToEdit.producto || '');
       const uds = operationToEdit.unidades && operationToEdit.unidades > 0 ? operationToEdit.unidades : 1;
       setUnidades(uds);
@@ -114,15 +197,20 @@ export const OperationModal: React.FC<OperationModalProps> = ({
         operationToEdit.costeUnitario ??
           (operationToEdit.costes ? Number((operationToEdit.costes / uds).toFixed(2)) : undefined)
       );
-      setFecha(formatDateInput(operationToEdit.fecha));
+      setFecha(editFecha);
+      setFechaLimiteCustom(
+        editTipo === 'venta'
+          ? operationToEdit.fechaLimite || calculateDeadlineDate(editFecha, editLugar, editTipo)
+          : ''
+      );
       setMaterial(operationToEdit.material || '');
       setPrecioStr(operationToEdit.precio !== null ? String(operationToEdit.precio) : '');
       setCostesStr(operationToEdit.costes ? String(operationToEdit.costes) : '');
-      setLugarVenta(operationToEdit.lugarVenta || 'Wallapop');
+      setLugarVenta(editLugar);
       setEstado(normalizeStatus(operationToEdit.estado));
 
       const vend = operationToEdit.vendedor || 'Jorge';
-      if (['Jorge', 'Sandra', 'Alejandro'].includes(vend)) {
+      if (KNOWN_SELLERS.includes(vend)) {
         setVendedorSelect(vend);
         setVendedorCustom('');
       } else {
@@ -135,16 +223,24 @@ export const OperationModal: React.FC<OperationModalProps> = ({
       setEmpresaEnvio(operationToEdit.empresaEnvio || 'Correos');
       setEsPedidoFilamento(Boolean(operationToEdit.esPedidoFilamento));
     } else if (initialData) {
-      setTipo(initialData.tipo || 'venta');
+      const initTipo = initialData.tipo || 'venta';
+      const initFecha = initialData.fecha ? formatDateInput(initialData.fecha) : defaultToday;
+      const initLugar = initialData.lugarVenta || 'Wallapop';
+      setTipo(initTipo);
       setProducto(initialData.producto || '');
       const uds = initialData.unidades && initialData.unidades > 0 ? initialData.unidades : 1;
       setUnidades(uds);
       setCosteUnitario(initialData.costes ? Number((initialData.costes / uds).toFixed(2)) : undefined);
-      setFecha(initialData.fecha ? formatDateInput(initialData.fecha) : formatDateInput(new Date().toISOString()));
+      setFecha(initFecha);
+      setFechaLimiteCustom(
+        initTipo === 'venta'
+          ? initialData.fechaLimite || calculateDeadlineDate(initFecha, initLugar, initTipo)
+          : ''
+      );
       setMaterial(initialData.material || '');
       setPrecioStr(initialData.precio !== null && initialData.precio !== undefined ? String(initialData.precio) : '');
       setCostesStr(initialData.costes ? String(initialData.costes) : '');
-      setLugarVenta(initialData.lugarVenta || 'Wallapop');
+      setLugarVenta(initLugar);
       setEstado(normalizeStatus(initialData.estado || 'Cobrado'));
       setVendedorSelect('Jorge');
       setVendedorCustom('');
@@ -157,7 +253,8 @@ export const OperationModal: React.FC<OperationModalProps> = ({
       setProducto('');
       setUnidades(1);
       setCosteUnitario(undefined);
-      setFecha(formatDateInput(new Date().toISOString()));
+      setFecha(defaultToday);
+      setFechaLimiteCustom(calculateDeadlineDate(defaultToday, 'Wallapop', 'venta'));
       setMaterial('');
       setPrecioStr('');
       setCostesStr('');
@@ -170,6 +267,10 @@ export const OperationModal: React.FC<OperationModalProps> = ({
       setEmpresaEnvio('Correos');
       setEsPedidoFilamento(false);
     }
+
+    return () => {
+      cleanupVoiceResources();
+    };
   }, [operationToEdit, initialData, isOpen]);
 
   if (!isOpen) return null;
@@ -177,7 +278,263 @@ export const OperationModal: React.FC<OperationModalProps> = ({
   const precioNum = precioStr !== '' ? parseEuro(precioStr) : null;
   const costesNum = parseEuro(costesStr);
   const autoFechaLimite = calculateDeadlineDate(fecha, lugarVenta, tipo);
+  const effectiveFechaLimite = tipo === 'venta' ? (fechaLimiteCustom || autoFechaLimite) : '';
   const previewBeneficio = calculateBeneficio(precioNum, costesNum, 0, tipo);
+
+  // Apply extracted AI data into all form fields
+  const applyExtractedAiData = (data: any) => {
+    if (!data) return;
+
+    if (data.transcripcion) {
+      setVoiceTranscript(data.transcripcion);
+    }
+
+    const aiTipo: OperationType =
+      data.tipo === 'compra' || data.tipo === 'inversion' ? data.tipo : 'venta';
+    setTipo(aiTipo);
+
+    const aiUnits = typeof data.unidades === 'number' && data.unidades >= 1 ? Math.round(data.unidades) : 1;
+    setUnidades(aiUnits);
+
+    let matchedCatalogItem: ProductCatalogItem | undefined;
+    if (data.producto && typeof data.producto === 'string') {
+      const cleanName = data.producto.trim();
+      setProducto(cleanName);
+      matchedCatalogItem = productCatalog.find(
+        (item) => item.producto.toLowerCase() === cleanName.toLowerCase()
+      );
+    }
+
+    const aiFecha =
+      data.fecha && /^\d{4}-\d{2}-\d{2}$/.test(data.fecha)
+        ? data.fecha
+        : fecha;
+    setFecha(aiFecha);
+
+    const validPlatform = platformsList.find(
+      (p) => p.toLowerCase() === String(data.lugarVenta || '').toLowerCase()
+    );
+    const nextLugar: Platform = validPlatform || (aiTipo === 'venta' ? 'Wallapop' : 'Internet');
+    setLugarVenta(nextLugar);
+
+    setFechaLimiteCustom(
+      aiTipo === 'venta' ? calculateDeadlineDate(aiFecha, nextLugar, aiTipo) : ''
+    );
+
+    if (data.material && typeof data.material === 'string' && data.material.trim()) {
+      setMaterial(data.material.trim());
+    } else if (matchedCatalogItem?.material) {
+      setMaterial(matchedCatalogItem.material);
+    }
+
+    if (aiTipo === 'venta') {
+      if (typeof data.precio === 'number' && data.precio > 0) {
+        setPrecioStr(String(Number(data.precio.toFixed(2))));
+      }
+    } else {
+      setPrecioStr('');
+    }
+
+    if (typeof data.costes === 'number' && data.costes > 0) {
+      const cTotal = Number(data.costes.toFixed(2));
+      setCostesStr(String(cTotal));
+      setCosteUnitario(Number((cTotal / aiUnits).toFixed(2)));
+    } else if (matchedCatalogItem && matchedCatalogItem.costeUnitario > 0) {
+      setCosteUnitario(matchedCatalogItem.costeUnitario);
+      setCostesStr(String(Number((matchedCatalogItem.costeUnitario * aiUnits).toFixed(2))));
+    }
+
+    if (data.estado) {
+      setEstado(normalizeStatus(data.estado));
+    } else {
+      setEstado(aiTipo === 'venta' ? 'Cobrado' : 'Pagado');
+    }
+
+    if (data.vendedor && typeof data.vendedor === 'string') {
+      const vTrim = data.vendedor.trim();
+      const matchedSeller = KNOWN_SELLERS.find(
+        (s) => s.toLowerCase() === vTrim.toLowerCase()
+      );
+      if (matchedSeller) {
+        setVendedorSelect(matchedSeller);
+        setVendedorCustom('');
+      } else {
+        setVendedorSelect('Otro');
+        setVendedorCustom(vTrim);
+      }
+    }
+
+    if (data.comentarios && typeof data.comentarios === 'string') {
+      setComentarios(data.comentarios.trim());
+    }
+
+    if (typeof data.esPedidoFilamento === 'boolean') {
+      setEsPedidoFilamento(data.esPedidoFilamento);
+    }
+
+    setErrorMsg(null);
+    setVoiceStatusMsg('Todos los apartados se han rellenado con IA.');
+  };
+
+  const processVoiceWithGemini = async (audioBlob?: Blob | null, textFallback?: string) => {
+    setIsProcessingVoice(true);
+    setErrorMsg(null);
+    setVoiceStatusMsg('Analizando voz con Gemini IA y rellenando campos...');
+
+    const transcriptToUse = (textFallback ?? liveTranscriptRef.current ?? voiceTranscript).trim();
+    const todayDate = formatDateInput(new Date().toISOString());
+
+    try {
+      let audioBase64 = '';
+      let mimeType = 'audio/webm';
+      if (audioBlob && audioBlob.size > 0) {
+        audioBase64 = await blobToBase64(audioBlob);
+        mimeType = audioBlob.type || 'audio/webm';
+      }
+
+      if (!audioBase64 && !transcriptToUse) {
+        setErrorMsg('No se detectó voz. Habla cerca del micrófono o escribe el dictado.');
+        setVoiceStatusMsg(null);
+        setIsProcessingVoice(false);
+        return;
+      }
+
+      const res = await fetch('/api/ai/voice-operation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          audioBase64: audioBase64 || undefined,
+          mimeType,
+          transcriptText: transcriptToUse,
+          productCatalog,
+          todayDate,
+        }),
+      });
+
+      const result = await res.json().catch(() => null);
+      if (!res.ok || !result || !result.ok) {
+        if (transcriptToUse) {
+          const fallbackData = parseVoiceOperationSmartFallback(
+            transcriptToUse,
+            productCatalog,
+            todayDate
+          );
+          applyExtractedAiData(fallbackData);
+          return;
+        }
+        throw new Error(
+          result?.error || 'El modelo de voz está con alta demanda temporal. Intenta de nuevo.'
+        );
+      }
+
+      applyExtractedAiData(result.data);
+    } catch (err: any) {
+      console.warn('Fallback local tras error de red/API en dictado por voz:', err);
+      if (transcriptToUse) {
+        const fallbackData = parseVoiceOperationSmartFallback(
+          transcriptToUse,
+          productCatalog,
+          todayDate
+        );
+        applyExtractedAiData(fallbackData);
+      } else {
+        const rawMsg = String(err?.message || '');
+        const cleanMsg =
+          rawMsg.includes('503') || rawMsg.includes('UNAVAILABLE') || rawMsg.startsWith('{')
+            ? 'El servidor de voz de IA tiene alta demanda puntual. Vuelve a pulsar Dictar por Voz o escribe el dictado.'
+            : rawMsg || 'Error al procesar el dictado por voz.';
+        setErrorMsg(cleanMsg);
+        setVoiceStatusMsg(null);
+      }
+    } finally {
+      setIsProcessingVoice(false);
+    }
+  };
+
+  const handleStartVoiceRecording = async () => {
+    setErrorMsg(null);
+    setVoiceStatusMsg(null);
+    liveTranscriptRef.current = '';
+    setVoiceTranscript('');
+    audioChunksRef.current = [];
+    setRecordingSeconds(0);
+
+    // Optional parallel Web Speech API for live visual transcript preview while speaking
+    const SpeechRec =
+      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (SpeechRec) {
+      try {
+        const recognition = new SpeechRec();
+        recognition.lang = 'es-ES';
+        recognition.continuous = true;
+        recognition.interimResults = true;
+        recognition.onresult = (event: any) => {
+          let transcript = '';
+          for (let i = 0; i < event.results.length; i++) {
+            transcript += event.results[i][0].transcript + ' ';
+          }
+          const clean = transcript.trim();
+          if (clean) {
+            liveTranscriptRef.current = clean;
+            setVoiceTranscript(clean);
+          }
+        };
+        recognition.start();
+        speechRecognitionRef.current = recognition;
+      } catch {
+        // Ignore if browser blocks Web Speech API; MediaRecorder handles audio capture
+      }
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaStreamRef.current = stream;
+      const mimeType = getSupportedAudioMimeType();
+      const recorder = mimeType
+        ? new MediaRecorder(stream, { mimeType })
+        : new MediaRecorder(stream);
+
+      recorder.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) {
+          audioChunksRef.current.push(e.data);
+        }
+      };
+
+      recorder.onstop = () => {
+        const chunks = audioChunksRef.current;
+        const audioBlob =
+          chunks.length > 0
+            ? new Blob(chunks, { type: recorder.mimeType || 'audio/webm' })
+            : null;
+        cleanupVoiceResources();
+        void processVoiceWithGemini(audioBlob, liveTranscriptRef.current);
+      };
+
+      mediaRecorderRef.current = recorder;
+      recorder.start(250);
+      setIsRecording(true);
+      timerIntervalRef.current = setInterval(() => {
+        setRecordingSeconds((prev) => prev + 1);
+      }, 1000);
+    } catch (err) {
+      console.warn('Microphone access error:', err);
+      cleanupVoiceResources();
+      setErrorMsg(
+        'No se pudo acceder al micrófono. Permite el acceso al micrófono en tu navegador o escribe el dictado en el cuadro de voz.'
+      );
+    }
+  };
+
+  const handleStopVoiceRecording = () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      mediaRecorderRef.current.stop();
+    } else {
+      cleanupVoiceResources();
+      if (liveTranscriptRef.current.trim()) {
+        void processVoiceWithGemini(null, liveTranscriptRef.current);
+      }
+    }
+  };
 
   // Handle selecting an existing product from catalog
   const handleSelectCatalogProduct = (selectedName: string) => {
@@ -187,7 +544,6 @@ export const OperationModal: React.FC<OperationModalProps> = ({
       (item) => item.producto.toLowerCase() === selectedName.toLowerCase()
     );
     if (found) {
-      // Price is intentionally NOT loaded because it varies by negotiation/platform
       setCosteUnitario(found.costeUnitario);
       const totalCost = Number((found.costeUnitario * (unidades || 1)).toFixed(2));
       setCostesStr(String(totalCost));
@@ -252,7 +608,7 @@ export const OperationModal: React.FC<OperationModalProps> = ({
       estado,
       vendedor: finalVendedor,
       comentarios: comentarios.trim() || undefined,
-      fechaLimite: tipo === 'venta' ? autoFechaLimite : '',
+      fechaLimite: tipo === 'venta' ? effectiveFechaLimite : '',
       fotoQr,
       empresaEnvio: fotoQr ? empresaEnvio : undefined,
       fechaSubidaQr: fotoQr ? operationToEdit?.fechaSubidaQr || Date.now() : undefined,
@@ -286,7 +642,7 @@ export const OperationModal: React.FC<OperationModalProps> = ({
         <div className="w-10 h-1 bg-zinc-700 rounded-full mx-auto -mt-1 mb-3 sm:hidden" />
 
         {/* Modal Header */}
-        <div className="flex items-center justify-between pb-3 border-b border-white/10 mb-4">
+        <div className="flex items-center justify-between pb-3 border-b border-white/10 mb-3.5">
           <h2 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
             <span>{isEditing ? 'Editar operación' : 'Nueva operación'}</span>
           </h2>
@@ -352,6 +708,96 @@ export const OperationModal: React.FC<OperationModalProps> = ({
 
         {/* Form Body */}
         <form onSubmit={handleSubmit} className="space-y-3.5 text-xs">
+          {/* APARTADO DE VOZ CON IA (Gemini) */}
+          <div className="p-3.5 rounded-2xl bg-gradient-to-br from-emerald-950/50 via-zinc-900/90 to-zinc-950 border border-emerald-500/35 space-y-2.5 shadow-lg">
+            <div className="flex items-center justify-between gap-2">
+              <div className="min-w-0">
+                <div className="flex items-center gap-1.5 text-emerald-300 font-bold text-xs">
+                  <Sparkles className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span>Autocompletar por Voz con IA</span>
+                </div>
+                <p className="text-[10px] text-zinc-400 mt-0.5 leading-snug">
+                  Modelos: <span className="font-mono text-emerald-300/90">gemini-3.5-transcribe</span> +{' '}
+                  <span className="font-mono text-emerald-300/90">gemini-3.8-flash</span>. Di por ejemplo:{' '}
+                  <em className="text-zinc-300">
+                    &laquo;Venta de Volante F1 Logitech por 18 euros en Wallapop, en producción, vendedor Jorge&raquo;
+                  </em>
+                </p>
+              </div>
+
+              {isRecording ? (
+                <button
+                  type="button"
+                  onClick={handleStopVoiceRecording}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-rose-500 hover:bg-rose-400 text-white font-bold text-xs shadow-lg shadow-rose-500/30 animate-pulse cursor-pointer shrink-0"
+                >
+                  <Square className="w-3.5 h-3.5 fill-current" />
+                  <span>Parar ({recordingSeconds}s)</span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  disabled={isProcessingVoice}
+                  onClick={handleStartVoiceRecording}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-black font-bold text-xs shadow-lg shadow-emerald-500/20 active:scale-95 transition-all cursor-pointer shrink-0"
+                >
+                  {isProcessingVoice ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Procesando...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Mic className="w-4 h-4 stroke-[2.5]" />
+                      <span>Dictar por Voz</span>
+                    </>
+                  )}
+                </button>
+              )}
+            </div>
+
+            {/* Live transcript or manual voice text fallback */}
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                value={voiceTranscript}
+                onChange={(e) => {
+                  setVoiceTranscript(e.target.value);
+                  liveTranscriptRef.current = e.target.value;
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && voiceTranscript.trim()) {
+                    e.preventDefault();
+                    void processVoiceWithGemini(null, voiceTranscript);
+                  }
+                }}
+                placeholder={
+                  isRecording
+                    ? 'Escuchando tu voz... habla ahora y pulsa Parar al terminar'
+                    : 'Transcripción de voz o escribe aquí qué operación quieres rellenar...'
+                }
+                className="flex-1 min-w-0 bg-black/60 border border-white/10 rounded-xl px-3 py-1.5 text-[11px] text-white placeholder-zinc-500 focus:outline-none focus:border-emerald-500/50"
+              />
+              {voiceTranscript.trim() && !isRecording && (
+                <button
+                  type="button"
+                  disabled={isProcessingVoice}
+                  onClick={() => void processVoiceWithGemini(null, voiceTranscript)}
+                  className="px-2.5 py-1.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 text-[11px] font-semibold cursor-pointer shrink-0"
+                >
+                  Rellenar con IA
+                </button>
+              )}
+            </div>
+
+            {voiceStatusMsg && (
+              <div className="text-[11px] text-emerald-300 bg-emerald-950/60 border border-emerald-500/30 rounded-xl px-2.5 py-1.5 flex items-center gap-1.5">
+                <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                <span>{voiceStatusMsg}</span>
+              </div>
+            )}
+          </div>
+
           {errorMsg && (
             <div className="p-2.5 rounded-xl bg-rose-950/80 border border-rose-500/30 text-rose-200 text-xs">
               {errorMsg}
@@ -378,9 +824,11 @@ export const OperationModal: React.FC<OperationModalProps> = ({
                     if (newTipo === 'compra' || newTipo === 'inversion') {
                       setEstado('Pagado');
                       setLugarVenta('Internet');
+                      setFechaLimiteCustom('');
                     } else if (newTipo === 'venta') {
                       setEstado('Cobrado');
                       setLugarVenta('Wallapop');
+                      setFechaLimiteCustom(calculateDeadlineDate(fecha, 'Wallapop', 'venta'));
                     }
                   }}
                   className={`py-2 px-2 rounded-xl text-[11px] font-medium transition-all text-center cursor-pointer ${
@@ -435,7 +883,7 @@ export const OperationModal: React.FC<OperationModalProps> = ({
             />
           </div>
 
-          {/* Fecha & Lugar de Venta (Acortada la caja de Fecha en móvil para no solaparse nunca) */}
+          {/* Fecha & Lugar de Venta */}
           <div className="grid grid-cols-12 gap-2.5 items-start">
             <div className="col-span-6 pr-2.5 sm:pr-0 min-w-0 overflow-hidden">
               <label className="block text-zinc-300 font-medium mb-1 flex items-center gap-1">
@@ -447,7 +895,13 @@ export const OperationModal: React.FC<OperationModalProps> = ({
                   type="date"
                   required
                   value={fecha}
-                  onChange={(e) => setFecha(e.target.value)}
+                  onChange={(e) => {
+                    const nextFecha = e.target.value;
+                    setFecha(nextFecha);
+                    if (tipo === 'venta') {
+                      setFechaLimiteCustom(calculateDeadlineDate(nextFecha, lugarVenta, tipo));
+                    }
+                  }}
                   className="block w-full min-w-0 appearance-none box-border bg-zinc-900/90 border border-white/10 rounded-xl px-2 py-2 h-[38px] text-[11px] sm:text-xs text-white focus:outline-none focus:border-emerald-500/50"
                 />
               </div>
@@ -460,7 +914,13 @@ export const OperationModal: React.FC<OperationModalProps> = ({
               </label>
               <select
                 value={lugarVenta}
-                onChange={(e) => setLugarVenta(e.target.value as Platform)}
+                onChange={(e) => {
+                  const nextLugar = e.target.value as Platform;
+                  setLugarVenta(nextLugar);
+                  if (tipo === 'venta') {
+                    setFechaLimiteCustom(calculateDeadlineDate(fecha, nextLugar, tipo));
+                  }
+                }}
                 className="block w-full min-w-0 bg-zinc-900/90 border border-white/10 rounded-xl px-2.5 py-2 h-[38px] text-xs text-white focus:outline-none focus:border-emerald-500/50"
               >
                 {platformsList.map((p) => (
@@ -470,18 +930,28 @@ export const OperationModal: React.FC<OperationModalProps> = ({
             </div>
           </div>
 
-          {/* Fecha límite automática para ventas */}
+          {/* Fecha límite automática y editable para ventas */}
           {tipo === 'venta' && (
-            <div className="bg-amber-950/25 border border-amber-500/25 rounded-xl px-3 py-2 flex items-center justify-between text-xs">
+            <div className="bg-amber-950/25 border border-amber-500/25 rounded-xl px-3 py-2 flex flex-wrap items-center justify-between gap-2 text-xs">
               <span className="text-amber-300/90 flex items-center gap-1.5">
                 <Clock className="w-3.5 h-3.5 text-amber-400 shrink-0" />
                 <span>
                   Fecha límite envío ({lugarVenta === 'Wallapop' ? '5 días nat.' : lugarVenta === 'Vinted' ? '5 días lab.' : '3 días lab.'}):
                 </span>
               </span>
-              <span className="font-mono font-bold text-amber-300">
-                {autoFechaLimite ? formatDateDisplay(autoFechaLimite) : 'Sin plazo'}
-              </span>
+              <div className="flex items-center gap-2">
+                <input
+                  type="date"
+                  value={effectiveFechaLimite}
+                  onChange={(e) => setFechaLimiteCustom(e.target.value)}
+                  className="bg-zinc-900/90 border border-amber-500/30 rounded-lg px-2 py-1 text-[11px] font-mono font-bold text-amber-300 focus:outline-none focus:border-amber-400"
+                />
+                {effectiveFechaLimite && (
+                  <span className="font-mono font-bold text-amber-300 hidden sm:inline">
+                    ({formatDateDisplay(effectiveFechaLimite)})
+                  </span>
+                )}
+              </div>
             </div>
           )}
 
@@ -588,7 +1058,7 @@ export const OperationModal: React.FC<OperationModalProps> = ({
             </span>
           </div>
 
-          {/* Estado (Sin emojis) & Vendedor (Desplegable Jorge, Sandra, Alejandro, Otro) */}
+          {/* Estado & Vendedor */}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-zinc-300 font-medium mb-1">Estado</label>
@@ -616,6 +1086,7 @@ export const OperationModal: React.FC<OperationModalProps> = ({
                 <option value="Jorge">Jorge</option>
                 <option value="Sandra">Sandra</option>
                 <option value="Alejandro">Alejandro</option>
+                <option value="Jorge, Sandra">Jorge, Sandra</option>
                 <option value="Otro">Otro</option>
               </select>
             </div>

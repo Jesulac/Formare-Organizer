@@ -20,7 +20,10 @@ import {
   loadFromLocalStorageSync,
   loadFromIndexedDB,
   loadFromServer,
+  cachePayloadLocally,
   persistOperationsAllLayers,
+  subscribeToRealtimeUpdates,
+  PersistedPayload,
 } from '../utils/storage';
 
 const TEN_DAYS_MS = 10 * 24 * 60 * 60 * 1000;
@@ -95,30 +98,165 @@ export function sanitizeAndMigrateOperations(rawList: any[]): Operation[] {
     });
 }
 
-function normalizeFilamentKey(raw: string): string {
+export function normalizeFilamentKey(raw: string): string {
   const s = raw.toLowerCase().trim();
+  if (!s) return 'PETG Negro (Elegoo)';
   if (s.includes('petg') && s.includes('rojo')) return 'PETG Rojo (Winkle)';
   if (s.includes('petg') && (s.includes('cf') || s.includes('fc') || s.includes('fcf'))) return 'PETG Negro CF (Bambu / Elegoo)';
   if (s.includes('petg') && s.includes('bambu')) return 'PETG Negro (Bambulab)';
   if (s.includes('petg') && s.includes('esun')) return 'PETG Negro (eSun)';
   if (s.includes('petg') && s.includes('sunlu')) return 'PETG Negro (Sunlu)';
-  if (s.includes('petg')) return 'PETG Negro (Elegoo)';
-  if (s.includes('asa')) return 'ASA Negro (Winkle)';
-  if (s.includes('tpu')) return 'TPU Negro';
+  if (s.includes('petg') && (s.includes('negro') || s.includes('elegoo') || s === 'petg')) return 'PETG Negro (Elegoo)';
+  if (s.includes('asa') && (s.includes('negro') || s.includes('winkle') || s === 'asa')) return 'ASA Negro (Winkle)';
+  if (s.includes('tpu') && (s.includes('negro') || s === 'tpu')) return 'TPU Negro';
   if (s.includes('pla') && s.includes('rojo')) return 'PLA Rojo (Elegoo)';
   if (s.includes('pla') && s.includes('azul')) return 'PLA Azul (eSun)';
   if (s.includes('pla') && s.includes('blanco')) return 'PLA Blanco (Elegoo)';
-  if (s.includes('pla')) return 'PLA Negro (Elegoo / i3D)';
+  if (s.includes('pla') && (s.includes('negro') || s.includes('elegoo') || s.includes('i3d') || s === 'pla')) {
+    return 'PLA Negro (Elegoo / i3D)';
+  }
   return raw.trim();
 }
 
+const DEFAULT_FILAMENTS: Array<{ nombre: string; precio: number; bobinasBase: number }> = [
+  { nombre: 'PETG Negro (Elegoo)', precio: 15.0, bobinasBase: 6 },
+  { nombre: 'PETG Negro CF (Bambu / Elegoo)', precio: 16.5, bobinasBase: 3 },
+  { nombre: 'PETG Negro (Bambulab)', precio: 12.86, bobinasBase: 3 },
+  { nombre: 'PETG Negro (eSun)', precio: 13.43, bobinasBase: 3 },
+  { nombre: 'PETG Negro (Sunlu)', precio: 14.99, bobinasBase: 1 },
+  { nombre: 'PETG Rojo (Winkle)', precio: 15.99, bobinasBase: 2 },
+  { nombre: 'ASA Negro (Winkle)', precio: 19.99, bobinasBase: 3 },
+  { nombre: 'PLA Negro (Elegoo / i3D)', precio: 15.99, bobinasBase: 2 },
+  { nombre: 'PLA Rojo (Elegoo)', precio: 14.99, bobinasBase: 1 },
+  { nombre: 'PLA Azul (eSun)', precio: 12.99, bobinasBase: 1 },
+  { nombre: 'PLA Blanco (Elegoo)', precio: 14.99, bobinasBase: 1 },
+  { nombre: 'TPU Negro', precio: 18.99, bobinasBase: 1 },
+];
+
+function computeSpoolsList(
+  operations: Operation[],
+  filamentAdjustments: Record<string, number>
+): FilamentSpool[] {
+  const spoolsMap = new Map<
+    string,
+    {
+      nombre: string;
+      bobinasCompradas: number;
+      gramosIniciales: number;
+      totalGastadoCompras: number;
+      precioBobina: number;
+      gramosConsumidos: number;
+      ultimaCompraFecha?: string;
+    }
+  >();
+
+  DEFAULT_FILAMENTS.forEach((f) => {
+    spoolsMap.set(f.nombre, {
+      nombre: f.nombre,
+      bobinasCompradas: f.bobinasBase,
+      gramosIniciales: f.bobinasBase * 1000,
+      totalGastadoCompras: Number((f.precio * f.bobinasBase).toFixed(2)),
+      precioBobina: f.precio,
+      gramosConsumidos: 0,
+    });
+  });
+
+  operations.forEach((op) => {
+    const isFilamentoPurchase =
+      op.tipo === 'compra' &&
+      (op.esPedidoFilamento ||
+        op.producto.toLowerCase().includes('filamento') ||
+        (op.material && /(pla|petg|asa|tpu)/i.test(op.material)));
+
+    if (isFilamentoPurchase) {
+      const rawMat = op.material || op.producto;
+      const key = normalizeFilamentKey(rawMat);
+      const units = op.unidades && op.unidades > 0 ? op.unidades : 1;
+      const cost = Math.abs(op.costes || 0);
+      const unitPrice = cost > 0 ? Number((cost / units).toFixed(2)) : 15.99;
+
+      const current = spoolsMap.get(key) || {
+        nombre: key,
+        bobinasCompradas: 0,
+        gramosIniciales: 0,
+        totalGastadoCompras: 0,
+        precioBobina: unitPrice,
+        gramosConsumidos: 0,
+      };
+
+      current.bobinasCompradas += units;
+      current.gramosIniciales += units * 1000;
+      current.totalGastadoCompras += cost;
+      current.precioBobina = unitPrice;
+      if (!current.ultimaCompraFecha || parseDate(op.fecha) > parseDate(current.ultimaCompraFecha)) {
+        current.ultimaCompraFecha = op.fecha;
+      }
+      spoolsMap.set(key, current);
+    }
+  });
+
+  operations.forEach((op) => {
+    if (op.tipo !== 'venta' || !op.costes || op.costes <= 0) return;
+    const rawMat = op.material || 'PETG Negro (Elegoo)';
+    const parts = rawMat
+      .split(/[+/]|\s+y\s+/i)
+      .map((p) => p.trim())
+      .filter((p) => p && !p.toLowerCase().includes('tornillo') && !p.toLowerCase().includes('tuerca'));
+
+    const targetParts = parts.length > 0 ? parts : [rawMat];
+    const costPerPart = Math.abs(op.costes) / targetParts.length;
+
+    targetParts.forEach((part) => {
+      const key = normalizeFilamentKey(part);
+      const spool = spoolsMap.get(key);
+      const precioBobina = spool ? spool.precioBobina : 15.99;
+      const gramos = calculateFilamentGrams(costPerPart, precioBobina);
+
+      if (spool) {
+        spool.gramosConsumidos += gramos;
+      } else {
+        spoolsMap.set(key, {
+          nombre: key,
+          bobinasCompradas: 1,
+          gramosIniciales: 1000,
+          totalGastadoCompras: 15.99,
+          precioBobina: 15.99,
+          gramosConsumidos: gramos,
+        });
+      }
+    });
+  });
+
+  return Array.from(spoolsMap.values()).map((item, idx) => {
+    const consumidosRedondeados = Math.round(item.gramosConsumidos);
+    const baseRestantes = Math.round(item.gramosIniciales - consumidosRedondeados);
+    const ajuste = filamentAdjustments[item.nombre] ?? 0;
+    const gramosRestantes = Math.max(0, baseRestantes + ajuste);
+    return {
+      id: `spool-${idx}`,
+      nombre: item.nombre,
+      gramosIniciales: item.gramosIniciales,
+      precioBobina: item.precioBobina,
+      bobinasCompradas: item.bobinasCompradas,
+      gramosConsumidos: consumidosRedondeados,
+      gramosRestantes,
+      ajusteManualGramos: ajuste,
+      ultimaCompraFecha: item.ultimaCompraFecha,
+    };
+  });
+}
+
 export function useOperations() {
-  const lastUpdatedAtRef = useRef<number>(0);
   const initialLocalPayload = useMemo(() => loadFromLocalStorageSync(), []);
+
+  const revisionRef = useRef<number>(
+    initialLocalPayload && typeof initialLocalPayload.revision === 'number'
+      ? initialLocalPayload.revision
+      : 1
+  );
 
   const [operations, setOperations] = useState<Operation[]>(() => {
     if (initialLocalPayload && Array.isArray(initialLocalPayload.operations)) {
-      lastUpdatedAtRef.current = initialLocalPayload.updatedAt || 1;
       return sanitizeAndMigrateOperations(initialLocalPayload.operations);
     }
     return sanitizeAndMigrateOperations(initialOperations);
@@ -153,9 +291,34 @@ export function useOperations() {
     }
   }, []);
 
-  // Hydrate from IndexedDB and Server on mount if they have newer data
+  // Apply remote payload when a newer revision arrives via SSE, BroadcastChannel, Storage, or Poll
+  const applyRemotePayload = useCallback((remote: PersistedPayload) => {
+    if (!remote || !Array.isArray(remote.operations)) return;
+    if (remote.revision <= revisionRef.current) return;
+
+    revisionRef.current = remote.revision;
+    const clean = sanitizeAndMigrateOperations(remote.operations);
+    const adj =
+      remote.filamentAdjustments && typeof remote.filamentAdjustments === 'object'
+        ? remote.filamentAdjustments
+        : {};
+
+    operationsRef.current = clean;
+    filamentAdjustmentsRef.current = adj;
+    setOperations(clean);
+    setFilamentAdjustments(adj);
+    setLastSavedAt(Date.now());
+    void cachePayloadLocally({
+      ...remote,
+      operations: clean,
+      filamentAdjustments: adj,
+    });
+  }, []);
+
+  // Hydrate from IndexedDB and Server on mount AND subscribe to real-time updates
   useEffect(() => {
     let cancelled = false;
+
     async function hydrateAsync() {
       const [idbPayload, serverPayload] = await Promise.all([
         loadFromIndexedDB(),
@@ -163,58 +326,80 @@ export function useOperations() {
       ]);
       if (cancelled) return;
 
-      let newestPayload = idbPayload;
+      let bestPayload: PersistedPayload | null = idbPayload;
       if (
         serverPayload &&
         Array.isArray(serverPayload.operations) &&
-        (!newestPayload || serverPayload.updatedAt > newestPayload.updatedAt)
+        (!bestPayload || serverPayload.revision >= bestPayload.revision)
       ) {
-        newestPayload = serverPayload;
+        // Prefer serverPayload if its revision is higher, or if both are at revision > 1
+        if (!bestPayload || serverPayload.revision > bestPayload.revision) {
+          bestPayload = serverPayload;
+        }
       }
 
       if (
-        newestPayload &&
-        Array.isArray(newestPayload.operations) &&
-        newestPayload.updatedAt > lastUpdatedAtRef.current
+        bestPayload &&
+        Array.isArray(bestPayload.operations) &&
+        bestPayload.revision > revisionRef.current
       ) {
-        lastUpdatedAtRef.current = newestPayload.updatedAt;
-        const clean = sanitizeAndMigrateOperations(newestPayload.operations);
-        const adj =
-          newestPayload.filamentAdjustments &&
-          typeof newestPayload.filamentAdjustments === 'object'
-            ? newestPayload.filamentAdjustments
-            : filamentAdjustmentsRef.current;
-        setOperations(clean);
-        setFilamentAdjustments(adj);
-        operationsRef.current = clean;
-        filamentAdjustmentsRef.current = adj;
-        await persistOperationsAllLayers(clean, adj);
+        applyRemotePayload(bestPayload);
+      } else if (
+        revisionRef.current > 1 &&
+        (!serverPayload || serverPayload.revision < revisionRef.current)
+      ) {
+        // Local browser has user-modified operations with higher revision than server (e.g. after server restart): push to server
+        const confirmedRev = await persistOperationsAllLayers(
+          operationsRef.current,
+          filamentAdjustmentsRef.current,
+          revisionRef.current
+        );
+        if (!cancelled && confirmedRev > revisionRef.current) {
+          revisionRef.current = confirmedRev;
+        }
       } else {
-        // Ensure initial state is persisted to IndexedDB & Server
-        setOperations((currentOps) => {
-          const clean = sanitizeAndMigrateOperations(currentOps);
-          void persistOperationsAllLayers(clean, filamentAdjustmentsRef.current);
-          return clean;
+        // Cache current state locally without overwriting the server
+        void cachePayloadLocally({
+          version: 5,
+          revision: revisionRef.current,
+          updatedAt: Date.now(),
+          operations: operationsRef.current,
+          filamentAdjustments: filamentAdjustmentsRef.current,
         });
       }
     }
+
     void hydrateAsync();
+    const unsubscribe = subscribeToRealtimeUpdates(applyRemotePayload);
+
     return () => {
       cancelled = true;
+      unsubscribe();
     };
-  }, []);
+  }, [applyRemotePayload]);
 
-  // Helper to update state AND persist across all layers immediately
-  const commitOperations = useCallback(
-    (updater: (prev: Operation[]) => Operation[], notificationMsg: string, modifiedId?: string) => {
-      setOperations((prev) => {
-        const next = updater(prev);
-        operationsRef.current = next;
-        lastUpdatedAtRef.current = Date.now();
-        void persistOperationsAllLayers(next, filamentAdjustmentsRef.current);
-        return next;
-      });
+  // Helper to update state AND persist across all layers immediately (outside React setState updater!)
+  const commitStateChange = useCallback(
+    (
+      nextOps: Operation[],
+      nextAdj: Record<string, number>,
+      notificationMsg: string,
+      modifiedId?: string
+    ) => {
+      const nextRevision = revisionRef.current + 1;
+      revisionRef.current = nextRevision;
+      operationsRef.current = nextOps;
+      filamentAdjustmentsRef.current = nextAdj;
+
+      setOperations(nextOps);
+      setFilamentAdjustments(nextAdj);
       triggerNotification(notificationMsg, modifiedId);
+
+      void persistOperationsAllLayers(nextOps, nextAdj, nextRevision).then((confirmedRev) => {
+        if (confirmedRev > revisionRef.current) {
+          revisionRef.current = confirmedRev;
+        }
+      });
     },
     [triggerNotification]
   );
@@ -248,11 +433,17 @@ export function useOperations() {
         opData.tipo
       );
 
-      // Ensure createdAt is strictly greater than any existing operation so newly added items sort cleanly at the top
       const now = Date.now();
+      const nextRev = revisionRef.current + 1;
       const newId = `op-${now}-${Math.random().toString(36).substring(2, 6)}`;
 
       const clearQrForPending = estado === 'Pendiente de cobro';
+      const isFilamentoOrder = Boolean(
+        opData.esPedidoFilamento ??
+          (opData.tipo === 'compra' &&
+            ((opData.producto && opData.producto.toLowerCase().includes('filamento')) ||
+              (opData.material && /(pla|petg|asa|tpu)/i.test(opData.material))))
+      );
 
       const newOp: Operation = {
         ...opData,
@@ -264,145 +455,187 @@ export function useOperations() {
         fotoQr: clearQrForPending ? undefined : opData.fotoQr,
         empresaEnvio: clearQrForPending ? undefined : opData.empresaEnvio,
         fechaSubidaQr: clearQrForPending ? undefined : opData.fechaSubidaQr,
+        esPedidoFilamento: isFilamentoOrder,
         id: newId,
         beneficio,
-        createdAt: Math.max(now, 1800000000000 + (now % 1000000000)),
+        createdAt: 1800000000000 + nextRev * 1000 + (now % 1000),
       };
 
-      commitOperations((prev) => [newOp, ...prev], 'Operación añadida y guardada', newId);
+      const nextOps = [newOp, ...operationsRef.current];
+      let nextAdj = { ...filamentAdjustmentsRef.current };
+
+      // If this is a filament purchase and the spool previously had a negative base balance, ensure +1000g * unidades visibly adds to remaining grams
+      if (isFilamentoOrder) {
+        const key = normalizeFilamentKey(newOp.material || newOp.producto);
+        const prevSpools = computeSpoolsList(operationsRef.current, filamentAdjustmentsRef.current);
+        const prevSpool = prevSpools.find((s) => s.nombre === key);
+        const prevVisibleRemaining = prevSpool ? prevSpool.gramosRestantes : 0;
+        const expectedRemaining = prevVisibleRemaining + unidades * 1000;
+
+        const nextSpoolsRaw = computeSpoolsList(nextOps, nextAdj);
+        const updatedSpool = nextSpoolsRaw.find((s) => s.nombre === key);
+        if (updatedSpool && updatedSpool.gramosRestantes < expectedRemaining) {
+          const baseRestantes = updatedSpool.gramosIniciales - updatedSpool.gramosConsumidos;
+          nextAdj = {
+            ...nextAdj,
+            [key]: expectedRemaining - baseRestantes,
+          };
+        }
+      }
+
+      commitStateChange(nextOps, nextAdj, 'Operación añadida y guardada en tiempo real', newId);
       return newOp;
     },
-    [commitOperations]
+    [commitStateChange]
   );
 
   const updateOperation = useCallback(
     (id: string, opData: Partial<Operation>) => {
-      commitOperations(
-        (prev) =>
-          prev.map((op) => {
-            if (op.id !== id) return op;
+      const nextOps = operationsRef.current.map((op) => {
+        if (op.id !== id) return op;
 
-            const updated = { ...op, ...opData };
-            if (updated.estado) {
-              updated.estado = normalizeStatus(updated.estado);
-            }
+        const updated = { ...op, ...opData };
+        if (updated.estado) {
+          updated.estado = normalizeStatus(updated.estado);
+        }
 
-            // If status is 'Pendiente de cobro', automatically delete QR from storage as requested
-            if (updated.estado === 'Pendiente de cobro') {
-              updated.fotoQr = undefined;
-              updated.empresaEnvio = undefined;
-              updated.fechaSubidaQr = undefined;
-            }
+        // If status is 'Pendiente de cobro', automatically delete QR from storage as requested
+        if (updated.estado === 'Pendiente de cobro') {
+          updated.fotoQr = undefined;
+          updated.empresaEnvio = undefined;
+          updated.fechaSubidaQr = undefined;
+        }
 
-            // Recalculate deadline date when sale date/platform/type changes unless explicitly provided
-            if (updated.tipo === 'venta') {
-              if (opData.fechaLimite !== undefined) {
-                updated.fechaLimite = opData.fechaLimite;
-              } else if (opData.fecha || opData.lugarVenta || opData.tipo || !updated.fechaLimite) {
-                updated.fechaLimite = calculateDeadlineDate(
-                  updated.fecha,
-                  updated.lugarVenta,
-                  updated.tipo
-                );
-              }
-            } else {
-              updated.fechaLimite = '';
-            }
-
-            // If units changed and we have unit cost, recalculate total filament cost unless costes was explicitly passed
-            if (
-              opData.unidades !== undefined &&
-              opData.costes === undefined &&
-              updated.costeUnitario &&
-              updated.costeUnitario > 0
-            ) {
-              updated.costes = Number((updated.costeUnitario * updated.unidades).toFixed(2));
-            }
-
-            const beneficio = calculateBeneficio(
-              updated.precio,
-              updated.costes,
-              0,
+        // Recalculate deadline date when sale date/platform/type changes unless explicitly provided
+        if (updated.tipo === 'venta') {
+          if (opData.fechaLimite !== undefined) {
+            updated.fechaLimite = opData.fechaLimite;
+          } else if (opData.fecha || opData.lugarVenta || opData.tipo || !updated.fechaLimite) {
+            updated.fechaLimite = calculateDeadlineDate(
+              updated.fecha,
+              updated.lugarVenta,
               updated.tipo
             );
+          }
+        } else {
+          updated.fechaLimite = '';
+        }
 
-            return {
-              ...updated,
-              beneficio,
-            };
-          }),
-        'Cambios guardados correctamente',
+        // If units changed and we have unit cost, recalculate total filament cost unless costes was explicitly passed
+        if (
+          opData.unidades !== undefined &&
+          opData.costes === undefined &&
+          updated.costeUnitario &&
+          updated.costeUnitario > 0
+        ) {
+          updated.costes = Number((updated.costeUnitario * updated.unidades).toFixed(2));
+        }
+
+        const beneficio = calculateBeneficio(
+          updated.precio,
+          updated.costes,
+          0,
+          updated.tipo
+        );
+
+        return {
+          ...updated,
+          beneficio,
+        };
+      });
+
+      commitStateChange(
+        nextOps,
+        filamentAdjustmentsRef.current,
+        'Cambios guardados en tiempo real',
         id
       );
     },
-    [commitOperations]
+    [commitStateChange]
   );
 
   const attachQrToOperation = useCallback(
     (id: string, fotoQr: string | undefined, empresaEnvio?: ShippingCompany) => {
-      commitOperations(
-        (prev) =>
-          prev.map((op) => {
-            if (op.id !== id) return op;
-            return {
-              ...op,
-              fotoQr,
-              empresaEnvio: fotoQr ? empresaEnvio || op.empresaEnvio || 'Correos' : undefined,
-              fechaSubidaQr: fotoQr ? Date.now() : undefined,
-            };
-          }),
-        fotoQr ? 'Foto / QR guardado en el pedido' : 'Foto / QR eliminado',
+      const nextOps = operationsRef.current.map((op) => {
+        if (op.id !== id) return op;
+        return {
+          ...op,
+          fotoQr,
+          empresaEnvio: fotoQr ? empresaEnvio || op.empresaEnvio || 'Correos' : undefined,
+          fechaSubidaQr: fotoQr ? Date.now() : undefined,
+        };
+      });
+
+      commitStateChange(
+        nextOps,
+        filamentAdjustmentsRef.current,
+        fotoQr ? 'Foto / QR guardado en tiempo real' : 'Foto / QR eliminado',
         id
       );
     },
-    [commitOperations]
+    [commitStateChange]
   );
 
   const deleteOperation = useCallback(
     (id: string) => {
-      commitOperations(
-        (prev) => prev.filter((op) => op.id !== id),
-        'Operación eliminada y cambios guardados'
+      const nextOps = operationsRef.current.filter((op) => op.id !== id);
+      commitStateChange(
+        nextOps,
+        filamentAdjustmentsRef.current,
+        'Operación eliminada y guardada en tiempo real'
       );
     },
-    [commitOperations]
+    [commitStateChange]
   );
 
   const duplicateOperation = useCallback(
     (id: string) => {
+      const target = operationsRef.current.find((op) => op.id === id);
+      if (!target) return;
       const now = Date.now();
+      const nextRev = revisionRef.current + 1;
       const newId = `op-${now}-${Math.random().toString(36).substring(2, 6)}`;
-      commitOperations(
-        (prev) => {
-          const target = prev.find((op) => op.id === id);
-          if (!target) return prev;
-          const dup: Operation = {
-            ...target,
-            id: newId,
-            producto: `${target.producto}`,
-            createdAt: Math.max(now, 1800000000000 + (now % 1000000000)),
-          };
-          return [dup, ...prev];
-        },
-        'Operación duplicada y guardada',
+      const dup: Operation = {
+        ...target,
+        id: newId,
+        producto: `${target.producto}`,
+        createdAt: 1800000000000 + nextRev * 1000 + (now % 1000),
+      };
+      const nextOps = [dup, ...operationsRef.current];
+      commitStateChange(
+        nextOps,
+        filamentAdjustmentsRef.current,
+        'Operación duplicada y guardada en tiempo real',
         newId
       );
     },
-    [commitOperations]
+    [commitStateChange]
   );
 
   const resetToDefaultData = useCallback(() => {
     const clean = sanitizeAndMigrateOperations(initialOperations);
-    commitOperations(() => clean, 'Datos iniciales restaurados y guardados');
-  }, [commitOperations]);
+    commitStateChange(clean, {}, 'Datos iniciales restaurados y guardados');
+  }, [commitStateChange]);
 
   const clearAllData = useCallback(() => {
-    commitOperations(() => [], 'Todas las operaciones vaciadas y guardado');
-  }, [commitOperations]);
+    commitStateChange([], {}, 'Todas las operaciones vaciadas y guardado');
+  }, [commitStateChange]);
 
   const exportJSON = useCallback(() => {
     const dataStr =
-      'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(operations, null, 2));
+      'data:text/json;charset=utf-8,' +
+      encodeURIComponent(
+        JSON.stringify(
+          {
+            version: 5,
+            revision: revisionRef.current,
+            operations: operationsRef.current,
+            filamentAdjustments: filamentAdjustmentsRef.current,
+          },
+          null,
+          2
+        )
+      );
     const downloadAnchor = document.createElement('a');
     downloadAnchor.setAttribute('href', dataStr);
     downloadAnchor.setAttribute(
@@ -413,7 +646,7 @@ export function useOperations() {
     downloadAnchor.click();
     downloadAnchor.remove();
     triggerNotification('Archivo JSON exportado');
-  }, [operations, triggerNotification]);
+  }, [triggerNotification]);
 
   const importJSON = useCallback(
     (jsonString: string): boolean => {
@@ -426,7 +659,13 @@ export function useOperations() {
           : null;
         if (list) {
           const clean = sanitizeAndMigrateOperations(list);
-          commitOperations(() => clean, 'Copia de seguridad importada y guardada');
+          const importedAdj =
+            parsed &&
+            parsed.filamentAdjustments &&
+            typeof parsed.filamentAdjustments === 'object'
+              ? parsed.filamentAdjustments
+              : filamentAdjustmentsRef.current;
+          commitStateChange(clean, importedAdj, 'Copia de seguridad importada y guardada');
           return true;
         }
       } catch (e) {
@@ -434,7 +673,7 @@ export function useOperations() {
       }
       return false;
     },
-    [commitOperations]
+    [commitStateChange]
   );
 
   // Catalog of sold products with their unit filament cost & material (NO sale price stored!)
@@ -464,150 +703,35 @@ export function useOperations() {
     return Array.from(map.values()).sort((a, b) => a.producto.localeCompare(b.producto, 'es'));
   }, [operations]);
 
-  // Filament Stock Database (1000g per spool bought, rule-of-three consumption on sales)
+  // Filament Stock Database (1000g per spool bought, rule-of-three consumption on sales + manual adjustment)
   const filamentStock = useMemo<FilamentSpool[]>(() => {
-    const spoolsMap = new Map<
-      string,
-      {
-        nombre: string;
-        bobinasCompradas: number;
-        gramosIniciales: number;
-        totalGastadoCompras: number;
-        precioBobina: number;
-        gramosConsumidos: number;
-        ultimaCompraFecha?: string;
-      }
-    >();
-
-    const defaultFilaments: Array<{ nombre: string; precio: number }> = [
-      { nombre: 'PETG Negro (Elegoo)', precio: 15.0 },
-      { nombre: 'PETG Negro CF (Bambu / Elegoo)', precio: 16.5 },
-      { nombre: 'PETG Negro (Bambulab)', precio: 12.86 },
-      { nombre: 'PETG Negro (eSun)', precio: 13.43 },
-      { nombre: 'PETG Negro (Sunlu)', precio: 14.99 },
-      { nombre: 'PETG Rojo (Winkle)', precio: 15.99 },
-      { nombre: 'ASA Negro (Winkle)', precio: 19.99 },
-      { nombre: 'PLA Negro (Elegoo / i3D)', precio: 15.99 },
-      { nombre: 'PLA Rojo (Elegoo)', precio: 14.99 },
-      { nombre: 'PLA Azul (eSun)', precio: 12.99 },
-      { nombre: 'PLA Blanco (Elegoo)', precio: 14.99 },
-      { nombre: 'TPU Negro', precio: 18.99 },
-    ];
-
-    defaultFilaments.forEach((f) => {
-      spoolsMap.set(f.nombre, {
-        nombre: f.nombre,
-        bobinasCompradas: 1,
-        gramosIniciales: 1000,
-        totalGastadoCompras: f.precio,
-        precioBobina: f.precio,
-        gramosConsumidos: 0,
-      });
-    });
-
-    operations.forEach((op) => {
-      const isFilamentoPurchase =
-        op.tipo === 'compra' &&
-        (op.esPedidoFilamento ||
-          op.producto.toLowerCase().includes('filamento') ||
-          (op.material && /(pla|petg|asa|tpu)/i.test(op.material)));
-
-      if (isFilamentoPurchase) {
-        const rawMat = op.material || op.producto;
-        const key = normalizeFilamentKey(rawMat);
-        const units = op.unidades && op.unidades > 0 ? op.unidades : 1;
-        const cost = Math.abs(op.costes || 0);
-        const unitPrice = cost > 0 ? Number((cost / units).toFixed(2)) : 15.99;
-
-        const current = spoolsMap.get(key) || {
-          nombre: key,
-          bobinasCompradas: 0,
-          gramosIniciales: 0,
-          totalGastadoCompras: 0,
-          precioBobina: unitPrice,
-          gramosConsumidos: 0,
-        };
-
-        current.bobinasCompradas += units;
-        current.gramosIniciales += units * 1000;
-        current.totalGastadoCompras += cost;
-        current.precioBobina = unitPrice;
-        if (!current.ultimaCompraFecha || parseDate(op.fecha) > parseDate(current.ultimaCompraFecha)) {
-          current.ultimaCompraFecha = op.fecha;
-        }
-        spoolsMap.set(key, current);
-      }
-    });
-
-    operations.forEach((op) => {
-      if (op.tipo !== 'venta' || !op.costes || op.costes <= 0) return;
-      const rawMat = op.material || 'PETG Negro (Elegoo)';
-      const parts = rawMat
-        .split(/[+/]/)
-        .map((p) => p.trim())
-        .filter((p) => p && !p.toLowerCase().includes('tornillo') && !p.toLowerCase().includes('tuerca'));
-
-      const targetParts = parts.length > 0 ? parts : [rawMat];
-      const costPerPart = Math.abs(op.costes) / targetParts.length;
-
-      targetParts.forEach((part) => {
-        const key = normalizeFilamentKey(part);
-        const spool = spoolsMap.get(key);
-        const precioBobina = spool ? spool.precioBobina : 15.99;
-        const gramos = calculateFilamentGrams(costPerPart, precioBobina);
-
-        if (spool) {
-          spool.gramosConsumidos += gramos;
-        } else {
-          spoolsMap.set(key, {
-            nombre: key,
-            bobinasCompradas: 1,
-            gramosIniciales: 1000,
-            totalGastadoCompras: 15.99,
-            precioBobina: 15.99,
-            gramosConsumidos: gramos,
-          });
-        }
-      });
-    });
-
-    return Array.from(spoolsMap.values()).map((item, idx) => {
-      const consumidosRedondeados = Math.round(item.gramosConsumidos);
-      const baseRestantes = Math.round(item.gramosIniciales - consumidosRedondeados);
-      const ajuste = filamentAdjustments[item.nombre] || 0;
-      const gramosRestantes = Math.max(0, baseRestantes + ajuste);
-      return {
-        id: `spool-${idx}`,
-        nombre: item.nombre,
-        gramosIniciales: item.gramosIniciales,
-        precioBobina: item.precioBobina,
-        bobinasCompradas: item.bobinasCompradas,
-        gramosConsumidos: consumidosRedondeados,
-        gramosRestantes,
-        ajusteManualGramos: ajuste,
-        ultimaCompraFecha: item.ultimaCompraFecha,
-      };
-    });
+    return computeSpoolsList(operations, filamentAdjustments);
   }, [operations, filamentAdjustments]);
 
   const updateFilamentRemaining = useCallback(
     (spoolName: string, targetRemainingGrams: number) => {
-      const targetSpool = filamentStock.find((s) => s.nombre === spoolName);
+      const currentSpools = computeSpoolsList(
+        operationsRef.current,
+        filamentAdjustmentsRef.current
+      );
+      const targetSpool = currentSpools.find((s) => s.nombre === spoolName);
       if (!targetSpool) return;
       const baseRestantes = targetSpool.gramosIniciales - targetSpool.gramosConsumidos;
       const validTarget = Math.max(0, Math.round(targetRemainingGrams));
       const newAdjustment = validTarget - baseRestantes;
 
-      setFilamentAdjustments((prev) => {
-        const next = { ...prev, [spoolName]: newAdjustment };
-        filamentAdjustmentsRef.current = next;
-        lastUpdatedAtRef.current = Date.now();
-        void persistOperationsAllLayers(operationsRef.current, next);
-        return next;
-      });
-      triggerNotification(`Stock de ${spoolName} actualizado a ${validTarget}g y guardado`);
+      const nextAdj = {
+        ...filamentAdjustmentsRef.current,
+        [spoolName]: newAdjustment,
+      };
+
+      commitStateChange(
+        operationsRef.current,
+        nextAdj,
+        `Stock de ${spoolName} actualizado a ${validTarget}g y guardado`
+      );
     },
-    [filamentStock, triggerNotification]
+    [commitStateChange]
   );
 
   // Filtered & Sorted Operations list
