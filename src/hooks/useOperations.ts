@@ -23,6 +23,7 @@ import {
   cachePayloadLocally,
   persistOperationsAllLayers,
   subscribeToRealtimeUpdates,
+  computeStateFingerprint,
   PersistedPayload,
 } from '../utils/storage';
 
@@ -279,6 +280,18 @@ export function useOperations() {
   const filamentAdjustmentsRef = useRef<Record<string, number>>(filamentAdjustments);
   filamentAdjustmentsRef.current = filamentAdjustments;
 
+  const lastAppliedSyncIdRef = useRef<string>(
+    initialLocalPayload?.syncId || ''
+  );
+  const inFlightSavesRef = useRef<number>(0);
+  const hasLocalEditsRef = useRef<boolean>(
+    Boolean(
+      initialLocalPayload?.clientId &&
+        initialLocalPayload.clientId !== 'server-init' &&
+        initialLocalPayload.clientId !== 'local-init'
+    )
+  );
+
   const [lastSavedAt, setLastSavedAt] = useState<number | null>(null);
   const [lastModifiedId, setLastModifiedId] = useState<string | null>(null);
   const [saveNotification, setSaveNotification] = useState<string | null>(null);
@@ -291,25 +304,42 @@ export function useOperations() {
     }
   }, []);
 
-  // Apply remote payload when a newer revision arrives via SSE, BroadcastChannel, Storage, or Poll
+  // Apply remote payload when any change arrives via SSE, BroadcastChannel, Storage, or 1.5s Poll
   const applyRemotePayload = useCallback((remote: PersistedPayload) => {
     if (!remote || !Array.isArray(remote.operations)) return;
-    if (remote.revision <= revisionRef.current) return;
+    if (inFlightSavesRef.current > 0) return;
+    if (remote.clientId === 'server-init' && hasLocalEditsRef.current) return;
 
-    revisionRef.current = remote.revision;
+    const remoteSyncId =
+      remote.syncId || `${remote.revision}-${remote.updatedAt}-${remote.clientId || 'remote'}`;
+    if (remoteSyncId && remoteSyncId === lastAppliedSyncIdRef.current) return;
+
     const clean = sanitizeAndMigrateOperations(remote.operations);
     const adj =
       remote.filamentAdjustments && typeof remote.filamentAdjustments === 'object'
         ? remote.filamentAdjustments
         : {};
 
-    operationsRef.current = clean;
-    filamentAdjustmentsRef.current = adj;
-    setOperations(clean);
-    setFilamentAdjustments(adj);
-    setLastSavedAt(Date.now());
+    const remoteFp = computeStateFingerprint(clean, adj);
+    const currentFp = computeStateFingerprint(
+      operationsRef.current,
+      filamentAdjustmentsRef.current
+    );
+
+    lastAppliedSyncIdRef.current = remoteSyncId;
+    revisionRef.current = Math.max(revisionRef.current, remote.revision || 1);
+
+    if (remoteFp !== currentFp) {
+      operationsRef.current = clean;
+      filamentAdjustmentsRef.current = adj;
+      setOperations(clean);
+      setFilamentAdjustments(adj);
+      setLastSavedAt(Date.now());
+    }
+
     void cachePayloadLocally({
       ...remote,
+      syncId: remoteSyncId,
       operations: clean,
       filamentAdjustments: adj,
     });
@@ -326,46 +356,47 @@ export function useOperations() {
       ]);
       if (cancelled) return;
 
-      let bestPayload: PersistedPayload | null = idbPayload;
+      // 1. If the server has live persisted state (not a cold-started empty 'server-init'), the server is authoritative
       if (
         serverPayload &&
         Array.isArray(serverPayload.operations) &&
-        (!bestPayload || serverPayload.revision >= bestPayload.revision)
+        serverPayload.clientId !== 'server-init'
       ) {
-        // Prefer serverPayload if its revision is higher, or if both are at revision > 1
-        if (!bestPayload || serverPayload.revision > bestPayload.revision) {
-          bestPayload = serverPayload;
-        }
+        applyRemotePayload(serverPayload);
+        return;
       }
 
+      // 2. If server is at 'server-init' (e.g. Vercel serverless cold-start) and browser has user edits, re-hydrate server
+      const bestLocal =
+        idbPayload &&
+        Array.isArray(idbPayload.operations) &&
+        (!initialLocalPayload || idbPayload.updatedAt >= initialLocalPayload.updatedAt)
+          ? idbPayload
+          : initialLocalPayload;
+
       if (
-        bestPayload &&
-        Array.isArray(bestPayload.operations) &&
-        bestPayload.revision > revisionRef.current
+        bestLocal &&
+        Array.isArray(bestLocal.operations) &&
+        bestLocal.clientId &&
+        bestLocal.clientId !== 'server-init' &&
+        bestLocal.clientId !== 'local-init'
       ) {
-        applyRemotePayload(bestPayload);
-      } else if (
-        revisionRef.current > 1 &&
-        (!serverPayload || serverPayload.revision < revisionRef.current)
-      ) {
-        // Local browser has user-modified operations with higher revision than server (e.g. after server restart): push to server
-        const confirmedRev = await persistOperationsAllLayers(
+        applyRemotePayload(bestLocal);
+        const confirmed = await persistOperationsAllLayers(
           operationsRef.current,
           filamentAdjustmentsRef.current,
           revisionRef.current
         );
-        if (!cancelled && confirmedRev > revisionRef.current) {
-          revisionRef.current = confirmedRev;
+        if (!cancelled) {
+          revisionRef.current = confirmed.revision;
+          lastAppliedSyncIdRef.current = confirmed.syncId;
         }
-      } else {
-        // Cache current state locally without overwriting the server
-        void cachePayloadLocally({
-          version: 5,
-          revision: revisionRef.current,
-          updatedAt: Date.now(),
-          operations: operationsRef.current,
-          filamentAdjustments: filamentAdjustmentsRef.current,
-        });
+        return;
+      }
+
+      // 3. Otherwise apply serverPayload if present
+      if (serverPayload && Array.isArray(serverPayload.operations)) {
+        applyRemotePayload(serverPayload);
       }
     }
 
@@ -376,7 +407,7 @@ export function useOperations() {
       cancelled = true;
       unsubscribe();
     };
-  }, [applyRemotePayload]);
+  }, [applyRemotePayload, initialLocalPayload]);
 
   // Helper to update state AND persist across all layers immediately (outside React setState updater!)
   const commitStateChange = useCallback(
@@ -388,6 +419,7 @@ export function useOperations() {
     ) => {
       const nextRevision = revisionRef.current + 1;
       revisionRef.current = nextRevision;
+      hasLocalEditsRef.current = true;
       operationsRef.current = nextOps;
       filamentAdjustmentsRef.current = nextAdj;
 
@@ -395,11 +427,15 @@ export function useOperations() {
       setFilamentAdjustments(nextAdj);
       triggerNotification(notificationMsg, modifiedId);
 
-      void persistOperationsAllLayers(nextOps, nextAdj, nextRevision).then((confirmedRev) => {
-        if (confirmedRev > revisionRef.current) {
-          revisionRef.current = confirmedRev;
-        }
-      });
+      inFlightSavesRef.current += 1;
+      void persistOperationsAllLayers(nextOps, nextAdj, nextRevision)
+        .then((confirmed) => {
+          revisionRef.current = Math.max(revisionRef.current, confirmed.revision);
+          lastAppliedSyncIdRef.current = confirmed.syncId;
+        })
+        .finally(() => {
+          inFlightSavesRef.current = Math.max(0, inFlightSavesRef.current - 1);
+        });
     },
     [triggerNotification]
   );

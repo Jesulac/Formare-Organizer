@@ -11,6 +11,10 @@
   },
   "rewrites": [
     {
+      "source": "/api/operations/stream",
+      "destination": "/api/operations?stream=1"
+    },
+    {
       "source": "/api/(.*)",
       "destination": "/api/$1"
     },

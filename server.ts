@@ -16,6 +16,7 @@ interface ServerPersistedState {
   version: number;
   revision: number;
   updatedAt: number;
+  syncId: string;
   clientId?: string;
   operations: any[] | null;
   filamentAdjustments: Record<string, number>;
@@ -34,11 +35,17 @@ function loadStateFromDisk(): ServerPersistedState {
       const content = fs.readFileSync(DB_FILE, 'utf-8');
       const parsed = JSON.parse(content);
       if (parsed && Array.isArray(parsed.operations)) {
+        const revision =
+          typeof parsed.revision === 'number' && parsed.revision >= 1 ? parsed.revision : 2;
+        const updatedAt =
+          typeof parsed.updatedAt === 'number' ? parsed.updatedAt : Date.now();
+        const clientId = parsed.clientId || 'server-persisted';
         return {
-          version: 5,
-          revision: typeof parsed.revision === 'number' && parsed.revision >= 1 ? parsed.revision : 1,
-          updatedAt: typeof parsed.updatedAt === 'number' ? parsed.updatedAt : 1,
-          clientId: parsed.clientId || 'server-init',
+          version: 6,
+          revision,
+          updatedAt,
+          syncId: parsed.syncId || `${revision}-${updatedAt}-${clientId}`,
+          clientId,
           operations: parsed.operations,
           filamentAdjustments:
             parsed.filamentAdjustments && typeof parsed.filamentAdjustments === 'object'
@@ -51,9 +58,10 @@ function loadStateFromDisk(): ServerPersistedState {
     console.error('Error reading operations DB from disk:', err);
   }
   return {
-    version: 5,
+    version: 6,
     revision: 1,
     updatedAt: 1,
+    syncId: '1-1-server-init',
     clientId: 'server-init',
     operations: null,
     filamentAdjustments: {},
@@ -106,7 +114,6 @@ async function startServer() {
 
     sseClients.add(res);
 
-    // Send current state immediately on connect
     if (currentServerState.operations) {
       res.write(`data: ${JSON.stringify(currentServerState)}\n\n`);
     }
@@ -118,7 +125,7 @@ async function startServer() {
         clearInterval(heartbeat);
         sseClients.delete(res);
       }
-    }, 20000);
+    }, 15000);
 
     req.on('close', () => {
       clearInterval(heartbeat);
@@ -126,8 +133,18 @@ async function startServer() {
     });
   });
 
-  // API: Get persisted operations
-  app.get('/api/operations', (_req, res) => {
+  // API: Get persisted operations (also supports ?stream=1)
+  app.get('/api/operations', (req, res) => {
+    if (req.query?.stream === '1') {
+      res.setHeader('Content-Type', 'text/event-stream');
+      res.setHeader('Cache-Control', 'no-cache, no-transform');
+      res.setHeader('Connection', 'keep-alive');
+      if (currentServerState.operations) {
+        res.write(`data: ${JSON.stringify(currentServerState)}\n\n`);
+      }
+      return res.end();
+    }
+
     try {
       res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
       return res.json(currentServerState);
@@ -155,12 +172,14 @@ async function startServer() {
         (currentServerState.revision || 1) + 1,
         typeof incomingRevision === 'number' ? incomingRevision : 2
       );
-      const updatedAt = Date.now();
+      const updatedAt = Math.max(Date.now(), (currentServerState.updatedAt || 1) + 1);
+      const syncId = `${nextRevision}-${updatedAt}-${clientId}`;
 
       currentServerState = {
-        version: 5,
+        version: 6,
         revision: nextRevision,
         updatedAt,
+        syncId,
         clientId,
         operations,
         filamentAdjustments:
@@ -177,6 +196,7 @@ async function startServer() {
         ok: true,
         revision: nextRevision,
         updatedAt,
+        syncId,
         clientId,
       });
     } catch (err) {
@@ -185,7 +205,7 @@ async function startServer() {
     }
   });
 
-  // API: Voice-to-Operation AI extraction with multi-model fallback cascade
+  // API: Voice-to-Operation AI extraction using Gemini 3 Flash Live
   app.post('/api/ai/voice-operation', async (req, res) => {
     try {
       const { audioBase64, transcriptText = '' } = req.body || {};

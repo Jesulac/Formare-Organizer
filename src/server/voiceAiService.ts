@@ -11,13 +11,18 @@ import {
   parseVoiceOperationSmartFallback,
 } from '../utils/voiceParser';
 
-export const GEMINI_VOICE_MODEL = 'gemini-3.8-live';
+export const GEMINI_VOICE_MODEL = 'gemini-3.1-flash-live-preview';
+export const GEMINI_VOICE_MODEL_LABEL = 'Gemini 3 Flash Live';
+
+const DEFAULT_FALLBACK_KEY =
+  'AQ.Ab8RN6IzXZb4IOblOZeUiqd9AVja-94Yv9PBsLCrX8DaNjMPKg';
 
 function getGeminiClient(): GoogleGenAI | null {
-  const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || '';
-  if (!apiKey || apiKey === 'MY_GEMINI_API_KEY') {
-    return null;
-  }
+  const envKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || '';
+  const apiKey =
+    envKey && envKey !== 'MY_GEMINI_API_KEY' ? envKey : DEFAULT_FALLBACK_KEY;
+  if (!apiKey) return null;
+
   return new GoogleGenAI({
     apiKey,
     httpOptions: {
@@ -45,7 +50,7 @@ const rellenarOperacionDeclaration: FunctionDeclaration = {
       },
       producto: {
         type: Type.STRING,
-        description: 'Nombre del producto o pedido',
+        description: 'Nombre limpio del producto (sin el número de unidades delante)',
       },
       unidades: {
         type: Type.INTEGER,
@@ -122,16 +127,64 @@ export interface VoiceOperationRequest {
 export interface VoiceOperationResponse {
   ok: boolean;
   modelUsed: string;
+  modelLabel: string;
   data: ExtractedVoiceOperation;
 }
 
-async function runGeminiLiveExtraction(
+function enrichWithCatalog(
+  raw: ExtractedVoiceOperation,
+  productCatalog: CatalogItemInput[],
+  todayDate: string
+): ExtractedVoiceOperation {
+  const fallback = parseVoiceOperationSmartFallback(
+    `${raw.transcripcion || ''} ${raw.producto || ''}`,
+    productCatalog,
+    todayDate
+  );
+
+  const unidades = raw.unidades && raw.unidades >= 1 ? Math.round(raw.unidades) : fallback.unidades || 1;
+  const cleanProdName = (raw.producto || '')
+    .replace(/^(?:\d+|un|una|dos|tres|cuatro|cinco)\s+/i, '')
+    .trim();
+
+  const matchedItem = productCatalog.find(
+    (c) =>
+      c.producto.toLowerCase() === cleanProdName.toLowerCase() ||
+      c.producto.toLowerCase() === ( fallback.producto || '' ).toLowerCase()
+  );
+
+  const producto = matchedItem ? matchedItem.producto : cleanProdName || fallback.producto;
+  const material = raw.material || matchedItem?.material || fallback.material || 'PETG Negro (Elegoo)';
+  const costes =
+    raw.costes && raw.costes > 0
+      ? raw.costes
+      : matchedItem && matchedItem.costeUnitario > 0
+      ? Number((matchedItem.costeUnitario * unidades).toFixed(2))
+      : fallback.costes;
+  const costeUnitario =
+    unidades > 0 && costes > 0
+      ? Number((costes / unidades).toFixed(2))
+      : matchedItem?.costeUnitario || fallback.costeUnitario || 0;
+
+  return {
+    ...raw,
+    producto,
+    unidades,
+    material,
+    costes,
+    costeUnitario,
+    fecha: raw.fecha && /^\d{4}-\d{2}-\d{2}$/.test(raw.fecha) ? raw.fecha : fallback.fecha || todayDate,
+    precio: raw.precio && raw.precio > 0 ? raw.precio : fallback.precio,
+  };
+}
+
+async function runGeminiFlashLiveExtraction(
   ai: GoogleGenAI,
   req: Required<
     Pick<VoiceOperationRequest, 'mimeType' | 'transcriptText' | 'productCatalog' | 'todayDate'>
   > & { audioBase64?: string }
 ): Promise<ExtractedVoiceOperation | null> {
-  const { audioBase64, mimeType, transcriptText, productCatalog, todayDate } = req;
+  const { audioBase64, transcriptText, productCatalog, todayDate } = req;
 
   const catalogContext = Array.isArray(productCatalog)
     ? productCatalog
@@ -143,7 +196,7 @@ async function runGeminiLiveExtraction(
         .join('\n')
     : '';
 
-  const systemInstruction = `Eres el asistente de voz en tiempo real de Formare 3D (modelo Gemini 3.8 Live), una empresa de impresión 3D gestionada por Jorge, Sandra y Alejandro.
+  const systemInstruction = `Eres el asistente de voz en tiempo real de Formare 3D (modelo Gemini 3 Flash Live), una empresa de impresión 3D gestionada por Jorge, Sandra y Alejandro.
 Tu única tarea es escuchar el audio o leer el dictado del usuario y llamar INMEDIATAMENTE a la función "rellenarOperacionFormare3D" con todos los campos de la operación.
 
 Fecha actual de referencia (hoy): ${todayDate}.
@@ -153,7 +206,7 @@ ${catalogContext || '(Catálogo vacío)'}
 
 Reglas de negocio de Formare 3D:
 1. "tipo": "venta", "compra" o "inversion". Por defecto "venta", salvo que mencione "compra", "pedido de filamento", "bobina", "inversión", "maquinaria", etc.
-2. "producto": Nombre limpio del producto. Si coincide con uno del catálogo, usa el nombre exacto del catálogo.
+2. "producto": Nombre limpio del producto (sin poner el número de unidades delante). Si coincide con uno del catálogo, usa el nombre exacto del catálogo.
 3. "unidades": Número entero de unidades (por defecto 1).
 4. "precio": Precio de venta en euros (ej. 18.5). Si es "compra" o "inversion", pon 0.
 5. "costes": Coste total del filamento o de la compra en euros. Si es una venta de un producto del catálogo y el usuario no dice el coste, calcula costeUnitario_del_catalogo * unidades.
@@ -167,7 +220,7 @@ Reglas de negocio de Formare 3D:
 13. "comentarios": Cualquier detalle adicional mencionado por el usuario.
 14. "transcripcion": El texto exacto de lo que ha dicho el usuario en español.
 
-IMPORTANTE: Llama SIEMPRE a la herramienta "rellenarOperacionFormare3D" en cuanto recibas el audio o texto.`;
+IMPORTANTE: Llama SIEMPRE a la herramienta "rellenarOperacionFormare3D" inmediatamente.`;
 
   return new Promise<ExtractedVoiceOperation | null>(async (resolve) => {
     let settled = false;
@@ -187,20 +240,16 @@ IMPORTANTE: Llama SIEMPRE a la herramienta "rellenarOperacionFormare3D" en cuant
     };
 
     const timeoutId = setTimeout(() => {
-      if (inputTranscriptPieces.trim() || transcriptText.trim()) {
-        const fallback = parseVoiceOperationSmartFallback(
-          inputTranscriptPieces.trim() || transcriptText.trim(),
-          productCatalog,
-          todayDate
-        );
-        finish(fallback);
+      const combined = (inputTranscriptPieces.trim() || transcriptText.trim()).trim();
+      if (combined) {
+        finish(parseVoiceOperationSmartFallback(combined, productCatalog, todayDate));
       } else {
         finish(null);
       }
-    }, 9500);
+    }, 8500);
 
     try {
-      const sessionPromise = ai.live.connect({
+      liveSession = await ai.live.connect({
         model: GEMINI_VOICE_MODEL,
         config: {
           responseModalities: [Modality.AUDIO],
@@ -221,16 +270,16 @@ IMPORTANTE: Llama SIEMPRE a la herramienta "rellenarOperacionFormare3D" en cuant
 
             const toolCalls = (message as any)?.toolCall?.functionCalls;
             if (Array.isArray(toolCalls) && toolCalls.length > 0) {
-              const call = toolCalls.find(
-                (fc: any) => fc.name === 'rellenarOperacionFormare3D'
-              ) || toolCalls[0];
+              const call =
+                toolCalls.find((fc: any) => fc.name === 'rellenarOperacionFormare3D') ||
+                toolCalls[0];
               if (call && call.args) {
                 const args = call.args as any;
                 const finalTrans =
                   args.transcripcion ||
                   inputTranscriptPieces.trim() ||
                   transcriptText.trim();
-                finish({
+                const rawExtracted: ExtractedVoiceOperation = {
                   transcripcion: finalTrans,
                   tipo:
                     args.tipo === 'compra' || args.tipo === 'inversion'
@@ -248,42 +297,35 @@ IMPORTANTE: Llama SIEMPRE a la herramienta "rellenarOperacionFormare3D" en cuant
                   vendedor: String(args.vendedor || 'Jorge'),
                   comentarios: String(args.comentarios || ''),
                   esPedidoFilamento: Boolean(args.esPedidoFilamento),
-                });
+                };
+                finish(enrichWithCatalog(rawExtracted, productCatalog, todayDate));
                 return;
               }
             }
 
             if (message.serverContent?.turnComplete) {
-              const combinedTranscript = (
+              const combined = (
                 inputTranscriptPieces.trim() || transcriptText.trim()
               ).trim();
-              if (combinedTranscript) {
+              if (combined) {
                 finish(
-                  parseVoiceOperationSmartFallback(
-                    combinedTranscript,
-                    productCatalog,
-                    todayDate
-                  )
+                  parseVoiceOperationSmartFallback(combined, productCatalog, todayDate)
                 );
               }
             }
           },
           onerror: (err: any) => {
-            console.warn('Gemini 3.8 Live session error:', err?.message || err);
+            console.warn('Gemini 3 Flash Live session error:', err?.message || err);
             finish(null);
           },
           onclose: () => {
             if (!settled) {
-              const combinedTranscript = (
+              const combined = (
                 inputTranscriptPieces.trim() || transcriptText.trim()
               ).trim();
               finish(
-                combinedTranscript
-                  ? parseVoiceOperationSmartFallback(
-                      combinedTranscript,
-                      productCatalog,
-                      todayDate
-                    )
+                combined
+                  ? parseVoiceOperationSmartFallback(combined, productCatalog, todayDate)
                   : null
               );
             }
@@ -291,32 +333,41 @@ IMPORTANTE: Llama SIEMPRE a la herramienta "rellenarOperacionFormare3D" en cuant
         },
       });
 
-      liveSession = await sessionPromise;
-
-      // Stream 16kHz PCM audio if provided
-      if (audioBase64 && mimeType.includes('pcm')) {
-        const chunkSize = 32000; // ~1s of 16kHz 16-bit PCM in base64
-        for (let offset = 0; offset < audioBase64.length; offset += chunkSize) {
-          const slice = audioBase64.slice(offset, offset + chunkSize);
+      if (transcriptText.trim()) {
+        liveSession.sendClientContent({
+          turns: [
+            {
+              role: 'user',
+              parts: [
+                {
+                  text: `Dictado por voz del usuario: "${transcriptText.trim()}". Llama inmediatamente a rellenarOperacionFormare3D.`,
+                },
+              ],
+            },
+          ],
+          turnComplete: true,
+        });
+      } else if (audioBase64) {
+        const pcmBuf = Buffer.from(audioBase64, 'base64');
+        const silence = Buffer.alloc(48000); // 1.5s of 16kHz PCM silence to trigger VAD ACTIVITY_END
+        const fullBuf = Buffer.concat([pcmBuf, silence]);
+        const step = 6400; // 200ms chunks
+        for (let i = 0; i < fullBuf.length; i += step) {
+          if (settled) break;
           liveSession.sendRealtimeInput({
             audio: {
-              data: slice,
+              data: fullBuf.subarray(i, i + step).toString('base64'),
               mimeType: 'audio/pcm;rate=16000',
             },
           });
+          await new Promise((r) => setTimeout(r, 10));
+        }
+        if (!settled) {
+          liveSession.sendRealtimeInput({ audioStreamEnd: true });
         }
       }
-
-      // Send prompt instruction to trigger immediate tool call
-      const textPrompt = transcriptText.trim()
-        ? `Dictado por voz del usuario: "${transcriptText.trim()}". Llama ahora a la función rellenarOperacionFormare3D con todos los apartados.`
-        : 'He terminado de hablar. Llama ahora a la función rellenarOperacionFormare3D con todos los apartados extraídos del audio.';
-
-      liveSession.sendRealtimeInput({
-        text: textPrompt,
-      });
     } catch (err: any) {
-      console.warn('Could not connect to gemini-3.8-live:', err?.message || err);
+      console.warn('Could not connect to Gemini 3 Flash Live:', err?.message || err);
       finish(null);
     }
   });
@@ -337,7 +388,7 @@ export async function processVoiceOperationRequest(
   const ai = getGeminiClient();
 
   if (ai && (audioBase64 || cleanTranscript)) {
-    const liveResult = await runGeminiLiveExtraction(ai, {
+    const liveResult = await runGeminiFlashLiveExtraction(ai, {
       audioBase64,
       mimeType,
       transcriptText: cleanTranscript,
@@ -349,6 +400,7 @@ export async function processVoiceOperationRequest(
       return {
         ok: true,
         modelUsed: GEMINI_VOICE_MODEL,
+        modelLabel: GEMINI_VOICE_MODEL_LABEL,
         data: liveResult,
       };
     }
@@ -363,11 +415,12 @@ export async function processVoiceOperationRequest(
     return {
       ok: true,
       modelUsed: GEMINI_VOICE_MODEL,
+      modelLabel: GEMINI_VOICE_MODEL_LABEL,
       data: fallbackData,
     };
   }
 
   throw new Error(
-    'No se detectó voz suficiente. Habla cerca del micrófono o escribe el dictado en el cuadro.'
+    'No se detectó voz suficiente. Habla más cerca del micrófono o escribe el dictado.'
   );
 }

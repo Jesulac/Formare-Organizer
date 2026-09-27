@@ -14,6 +14,7 @@ interface ServerPersistedState {
   version: number;
   revision: number;
   updatedAt: number;
+  syncId?: string;
   clientId?: string;
   operations: any[] | null;
   filamentAdjustments: Record<string, number>;
@@ -28,18 +29,26 @@ function loadServerlessState(): ServerPersistedState {
     return g.__FORMARE3D_STATE__;
   }
 
-  const candidateFiles = [TMP_DB_FILE, REPO_DB_FILE];
-  for (const file of candidateFiles) {
+  for (const file of [TMP_DB_FILE, REPO_DB_FILE]) {
     try {
       if (fs.existsSync(file)) {
         const raw = fs.readFileSync(file, 'utf-8');
         const parsed = JSON.parse(raw);
         if (parsed && Array.isArray(parsed.operations)) {
+          const isTmp = file === TMP_DB_FILE;
+          const rev =
+            isTmp && typeof parsed.revision === 'number' && parsed.revision >= 1
+              ? parsed.revision
+              : 1;
+          const updatedAt =
+            isTmp && typeof parsed.updatedAt === 'number' ? parsed.updatedAt : 1;
+          const clientId = isTmp && parsed.clientId ? parsed.clientId : 'server-init';
           const state: ServerPersistedState = {
             version: 5,
-            revision: typeof parsed.revision === 'number' && parsed.revision >= 1 ? parsed.revision : 1,
-            updatedAt: typeof parsed.updatedAt === 'number' ? parsed.updatedAt : 1,
-            clientId: parsed.clientId || 'server-init',
+            revision: rev,
+            updatedAt,
+            syncId: parsed.syncId || `${rev}-${updatedAt}-${clientId}`,
+            clientId,
             operations: parsed.operations,
             filamentAdjustments:
               parsed.filamentAdjustments && typeof parsed.filamentAdjustments === 'object'
@@ -59,6 +68,7 @@ function loadServerlessState(): ServerPersistedState {
     version: 5,
     revision: 1,
     updatedAt: 1,
+    syncId: '1-1-server-init',
     clientId: 'server-init',
     operations: null,
     filamentAdjustments: {},
@@ -73,16 +83,35 @@ function saveServerlessState(state: ServerPersistedState) {
   try {
     fs.writeFileSync(TMP_DB_FILE, JSON.stringify(state), 'utf-8');
   } catch {
-    // Ignore read-only fs errors in serverless environments
+    // Ignore read-only fs errors
   }
 }
 
 export default function handler(req: any, res: any) {
-  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
-
   if (req.method === 'OPTIONS') {
+    res.setHeader('Cache-Control', 'no-store');
     return res.status(200).end();
   }
+
+  const isStream =
+    req.query?.stream === '1' ||
+    (typeof req.url === 'string' && req.url.includes('/stream'));
+
+  if (req.method === 'GET' && isStream) {
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache, no-transform');
+    res.setHeader('Connection', 'keep-alive');
+
+    const state = loadServerlessState();
+    if (state && Array.isArray(state.operations)) {
+      res.write(`data: ${JSON.stringify(state)}\n\n`);
+    } else {
+      res.write(`: connected\n\n`);
+    }
+    return res.end();
+  }
+
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
 
   if (req.method === 'GET') {
     const state = loadServerlessState();
@@ -108,12 +137,14 @@ export default function handler(req: any, res: any) {
         (current.revision || 1) + 1,
         typeof incomingRevision === 'number' ? incomingRevision : 2
       );
-      const updatedAt = Date.now();
+      const updatedAt = Math.max(Date.now(), (current.updatedAt || 1) + 1);
+      const syncId = `${nextRevision}-${updatedAt}-${clientId}`;
 
       const nextState: ServerPersistedState = {
         version: 5,
         revision: nextRevision,
         updatedAt,
+        syncId,
         clientId,
         operations,
         filamentAdjustments:
@@ -128,6 +159,7 @@ export default function handler(req: any, res: any) {
         ok: true,
         revision: nextRevision,
         updatedAt,
+        syncId,
         clientId,
       });
     } catch (err) {

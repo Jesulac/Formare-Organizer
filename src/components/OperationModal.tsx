@@ -77,20 +77,32 @@ const shippingCompanies: ShippingCompany[] = ['Correos', 'InPost', 'Seur', 'Otro
 
 const KNOWN_SELLERS = ['Jorge', 'Sandra', 'Alejandro', 'Jorge, Sandra'];
 
-function float32ChunksToPcm16Base64(chunks: Float32Array[]): string {
+function downsampleTo16kHzPcm16Base64(
+  chunks: Float32Array[],
+  inputSampleRate: number
+): string {
   let totalLength = 0;
   for (const c of chunks) {
     totalLength += c.length;
   }
   if (totalLength === 0) return '';
 
-  const pcm16 = new Int16Array(totalLength);
-  let offset = 0;
-  for (const chunk of chunks) {
-    for (let i = 0; i < chunk.length; i++) {
-      const s = Math.max(-1, Math.min(1, chunk[i]));
-      pcm16[offset++] = s < 0 ? s * 0x8000 : s * 0x7fff;
-    }
+  const merged = new Float32Array(totalLength);
+  let mergeOffset = 0;
+  for (const c of chunks) {
+    merged.set(c, mergeOffset);
+    mergeOffset += c.length;
+  }
+
+  const targetRate = 16000;
+  const ratio = inputSampleRate > 0 ? inputSampleRate / targetRate : 1;
+  const outputLength = Math.max(1, Math.floor(totalLength / ratio));
+  const pcm16 = new Int16Array(outputLength);
+
+  for (let i = 0; i < outputLength; i++) {
+    const srcIdx = Math.min(totalLength - 1, Math.floor(i * ratio));
+    const s = Math.max(-1, Math.min(1, merged[srcIdx]));
+    pcm16[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
   }
 
   const bytes = new Uint8Array(pcm16.buffer);
@@ -143,6 +155,7 @@ export const OperationModal: React.FC<OperationModalProps> = ({
   const [voiceStatusMsg, setVoiceStatusMsg] = useState<string | null>(null);
 
   const audioCtxRef = useRef<AudioContext | null>(null);
+  const sampleRateRef = useRef<number>(16000);
   const scriptProcessorRef = useRef<ScriptProcessorNode | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const pcmChunksRef = useRef<Float32Array[]>([]);
@@ -384,13 +397,15 @@ export const OperationModal: React.FC<OperationModalProps> = ({
     }
 
     setErrorMsg(null);
-    setVoiceStatusMsg('Todos los apartados se han rellenado con Gemini 3.8 Live (gemini-3.8-live).');
+    setVoiceStatusMsg(
+      'Todos los apartados se han rellenado con Gemini 3 Flash Live.'
+    );
   };
 
   const processVoiceWithGemini = async (pcmBase64?: string | null, textFallback?: string) => {
     setIsProcessingVoice(true);
     setErrorMsg(null);
-    setVoiceStatusMsg('Conectando con Gemini 3.8 Live (gemini-3.8-live) y rellenando campos...');
+    setVoiceStatusMsg('Conectando con Gemini 3 Flash Live y rellenando campos...');
 
     const transcriptToUse = (textFallback ?? liveTranscriptRef.current ?? voiceTranscript).trim();
     const todayDate = formatDateInput(new Date().toISOString());
@@ -430,7 +445,7 @@ export const OperationModal: React.FC<OperationModalProps> = ({
           return;
         }
         throw new Error(
-          result?.error || 'Gemini 3.8 Live está procesando muchas solicitudes. Intenta de nuevo.'
+          result?.error || 'No se pudo escuchar el audio con claridad. Habla más cerca del micrófono o escribe el dictado.'
         );
       }
 
@@ -448,8 +463,8 @@ export const OperationModal: React.FC<OperationModalProps> = ({
         const rawMsg = String(err?.message || '');
         const cleanMsg =
           rawMsg.includes('503') || rawMsg.includes('UNAVAILABLE') || rawMsg.startsWith('{')
-            ? 'Gemini 3.8 Live tiene alta demanda puntual. Vuelve a pulsar Dictar por Voz o escribe el dictado.'
-            : rawMsg || 'Error al procesar el dictado por voz con Gemini 3.8 Live.';
+            ? 'Gemini 3 Flash Live tiene alta demanda puntual. Vuelve a pulsar Dictar por Voz o escribe el dictado.'
+            : rawMsg || 'Error al procesar el dictado por voz con Gemini 3 Flash Live.';
         setErrorMsg(cleanMsg);
         setVoiceStatusMsg(null);
       }
@@ -498,7 +513,11 @@ export const OperationModal: React.FC<OperationModalProps> = ({
       mediaStreamRef.current = stream;
 
       const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
-      const audioCtx = new AudioCtx({ sampleRate: 16000 });
+      const audioCtx: AudioContext = new AudioCtx();
+      if (audioCtx.state === 'suspended') {
+        await audioCtx.resume();
+      }
+      sampleRateRef.current = audioCtx.sampleRate || 16000;
       audioCtxRef.current = audioCtx;
 
       const source = audioCtx.createMediaStreamSource(stream);
@@ -527,7 +546,10 @@ export const OperationModal: React.FC<OperationModalProps> = ({
   };
 
   const handleStopVoiceRecording = () => {
-    const capturedPcmBase64 = float32ChunksToPcm16Base64(pcmChunksRef.current);
+    const capturedPcmBase64 = downsampleTo16kHzPcm16Base64(
+      pcmChunksRef.current,
+      sampleRateRef.current
+    );
     const capturedTranscript = liveTranscriptRef.current;
     cleanupVoiceResources();
     void processVoiceWithGemini(capturedPcmBase64, capturedTranscript);
@@ -714,7 +736,7 @@ export const OperationModal: React.FC<OperationModalProps> = ({
                   <span>Autocompletar por Voz con IA</span>
                 </div>
                 <p className="text-[10px] text-zinc-400 mt-0.5 leading-snug">
-                  Modelo único: <span className="font-mono text-emerald-300/90">gemini-3.8-live</span> (Gemini 3.8 Live). Di por ejemplo:{' '}
+                  Modelo: <span className="font-mono text-emerald-300/90">Gemini 3 Flash Live</span> (<span className="font-mono text-emerald-300/90">gemini-3.1-flash-live-preview</span>). Di por ejemplo:{' '}
                   <em className="text-zinc-300">
                     &laquo;Venta de Volante F1 Logitech por 18 euros en Wallapop, en producción, vendedor Jorge&raquo;
                   </em>
