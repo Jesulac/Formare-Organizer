@@ -30,6 +30,7 @@ const platformsList: Platform[] = [
   'Vinted',
   'Etsy',
   'eBay',
+  'Amazon',
   'Cults3D',
   'En persona',
   'Internet',
@@ -37,11 +38,12 @@ const platformsList: Platform[] = [
 ];
 
 const statusesList: Status[] = [
-  'Cobrado✅',
-  'Pagado⭕',
-  'Pendiente de cobro',
-  'Enviado📦',
+  'Cobrado',
+  'Pagado',
+  'Pendiente de pago',
   'En producción',
+  'Pendiente de cobro',
+  'Enviado',
   'Cancelado',
 ];
 
@@ -74,8 +76,8 @@ export const FilterBar: React.FC<FilterBarProps> = ({
   };
 
   return (
-    <section className="px-4 lg:px-8 py-3">
-      <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-stretch md:items-center justify-between gap-2.5">
+    <section className="px-3 sm:px-4 lg:px-6 py-3">
+      <div className="max-w-[1600px] mx-auto flex flex-col md:flex-row items-stretch md:items-center justify-between gap-2.5">
         
         {/* Search Bar & Mobile Filter Trigger */}
         <div className="flex items-center gap-2 flex-1">

@@ -1,303 +1,636 @@
-import React, { useState } from 'react';
-import { Operation, Status } from '../types/operation';
-import { formatEuro, formatDateDisplay } from '../utils/calculations';
+import React, { useState, useRef } from 'react';
+import { Operation, Status, MonthlySummary, ShippingCompany } from '../types/operation';
+import { formatEuro, formatDateDisplay, parseDate, compressImageFile } from '../utils/calculations';
 import { StatusPill } from './StatusPill';
-import { Edit3, Copy, Trash2, ChevronRight, User, Check, X } from 'lucide-react';
+import { 
+  Edit3, 
+  Copy, 
+  Trash2, 
+  User, 
+  Check, 
+  X, 
+  QrCode, 
+  Image as ImageIcon, 
+  Upload, 
+  Clock, 
+  Layers,
+  CalendarClock,
+  BarChart3
+} from 'lucide-react';
 import { ViewMode } from './Header';
 
 interface OperationsListProps {
   operations: Operation[];
+  monthlySummaries: Record<string, MonthlySummary>;
   onSelectOperation: (op: Operation) => void;
   onDuplicateOperation: (id: string) => void;
   onDeleteOperation: (id: string) => void;
   onStatusChange: (id: string, newStatus: Status) => void;
+  onAttachQr: (id: string, fotoQr: string | undefined, empresaEnvio?: ShippingCompany) => void;
   viewMode: ViewMode;
+}
+
+const SHIPPING_COMPANIES: ShippingCompany[] = ['Correos', 'InPost', 'Seur', 'Otro'];
+
+function getMonthKey(fechaStr: string): string {
+  const d = parseDate(fechaStr);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 }
 
 export const OperationsList: React.FC<OperationsListProps> = ({
   operations,
+  monthlySummaries,
   onSelectOperation,
   onDuplicateOperation,
   onDeleteOperation,
   onStatusChange,
+  onAttachQr,
   viewMode,
 }) => {
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [previewQrOp, setPreviewQrOp] = useState<Operation | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [uploadingForOpId, setUploadingForOpId] = useState<string | null>(null);
 
   const showMobileCards =
     viewMode === 'iphone' ? 'block' : viewMode === 'desktop' ? 'hidden' : 'block lg:hidden';
   const showDesktopTable =
     viewMode === 'desktop' ? 'block' : viewMode === 'iphone' ? 'hidden' : 'hidden lg:block';
 
+  const handleTriggerPhotoUpload = (opId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setUploadingForOpId(opId);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+      fileInputRef.current.click();
+    }
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !uploadingForOpId) return;
+    try {
+      const compressed = await compressImageFile(file, 900);
+      onAttachQr(uploadingForOpId, compressed, 'Correos');
+      if (previewQrOp && previewQrOp.id === uploadingForOpId) {
+        setPreviewQrOp({
+          ...previewQrOp,
+          fotoQr: compressed,
+          empresaEnvio: previewQrOp.empresaEnvio || 'Correos',
+          fechaSubidaQr: Date.now(),
+        });
+      }
+    } catch (err) {
+      console.error('Error al procesar la imagen', err);
+    } finally {
+      setUploadingForOpId(null);
+    }
+  };
+
   return (
     <div className="w-full">
-      {/* 1. MOBILE / iPHONE VIEW (iOS 26 OLED Card Layout) */}
+      {/* Hidden shared file input for quick row photo/QR attachment */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        onChange={handleFileChange}
+        className="hidden"
+      />
+
+      {/* 1. VISTA MÓVIL (Compact Cards + Monthly Summary Cards) */}
       <div className={`${showMobileCards} space-y-2.5 max-w-lg mx-auto`}>
-        {operations.map((op) => {
-          const isCierre = op.tipo === 'cierre';
-          
+        {operations.map((op, index) => {
+          const isCompra = op.tipo === 'compra' || op.tipo === 'inversion';
+          const currentMonthKey = getMonthKey(op.fecha);
+          const nextOp = operations[index + 1];
+          const nextMonthKey = nextOp ? getMonthKey(nextOp.fecha) : null;
+          const isLastOfMonth = currentMonthKey !== nextMonthKey;
+          const monthSummary = isLastOfMonth ? monthlySummaries[currentMonthKey] : null;
+
           return (
-            <div
-              key={op.id}
-              onClick={() => onSelectOperation(op)}
-              className="glass-card glass-card-hover rounded-2xl p-3.5 relative cursor-pointer active:scale-[0.99] transition-all flex flex-col gap-2 border border-white/10"
-            >
-              {/* Card Top Row: Product Title & Status */}
-              <div className="flex items-start justify-between gap-2">
-                <div className="flex-1 min-w-0">
-                  <h4 className="text-sm font-semibold text-white truncate flex items-center gap-1.5">
-                    <span className="truncate">{op.producto}</span>
-                    {isCierre && (
-                      <span className="text-[10px] bg-purple-950/80 text-purple-300 border border-purple-500/30 px-1.5 py-0.5 rounded-md font-normal shrink-0">
-                        Cierre
+            <React.Fragment key={op.id}>
+              <div
+                onClick={() => onSelectOperation(op)}
+                className="glass-card glass-card-hover rounded-2xl p-3.5 relative cursor-pointer active:scale-[0.99] transition-all flex flex-col gap-2 border border-white/10"
+              >
+                {/* Card Top Row: Type badge, Product Title & Status */}
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5 mb-0.5">
+                      <span
+                        className={`text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded ${
+                          isCompra
+                            ? 'bg-rose-950/80 text-rose-300 border border-rose-500/30'
+                            : 'bg-emerald-950/80 text-emerald-300 border border-emerald-500/30'
+                        }`}
+                      >
+                        {isCompra ? 'Compra' : 'Venta'}
                       </span>
-                    )}
-                  </h4>
-                  
-                  {/* Subtitle: Platform · Date · Seller */}
-                  <div className="flex items-center gap-1.5 text-xs text-zinc-400 mt-0.5">
-                    <span className="text-zinc-300 font-medium">{op.lugarVenta}</span>
-                    <span>·</span>
-                    <span>{formatDateDisplay(op.fecha)}</span>
-                    {op.vendedor && (
-                      <>
-                        <span>·</span>
-                        <span className="text-purple-300 font-medium flex items-center gap-0.5">
-                          <User className="w-3 h-3" />
-                          {op.vendedor}
-                        </span>
-                      </>
-                    )}
+                      <span className="text-[10px] font-mono bg-white/10 text-zinc-200 px-1.5 py-0.5 rounded">
+                        {op.unidades || 1} {(op.unidades || 1) === 1 ? 'ud.' : 'uds.'}
+                      </span>
+                    </div>
+
+                    <h4 className="text-sm font-semibold text-white truncate">
+                      {op.producto}
+                    </h4>
+
+                    {/* Subtitle: Platform · Date · Seller */}
+                    <div className="flex flex-wrap items-center gap-1.5 text-xs text-zinc-400 mt-0.5">
+                      <span className="text-zinc-300 font-medium">{op.lugarVenta}</span>
+                      <span>·</span>
+                      <span>{formatDateDisplay(op.fecha)}</span>
+                      {op.vendedor && (
+                        <>
+                          <span>·</span>
+                          <span className="text-purple-300 font-medium flex items-center gap-0.5">
+                            <User className="w-3 h-3" />
+                            {op.vendedor}
+                          </span>
+                        </>
+                      )}
+                    </div>
                   </div>
+
+                  {/* Interactive Clean Status Pill */}
+                  <StatusPill
+                    status={op.estado}
+                    onStatusChange={(newStatus) => onStatusChange(op.id, newStatus)}
+                  />
                 </div>
 
-                {/* Interactive Status Pill */}
-                <StatusPill
-                  status={op.estado}
-                  onStatusChange={(newStatus) => onStatusChange(op.id, newStatus)}
-                />
-              </div>
+                {/* Material or Comments */}
+                {(op.material || op.comentarios) && (
+                  <p className="text-[11px] text-zinc-400 line-clamp-1">
+                    {op.material && <span className="text-zinc-300">{op.material}</span>}
+                    {op.material && op.comentarios && <span className="text-zinc-600"> · </span>}
+                    {op.comentarios && <span className="italic">{op.comentarios}</span>}
+                  </p>
+                )}
 
-              {/* Material or Comments if present */}
-              {(op.material || op.comentarios) && (
-                <p className="text-[11px] text-zinc-400 line-clamp-1">
-                  {op.material && <span className="text-zinc-300">{op.material}</span>}
-                  {op.material && op.comentarios && <span className="text-zinc-600"> · </span>}
-                  {op.comentarios && <span className="italic">{op.comentarios}</span>}
-                </p>
-              )}
-
-              {/* Card Bottom Row: Financial Values */}
-              <div className="flex items-center justify-between pt-2 border-t border-white/5 text-xs">
-                {/* Revenue / Price */}
-                <div>
-                  <span className="text-[10px] text-zinc-500 uppercase tracking-wider block">
-                    {op.tipo === 'compra' || op.tipo === 'inversion' ? 'Salida' : 'Precio'}
-                  </span>
-                  <span className="font-mono font-semibold text-zinc-100">
-                    {op.precio !== null ? `+${formatEuro(op.precio)}` : formatEuro(-Math.abs(op.costes))}
-                  </span>
-                </div>
-
-                {/* Costs */}
-                <div>
-                  <span className="text-[10px] text-zinc-500 uppercase tracking-wider block">
-                    Costes
-                  </span>
-                  <span className="font-mono text-zinc-400">
-                    {formatEuro(op.costes + (op.costesOperativos || 0))}
-                  </span>
-                </div>
-
-                {/* Profit */}
-                <div className="text-right">
-                  <span className="text-[10px] text-zinc-500 uppercase tracking-wider block">
-                    Beneficio
-                  </span>
-                  <span
-                    className={`font-mono font-bold ${
-                      op.beneficio > 0
-                        ? 'text-emerald-400'
-                        : op.beneficio < 0
-                        ? 'text-rose-400'
-                        : 'text-zinc-400'
-                    }`}
-                  >
-                    {op.beneficio > 0 ? `+${formatEuro(op.beneficio)}` : formatEuro(op.beneficio)}
-                  </span>
-                </div>
-
-                <ChevronRight className="w-4 h-4 text-zinc-600 self-center ml-1" />
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* 2. DESKTOP VIEW (Elegantly Styled OLED Table) */}
-      <div className={`${showDesktopTable} overflow-x-auto glass-card rounded-2xl border border-white/10 shadow-2xl`}>
-        <table className="w-full text-left text-xs border-collapse">
-          <thead>
-            <tr className="border-b border-white/10 bg-zinc-950/60 text-zinc-400 text-[11px] font-semibold uppercase tracking-wider">
-              <th className="py-3.5 px-4">Fecha</th>
-              <th className="py-3.5 px-4">Producto</th>
-              <th className="py-3.5 px-4">Material</th>
-              <th className="py-3.5 px-4 text-right">Precio</th>
-              <th className="py-3.5 px-4 text-right">Costes</th>
-              <th className="py-3.5 px-4 text-right">C. Oper.</th>
-              <th className="py-3.5 px-4 text-right">Beneficio</th>
-              <th className="py-3.5 px-4">Lugar</th>
-              <th className="py-3.5 px-4">Estado</th>
-              <th className="py-3.5 px-4">Comentarios & Vendedor</th>
-              <th className="py-3.5 px-4 text-center">Acciones</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-white/5">
-            {operations.map((op) => {
-              const isCierre = op.tipo === 'cierre';
-              const isConfirmingDelete = confirmDeleteId === op.id;
-
-              return (
-                <tr
-                  key={op.id}
-                  onClick={() => onSelectOperation(op)}
-                  className={`hover:bg-white/[0.04] transition-colors group cursor-pointer ${
-                    isCierre ? 'bg-purple-950/20' : ''
-                  }`}
-                >
-                  {/* Fecha */}
-                  <td className="py-3 px-4 font-mono text-zinc-300 whitespace-nowrap">
-                    {formatDateDisplay(op.fecha)}
-                  </td>
-
-                  {/* Producto */}
-                  <td className="py-3 px-4 font-semibold text-white whitespace-nowrap max-w-xs truncate">
-                    {op.producto}
-                    {isCierre && (
-                      <span className="ml-2 text-[10px] bg-purple-950 text-purple-300 border border-purple-500/30 px-1.5 py-0.5 rounded font-normal">
-                        Cierre
-                      </span>
-                    )}
-                  </td>
-
-                  {/* Material */}
-                  <td className="py-3 px-4 text-zinc-400 whitespace-nowrap max-w-xs truncate">
-                    {op.material || '—'}
-                  </td>
-
-                  {/* Precio / Ingreso */}
-                  <td className="py-3 px-4 text-right font-mono font-medium text-zinc-100 whitespace-nowrap">
-                    {op.precio !== null ? formatEuro(op.precio) : '—'}
-                  </td>
+                {/* Card Bottom Row: Financial Values, Deadline & Photo/QR Button */}
+                <div className="grid grid-cols-4 items-center gap-2 pt-2 border-t border-white/5 text-xs">
+                  {/* Precio */}
+                  <div>
+                    <span className="text-[10px] text-zinc-500 uppercase tracking-wider block">
+                      Precio
+                    </span>
+                    <span className="font-mono font-semibold text-zinc-100">
+                      {op.precio !== null ? formatEuro(op.precio) : '—'}
+                    </span>
+                  </div>
 
                   {/* Costes */}
-                  <td className="py-3 px-4 text-right font-mono text-zinc-400 whitespace-nowrap">
-                    {formatEuro(op.costes)}
-                  </td>
+                  <div>
+                    <span className="text-[10px] text-zinc-500 uppercase tracking-wider block">
+                      Costes
+                    </span>
+                    <span className="font-mono text-zinc-400">
+                      {formatEuro(op.costes)}
+                    </span>
+                  </div>
 
-                  {/* Costes Operativos */}
-                  <td className="py-3 px-4 text-right font-mono text-zinc-400 whitespace-nowrap">
-                    {op.costesOperativos > 0 ? formatEuro(op.costesOperativos) : '—'}
-                  </td>
+                  {/* Unidades */}
+                  <div>
+                    <span className="text-[10px] text-zinc-500 uppercase tracking-wider block">
+                      Unidades
+                    </span>
+                    <span className="font-mono text-zinc-200 font-medium">
+                      {op.unidades || 1}
+                    </span>
+                  </div>
 
                   {/* Beneficio */}
-                  <td className="py-3 px-4 text-right font-mono font-bold whitespace-nowrap">
+                  <div className="text-right">
+                    <span className="text-[10px] text-zinc-500 uppercase tracking-wider block">
+                      Beneficio
+                    </span>
                     <span
-                      className={
+                      className={`font-mono font-bold ${
                         op.beneficio > 0
                           ? 'text-emerald-400'
                           : op.beneficio < 0
                           ? 'text-rose-400'
                           : 'text-zinc-400'
-                      }
+                      }`}
                     >
                       {op.beneficio > 0 ? `+${formatEuro(op.beneficio)}` : formatEuro(op.beneficio)}
                     </span>
-                  </td>
+                  </div>
+                </div>
 
-                  {/* Lugar Venta */}
-                  <td className="py-3 px-4 text-zinc-300 font-medium whitespace-nowrap">
-                    {op.lugarVenta}
-                  </td>
+                {/* Extra Footer: Fecha Límite & Adjuntar Foto/QR */}
+                <div className="flex items-center justify-between pt-1.5 border-t border-white/5 text-[11px]">
+                  <div className="flex items-center gap-1.5 text-zinc-400">
+                    <CalendarClock className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                    <span>
+                      Fecha límite:{' '}
+                      <strong className="text-zinc-200 font-mono">
+                        {op.tipo === 'venta' && op.fechaLimite ? formatDateDisplay(op.fechaLimite) : '—'}
+                      </strong>
+                    </span>
+                  </div>
 
-                  {/* Estado */}
-                  <td className="py-3 px-4 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
-                    <StatusPill
-                      status={op.estado}
-                      onStatusChange={(newStatus) => onStatusChange(op.id, newStatus)}
-                    />
-                  </td>
-
-                  {/* Vendedor & Comentarios */}
-                  <td className="py-3 px-4 text-zinc-400 max-w-xs truncate">
-                    {op.vendedor && (
-                      <span className="text-purple-300 font-medium mr-1.5">
-                        {op.vendedor}
-                      </span>
-                    )}
-                    {op.vendedor && op.comentarios && <span className="text-zinc-600 mr-1.5">·</span>}
-                    <span>{op.comentarios || (!op.vendedor ? '—' : '')}</span>
-                  </td>
-
-                  {/* Acciones */}
-                  <td className="py-3 px-4 text-center whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
-                    {isConfirmingDelete ? (
-                      <div className="inline-flex items-center gap-1 bg-rose-950/80 border border-rose-500/30 rounded-lg px-1.5 py-0.5">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            onDeleteOperation(op.id);
-                            setConfirmDeleteId(null);
-                          }}
-                          className="p-1 text-rose-300 hover:text-white cursor-pointer"
-                          title="Confirmar eliminación"
-                        >
-                          <Check className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setConfirmDeleteId(null)}
-                          className="p-1 text-zinc-400 hover:text-white cursor-pointer"
-                          title="Cancelar"
-                        >
-                          <X className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
+                  <div onClick={(e) => e.stopPropagation()}>
+                    {op.fotoQr ? (
+                      <button
+                        type="button"
+                        onClick={() => setPreviewQrOp(op)}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 text-[11px] font-medium cursor-pointer"
+                      >
+                        <QrCode className="w-3.5 h-3.5" />
+                        <span>Ver Foto / QR</span>
+                      </button>
                     ) : (
-                      <div className="inline-flex items-center gap-1 opacity-80 group-hover:opacity-100 transition-opacity">
-                        <button
-                          type="button"
-                          onClick={() => onSelectOperation(op)}
-                          className="p-1.5 rounded-lg text-zinc-300 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
-                          title="Editar operación"
-                        >
-                          <Edit3 className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => onDuplicateOperation(op.id)}
-                          className="p-1.5 rounded-lg text-zinc-300 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
-                          title="Duplicar operación"
-                        >
-                          <Copy className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setConfirmDeleteId(op.id)}
-                          className="p-1.5 rounded-lg text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 transition-colors cursor-pointer"
-                          title="Eliminar operación"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
+                      <button
+                        type="button"
+                        onClick={(e) => handleTriggerPhotoUpload(op.id, e)}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-zinc-300 border border-white/10 text-[11px] cursor-pointer"
+                      >
+                        <ImageIcon className="w-3.5 h-3.5 text-zinc-400" />
+                        <span>Adjuntar Foto</span>
+                      </button>
                     )}
-                  </td>
-                </tr>
+                  </div>
+                </div>
+              </div>
+
+              {/* Monthly Summary Card at end of each month */}
+              {monthSummary && (
+                <div className="rounded-2xl p-3.5 bg-emerald-950/25 border border-emerald-500/30 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5 text-emerald-300 font-bold text-xs uppercase tracking-wider">
+                      <BarChart3 className="w-4 h-4" />
+                      <span>Resumen {monthSummary.monthLabel}</span>
+                    </div>
+                    <span className="text-[11px] font-mono text-zinc-300">
+                      {monthSummary.numVentas} ventas · {monthSummary.numPedidos} pedidos
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 border-t border-emerald-500/20 text-[11px]">
+                    <div>
+                      <span className="text-zinc-400 block">Bruto generado</span>
+                      <span className="font-mono font-semibold text-white">
+                        {formatEuro(monthSummary.dineroBruto)}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-zinc-400 block">Gastado compras</span>
+                      <span className="font-mono font-semibold text-rose-300">
+                        {formatEuro(monthSummary.dineroGastadoCompras)}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-zinc-400 block">Neto generado</span>
+                      <span className={`font-mono font-bold ${
+                        monthSummary.dineroNeto >= 0 ? 'text-emerald-400' : 'text-rose-400'
+                      }`}>
+                        {formatEuro(monthSummary.dineroNeto)}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-zinc-400 block">Filamento usado</span>
+                      <span className="font-mono font-semibold text-sky-300">
+                        {monthSummary.gramosConsumidos} g
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </React.Fragment>
+          );
+        })}
+      </div>
+
+      {/* 2. VISTA TABLA COMPLETA (Fits full width without cutting off on the right) */}
+      <div className={`${showDesktopTable} w-full glass-card rounded-2xl border border-white/10 shadow-2xl overflow-x-auto`}>
+        <table className="w-full text-left text-[11px] border-collapse">
+          <thead>
+            <tr className="border-b border-white/10 bg-zinc-950/80 text-zinc-400 text-[10px] font-semibold uppercase tracking-wider">
+              <th className="py-3 px-2.5 whitespace-nowrap">Fecha</th>
+              <th className="py-3 px-2 whitespace-nowrap">Venta/Compra</th>
+              <th className="py-3 px-2.5">Producto</th>
+              <th className="py-3 px-2 text-center whitespace-nowrap">Unidades</th>
+              <th className="py-3 px-2.5">Material</th>
+              <th className="py-3 px-2.5 text-right whitespace-nowrap">Precio</th>
+              <th className="py-3 px-2.5 text-right whitespace-nowrap">Costes</th>
+              <th className="py-3 px-2.5 text-right whitespace-nowrap">Beneficio</th>
+              <th className="py-3 px-2.5 whitespace-nowrap">Lugar</th>
+              <th className="py-3 px-2.5 whitespace-nowrap">Estado</th>
+              <th className="py-3 px-2.5 whitespace-nowrap">Vendedor</th>
+              <th className="py-3 px-2.5">Comentarios</th>
+              <th className="py-3 px-2.5 whitespace-nowrap">Fecha Límite</th>
+              <th className="py-3 px-2 text-center whitespace-nowrap">Foto / QR</th>
+              <th className="py-3 px-2 text-center whitespace-nowrap">Acciones</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-white/5">
+            {operations.map((op, index) => {
+              const isCompra = op.tipo === 'compra' || op.tipo === 'inversion';
+              const isConfirmingDelete = confirmDeleteId === op.id;
+
+              const currentMonthKey = getMonthKey(op.fecha);
+              const nextOp = operations[index + 1];
+              const nextMonthKey = nextOp ? getMonthKey(nextOp.fecha) : null;
+              const isLastOfMonth = currentMonthKey !== nextMonthKey;
+              const monthSummary = isLastOfMonth ? monthlySummaries[currentMonthKey] : null;
+
+              return (
+                <React.Fragment key={op.id}>
+                  <tr
+                    onClick={() => onSelectOperation(op)}
+                    className="hover:bg-white/[0.04] transition-colors group cursor-pointer"
+                  >
+                    {/* Fecha */}
+                    <td className="py-2.5 px-2.5 font-mono text-zinc-300 whitespace-nowrap">
+                      {formatDateDisplay(op.fecha)}
+                    </td>
+
+                    {/* Casilla Venta / Compra */}
+                    <td className="py-2.5 px-2 whitespace-nowrap">
+                      <span
+                        className={`inline-block text-[10px] font-semibold px-2 py-0.5 rounded-md border ${
+                          isCompra
+                            ? 'bg-rose-950/60 text-rose-300 border-rose-500/30'
+                            : 'bg-emerald-950/60 text-emerald-300 border-emerald-500/30'
+                        }`}
+                      >
+                        {isCompra ? 'Compra' : 'Venta'}
+                      </span>
+                    </td>
+
+                    {/* Producto */}
+                    <td className="py-2.5 px-2.5 font-semibold text-white max-w-[180px] break-words leading-tight">
+                      {op.producto}
+                    </td>
+
+                    {/* Unidades (replaces C. Oper.) */}
+                    <td className="py-2.5 px-2 text-center font-mono font-semibold text-zinc-200 whitespace-nowrap">
+                      {op.unidades || 1}
+                    </td>
+
+                    {/* Material */}
+                    <td className="py-2.5 px-2.5 text-zinc-400 max-w-[160px] break-words leading-tight">
+                      {op.material || '—'}
+                    </td>
+
+                    {/* Precio */}
+                    <td className="py-2.5 px-2.5 text-right font-mono font-medium text-zinc-100 whitespace-nowrap">
+                      {op.precio !== null ? formatEuro(op.precio) : '—'}
+                    </td>
+
+                    {/* Costes */}
+                    <td className="py-2.5 px-2.5 text-right font-mono text-zinc-400 whitespace-nowrap">
+                      {formatEuro(op.costes)}
+                    </td>
+
+                    {/* Beneficio */}
+                    <td className="py-2.5 px-2.5 text-right font-mono font-bold whitespace-nowrap">
+                      <span
+                        className={
+                          op.beneficio > 0
+                            ? 'text-emerald-400'
+                            : op.beneficio < 0
+                            ? 'text-rose-400'
+                            : 'text-zinc-400'
+                        }
+                      >
+                        {op.beneficio > 0 ? `+${formatEuro(op.beneficio)}` : formatEuro(op.beneficio)}
+                      </span>
+                    </td>
+
+                    {/* Lugar */}
+                    <td className="py-2.5 px-2.5 text-zinc-300 font-medium whitespace-nowrap">
+                      {op.lugarVenta}
+                    </td>
+
+                    {/* Estado (Sin emojis) */}
+                    <td className="py-2.5 px-2.5 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                      <StatusPill
+                        status={op.estado}
+                        onStatusChange={(newStatus) => onStatusChange(op.id, newStatus)}
+                      />
+                    </td>
+
+                    {/* Vendedor */}
+                    <td className="py-2.5 px-2.5 text-purple-300 font-medium whitespace-nowrap">
+                      {op.vendedor || '—'}
+                    </td>
+
+                    {/* Comentarios */}
+                    <td className="py-2.5 px-2.5 text-zinc-400 max-w-[140px] break-words leading-tight">
+                      {op.comentarios || '—'}
+                    </td>
+
+                    {/* Fecha Límite (al final de la tabla) */}
+                    <td className="py-2.5 px-2.5 font-mono whitespace-nowrap">
+                      {op.tipo === 'venta' && op.fechaLimite ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-300 border border-amber-500/20 text-[10px]">
+                          <Clock className="w-3 h-3" />
+                          {formatDateDisplay(op.fechaLimite)}
+                        </span>
+                      ) : (
+                        <span className="text-zinc-600">—</span>
+                      )}
+                    </td>
+
+                    {/* Foto / QR enlazado a este pedido */}
+                    <td className="py-2.5 px-2 text-center whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                      {op.fotoQr ? (
+                        <button
+                          type="button"
+                          onClick={() => setPreviewQrOp(op)}
+                          className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 text-[10px] font-semibold cursor-pointer transition-colors"
+                          title="Ver foto / código de barras / QR adjunto"
+                        >
+                          <QrCode className="w-3.5 h-3.5" />
+                          <span>Ver Foto</span>
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={(e) => handleTriggerPhotoUpload(op.id, e)}
+                          className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-zinc-200 border border-white/10 text-[10px] cursor-pointer transition-colors"
+                          title="Adjuntar foto o código de barras a este pedido"
+                        >
+                          <Upload className="w-3 h-3" />
+                          <span>Adjuntar</span>
+                        </button>
+                      )}
+                    </td>
+
+                    {/* Acciones */}
+                    <td className="py-2.5 px-2 text-center whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                      {isConfirmingDelete ? (
+                        <div className="inline-flex items-center gap-1 bg-rose-950/80 border border-rose-500/30 rounded-lg px-1.5 py-0.5">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              onDeleteOperation(op.id);
+                              setConfirmDeleteId(null);
+                            }}
+                            className="p-1 text-rose-300 hover:text-white cursor-pointer"
+                            title="Confirmar eliminación"
+                          >
+                            <Check className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setConfirmDeleteId(null)}
+                            className="p-1 text-zinc-400 hover:text-white cursor-pointer"
+                            title="Cancelar"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="inline-flex items-center gap-0.5">
+                          <button
+                            type="button"
+                            onClick={() => onSelectOperation(op)}
+                            className="p-1 rounded-lg text-zinc-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                            title="Editar operación"
+                          >
+                            <Edit3 className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => onDuplicateOperation(op.id)}
+                            className="p-1 rounded-lg text-zinc-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                            title="Duplicar operación"
+                          >
+                            <Copy className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setConfirmDeleteId(op.id)}
+                            className="p-1 rounded-lg text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 transition-colors cursor-pointer"
+                            title="Eliminar operación"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+
+                  {/* Fila de Resumen Mensual automático al final de cada mes */}
+                  {monthSummary && (
+                    <tr className="bg-emerald-950/25 border-y border-emerald-500/30 text-[11px]">
+                      <td colSpan={3} className="py-2.5 px-2.5 font-bold text-emerald-300 uppercase tracking-wider">
+                        <div className="flex items-center gap-1.5">
+                          <Layers className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                          <span>Cierre Mensual: {monthSummary.monthLabel}</span>
+                        </div>
+                      </td>
+                      <td colSpan={2} className="py-2.5 px-2.5 text-zinc-300 font-mono">
+                        <span className="text-emerald-300 font-semibold">{monthSummary.numVentas}</span> ventas ·{' '}
+                        <span className="text-rose-300 font-semibold">{monthSummary.numPedidos}</span> pedidos
+                      </td>
+                      <td className="py-2.5 px-2.5 text-right font-mono font-bold text-white whitespace-nowrap">
+                        <span className="text-[9px] text-zinc-400 block uppercase">Bruto</span>
+                        {formatEuro(monthSummary.dineroBruto)}
+                      </td>
+                      <td className="py-2.5 px-2.5 text-right font-mono font-semibold text-rose-300 whitespace-nowrap">
+                        <span className="text-[9px] text-zinc-400 block uppercase">Gasto Compras</span>
+                        {formatEuro(monthSummary.dineroGastadoCompras)}
+                      </td>
+                      <td className="py-2.5 px-2.5 text-right font-mono font-extrabold whitespace-nowrap">
+                        <span className="text-[9px] text-zinc-400 block uppercase">Neto Mes</span>
+                        <span className={monthSummary.dineroNeto >= 0 ? 'text-emerald-400' : 'text-rose-400'}>
+                          {formatEuro(monthSummary.dineroNeto)}
+                        </span>
+                      </td>
+                      <td colSpan={7} className="py-2.5 px-2.5 text-zinc-300 font-mono">
+                        Filamento consumido en {monthSummary.monthLabel}:{' '}
+                        <strong className="text-sky-300">{monthSummary.gramosConsumidos} g</strong>
+                      </td>
+                    </tr>
+                  )}
+                </React.Fragment>
               );
             })}
           </tbody>
         </table>
       </div>
+
+      {/* Modal Lightbox para ver / gestionar la Foto o Código QR enlazado al pedido */}
+      {previewQrOp && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="fixed inset-0 bg-black/85 backdrop-blur-md"
+            onClick={() => setPreviewQrOp(null)}
+          />
+          <div className="relative z-10 w-full max-w-md glass-modal rounded-3xl p-5 border border-white/15 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-white/10 pb-3">
+              <div>
+                <h3 className="text-sm font-bold text-white">{previewQrOp.producto}</h3>
+                <p className="text-[11px] text-zinc-400">
+                  {previewQrOp.lugarVenta} · Fecha límite:{' '}
+                  {previewQrOp.fechaLimite ? formatDateDisplay(previewQrOp.fechaLimite) : 'Sin fecha límite'}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPreviewQrOp(null)}
+                className="p-1.5 rounded-full text-zinc-400 hover:text-white hover:bg-white/10 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {previewQrOp.fotoQr && (
+              <div className="bg-white rounded-2xl p-3 flex items-center justify-center">
+                <img
+                  src={previewQrOp.fotoQr}
+                  alt={`QR / Foto de ${previewQrOp.producto}`}
+                  className="max-h-80 w-auto object-contain rounded-lg"
+                />
+              </div>
+            )}
+
+            <div className="flex items-center justify-between gap-3 text-xs">
+              <div className="flex-1">
+                <label className="block text-zinc-400 text-[11px] mb-1">Empresa de envío</label>
+                <select
+                  value={previewQrOp.empresaEnvio || 'Correos'}
+                  onChange={(e) => {
+                    const emp = e.target.value as ShippingCompany;
+                    onAttachQr(previewQrOp.id, previewQrOp.fotoQr, emp);
+                    setPreviewQrOp({ ...previewQrOp, empresaEnvio: emp });
+                  }}
+                  className="w-full bg-zinc-900 border border-white/10 rounded-xl px-3 py-2 text-xs text-white"
+                >
+                  {SHIPPING_COMPANIES.map((c) => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex items-end gap-2 pt-4">
+                <button
+                  type="button"
+                  onClick={(e) => handleTriggerPhotoUpload(previewQrOp.id, e)}
+                  className="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-zinc-200 text-xs font-medium cursor-pointer"
+                >
+                  Cambiar foto
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onAttachQr(previewQrOp.id, undefined, undefined);
+                    setPreviewQrOp(null);
+                  }}
+                  className="px-3 py-2 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 text-xs font-medium cursor-pointer"
+                >
+                  Borrar foto
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

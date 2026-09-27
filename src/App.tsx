@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useOperations } from './hooks/useOperations';
-import { Header, ViewMode } from './components/Header';
+import { Header, ViewMode, ActiveSection } from './components/Header';
 import { DashboardSummary } from './components/DashboardSummary';
 import { FilterBar } from './components/FilterBar';
 import { OperationsList } from './components/OperationsList';
@@ -8,18 +8,25 @@ import { EmptyState } from './components/EmptyState';
 import { OperationModal } from './components/OperationModal';
 import { PricingCalculatorModal } from './components/PricingCalculatorModal';
 import { RevenueSplitModal } from './components/RevenueSplitModal';
+import { FilamentStockView } from './components/FilamentStockView';
+import { QrStorageView } from './components/QrStorageView';
 import { Operation, Status } from './types/operation';
 import { Plus } from 'lucide-react';
 
 export default function App() {
   const {
     operations,
+    rawOperations,
+    productCatalog,
+    filamentStock,
+    monthlySummaries,
     stats,
     filters,
     setFilters,
     uniqueSellers,
     addOperation,
     updateOperation,
+    attachQrToOperation,
     deleteOperation,
     duplicateOperation,
     resetToDefaultData,
@@ -28,7 +35,10 @@ export default function App() {
     importJSON,
   } = useOperations();
 
-  // View Mode ('auto' adapts to screen width; user can also toggle 'iphone' or 'desktop' right in the preview)
+  // Active Section ('ventas' | 'filamentos' | 'qr')
+  const [activeSection, setActiveSection] = useState<ActiveSection>('ventas');
+
+  // View Mode ('auto' adapts to screen width; user can also toggle 'iphone' (Vista móvil) or 'desktop' (Tabla))
   const [viewMode, setViewMode] = useState<ViewMode>('auto');
 
   // Modal States
@@ -65,6 +75,7 @@ export default function App() {
       producto: productName,
       precio: recommendedPrice,
       costes: materialCost,
+      unidades: 1,
       tipo: 'venta',
     });
     setIsOpModalOpen(true);
@@ -79,11 +90,15 @@ export default function App() {
     filters.timeFilter !== 'todo'
   );
 
+  const uploadedQrCount = rawOperations.filter((op) => Boolean(op.fotoQr)).length;
+
   return (
     <div className="min-h-screen bg-black text-zinc-100 flex flex-col font-sans selection:bg-emerald-500/30 selection:text-emerald-200 relative pb-24 lg:pb-12">
       
       {/* Top Navigation Header */}
       <Header
+        activeSection={activeSection}
+        onSectionChange={setActiveSection}
         onNewOperation={handleOpenNewOp}
         onOpenPricingCalculator={() => setIsPricingModalOpen(true)}
         onOpenRevenueSplit={() => setIsRevenueModalOpen(true)}
@@ -93,42 +108,61 @@ export default function App() {
         onClearAllData={clearAllData}
         viewMode={viewMode}
         onViewModeChange={setViewMode}
+        qrCount={uploadedQrCount}
       />
 
       {/* Main Content Area */}
       <main className={`flex-1 w-full mx-auto transition-all duration-300 ${
-        viewMode === 'iphone' ? 'max-w-md' : 'max-w-7xl'
+        viewMode === 'iphone' ? 'max-w-md' : 'max-w-[1600px]'
       }`}>
-        
-        {/* Top Financial Totals Summary */}
-        <DashboardSummary stats={stats} />
+        {activeSection === 'ventas' && (
+          <>
+            {/* Top Financial Totals Summary */}
+            <DashboardSummary stats={stats} />
 
-        {/* Search, Filter & Sort Bar */}
-        <FilterBar
-          filters={filters}
-          onFilterChange={setFilters}
-          uniqueSellers={uniqueSellers}
-        />
-
-        {/* Operations List or Empty State */}
-        <section className="px-4 lg:px-8 py-2">
-          {operations.length > 0 ? (
-            <OperationsList
-              operations={operations}
-              onSelectOperation={handleSelectOp}
-              onDuplicateOperation={duplicateOperation}
-              onDeleteOperation={deleteOperation}
-              onStatusChange={handleQuickStatusChange}
-              viewMode={viewMode}
+            {/* Search, Filter & Sort Bar */}
+            <FilterBar
+              filters={filters}
+              onFilterChange={setFilters}
+              uniqueSellers={uniqueSellers}
             />
-          ) : (
-            <EmptyState
-              onNewOperation={handleOpenNewOp}
-              isFiltered={isFiltered}
-            />
-          )}
-        </section>
 
+            {/* Operations List or Empty State */}
+            <section className="px-3 sm:px-4 lg:px-6 py-2">
+              {operations.length > 0 ? (
+                <OperationsList
+                  operations={operations}
+                  monthlySummaries={monthlySummaries}
+                  onSelectOperation={handleSelectOp}
+                  onDuplicateOperation={duplicateOperation}
+                  onDeleteOperation={deleteOperation}
+                  onStatusChange={handleQuickStatusChange}
+                  onAttachQr={attachQrToOperation}
+                  viewMode={viewMode}
+                />
+              ) : (
+                <EmptyState
+                  onNewOperation={handleOpenNewOp}
+                  isFiltered={isFiltered}
+                />
+              )}
+            </section>
+          </>
+        )}
+
+        {activeSection === 'filamentos' && (
+          <FilamentStockView
+            spools={filamentStock}
+            onAddFilamentOrder={addOperation}
+          />
+        )}
+
+        {activeSection === 'qr' && (
+          <QrStorageView
+            operations={rawOperations}
+            onAttachQr={attachQrToOperation}
+          />
+        )}
       </main>
 
       {/* Floating Action Button (+ Nueva) */}
@@ -157,6 +191,7 @@ export default function App() {
         onDuplicate={duplicateOperation}
         operationToEdit={selectedOp}
         initialData={initialModalData}
+        productCatalog={productCatalog}
       />
 
       <PricingCalculatorModal

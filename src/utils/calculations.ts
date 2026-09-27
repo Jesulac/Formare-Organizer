@@ -1,4 +1,4 @@
-import { Operation, OperationType } from '../types/operation';
+import { OperationType, Platform, Status } from '../types/operation';
 
 /**
  * Format number to Euro currency string (e.g., 12.5 -> "12,50 €")
@@ -20,14 +20,50 @@ export function formatEuro(amount: number | null | undefined): string {
 export function parseEuro(input: string | number | null | undefined): number {
   if (typeof input === 'number') return isNaN(input) ? 0 : input;
   if (!input) return 0;
-  // Replace comma with dot and remove € sign and non-numeric characters except minus and dot
   let cleaned = input.replace(/\s/g, '').replace('€', '').replace(',', '.');
   let num = parseFloat(cleaned);
   return isNaN(num) ? 0 : num;
 }
 
 /**
- * Calculate net profit based on operation type, price (revenue), material costs, and operational costs
+ * Normalize status string by removing emojis or legacy characters
+ */
+export function normalizeStatus(rawStatus: string | undefined | null): Status {
+  if (!rawStatus) return 'Cobrado';
+  const cleaned = rawStatus
+    .replace(/[✅⭕📦\u200B-\u200D\uFEFF]/g, '')
+    .trim()
+    .toLowerCase();
+
+  if (cleaned.includes('cobrado')) return 'Cobrado';
+  if (cleaned.includes('pendiente de pago')) return 'Pendiente de pago';
+  if (cleaned.includes('pagado')) return 'Pagado';
+  if (cleaned.includes('pendiente')) return 'Pendiente de cobro';
+  if (cleaned.includes('enviado')) return 'Enviado';
+  if (cleaned.includes('producc')) return 'En producción';
+  if (cleaned.includes('cancelado')) return 'Cancelado';
+  return 'Otro';
+}
+
+/**
+ * Extract units count from comments if not explicitly set
+ */
+export function extractUnits(comentarios?: string, existingUnits?: number): number {
+  if (typeof existingUnits === 'number' && existingUnits > 0) {
+    return existingUnits;
+  }
+  if (comentarios) {
+    const match = comentarios.match(/(\d+)\s*(unidades|uds|bobinas|filamentos)/i);
+    if (match && match[1]) {
+      const parsed = parseInt(match[1], 10);
+      if (parsed > 0) return parsed;
+    }
+  }
+  return 1;
+}
+
+/**
+ * Calculate net profit based on operation type, price (revenue), and total costs
  */
 export function calculateBeneficio(
   precio: number | null,
@@ -36,20 +72,101 @@ export function calculateBeneficio(
   tipo: OperationType = 'venta'
 ): number {
   const p = precio || 0;
-  // Costes are usually positive numbers representing cost, but if user enters negative numbers like -10.98, handle absolute cost
   const c = Math.abs(costes || 0);
   const cop = Math.abs(costesOperativos || 0);
 
   if (tipo === 'venta') {
     return p - c - cop;
   } else if (tipo === 'compra' || tipo === 'inversion') {
-    // For purchases/investments, profit is negative of the total outgoing cost
-    return - (p > 0 ? p : (c + cop));
+    return -(p > 0 ? p : c + cop);
   } else if (tipo === 'cierre') {
-    // Cierre row can specify its own profit or price - costs
     return p - c - cop;
   }
   return p - c - cop;
+}
+
+/**
+ * Add calendar days to a Date
+ */
+function addCalendarDays(date: Date, days: number): Date {
+  const result = new Date(date);
+  result.setDate(result.getDate() + days);
+  return result;
+}
+
+/**
+ * Add business days (Monday-Friday, skipping Saturday and Sunday) to a Date
+ */
+function addBusinessDays(date: Date, days: number): Date {
+  const result = new Date(date);
+  let added = 0;
+  while (added < days) {
+    result.setDate(result.getDate() + 1);
+    const dayOfWeek = result.getDay();
+    if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+      added++;
+    }
+  }
+  return result;
+}
+
+/**
+ * Calculate shipping deadline (Fecha límite) automatically for sales:
+ * - Wallapop: 5 calendar days (días naturales)
+ * - Vinted: 5 business days (días laborables)
+ * - Etsy: 3 business days (días laborables)
+ * - eBay: 3 business days (días laborables)
+ * - Amazon: 3 business days (días laborables)
+ * - Compras / Inversiones / Cierres: empty string ''
+ */
+export function calculateDeadlineDate(
+  fechaStr: string,
+  platform: Platform,
+  tipo: OperationType
+): string {
+  if (tipo !== 'venta' || !fechaStr) {
+    return '';
+  }
+
+  const baseDate = parseDate(fechaStr);
+  let targetDate: Date | null = null;
+
+  switch (platform) {
+    case 'Wallapop':
+      targetDate = addCalendarDays(baseDate, 5);
+      break;
+    case 'Vinted':
+      targetDate = addBusinessDays(baseDate, 5);
+      break;
+    case 'Etsy':
+    case 'eBay':
+    case 'Amazon':
+      targetDate = addBusinessDays(baseDate, 3);
+      break;
+    case 'En persona':
+    case 'Cults3D':
+      return '';
+    default:
+      targetDate = addCalendarDays(baseDate, 5);
+      break;
+  }
+
+  if (!targetDate) return '';
+  return formatDateInput(targetDate.toISOString());
+}
+
+/**
+ * Rule of three for filament grams consumed:
+ * Each spool has 1000g and costs `precioBobina` €.
+ * Grams consumed = (costeGastadoEnVenta * 1000) / precioBobina
+ */
+export function calculateFilamentGrams(
+  costeGastadoEnVenta: number,
+  precioBobina1000g: number = 15.99
+): number {
+  const cost = Math.abs(costeGastadoEnVenta || 0);
+  const spoolPrice = precioBobina1000g > 0 ? precioBobina1000g : 15.99;
+  return Math.round((cost * 1000) / spoolPrice);
 }
 
 /**
@@ -150,7 +267,6 @@ export function parseDate(dateStr: string): Date {
   if (dateStr.includes('-')) {
     const parts = dateStr.split('-');
     if (parts.length === 3) {
-      // Could be YYYY-MM-DD or DD-MM-YYYY
       if (parts[0].length === 4) {
         return new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
       } else {
@@ -166,7 +282,8 @@ export function parseDate(dateStr: string): Date {
 /**
  * Format Date to standard DD/MM/YYYY
  */
-export function formatDateDisplay(dateStr: string): string {
+export function formatDateDisplay(dateStr: string | undefined): string {
+  if (!dateStr) return '—';
   const d = parseDate(dateStr);
   const day = String(d.getDate()).padStart(2, '0');
   const month = String(d.getMonth() + 1).padStart(2, '0');
@@ -183,4 +300,38 @@ export function formatDateInput(dateStr: string): string {
   const month = String(d.getMonth() + 1).padStart(2, '0');
   const year = d.getFullYear();
   return `${year}-${month}-${day}`;
+}
+
+/**
+ * Compress an uploaded image file (QR / barcode / photo) to a compact Data URL
+ */
+export function compressImageFile(file: File, maxWidth = 900): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+        if (width > maxWidth) {
+          height = Math.round((height * maxWidth) / width);
+          width = maxWidth;
+        }
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          resolve(event.target?.result as string);
+          return;
+        }
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', 0.82));
+      };
+      img.onerror = reject;
+      img.src = event.target?.result as string;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
 }

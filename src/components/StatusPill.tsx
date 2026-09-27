@@ -1,25 +1,29 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Status } from '../types/operation';
+import { normalizeStatus } from '../utils/calculations';
+import { ChevronDown } from 'lucide-react';
 
 interface StatusPillProps {
-  status: Status;
+  status: Status | string;
   onStatusChange?: (newStatus: Status) => void;
 }
 
 const ALL_STATUSES: Status[] = [
-  'Cobrado✅',
-  'Pendiente de cobro',
-  'Enviado📦',
+  'Cobrado',
+  'Pagado',
+  'Pendiente de pago',
   'En producción',
-  'Pagado⭕',
+  'Pendiente de cobro',
+  'Enviado',
   'Cancelado',
   'Otro',
 ];
 
 export const StatusPill: React.FC<StatusPillProps> = ({
-  status,
+  status: rawStatus,
   onStatusChange,
 }) => {
+  const status = normalizeStatus(rawStatus);
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -35,28 +39,37 @@ export const StatusPill: React.FC<StatusPillProps> = ({
   }, [open]);
 
   let styleClasses = 'bg-zinc-800/80 text-zinc-300 border-zinc-700/50';
+  let dotColor = 'bg-zinc-400';
 
   switch (status) {
-    case 'Cobrado✅':
+    case 'Cobrado':
       styleClasses = 'bg-emerald-950/70 text-emerald-300 border-emerald-500/30';
+      dotColor = 'bg-emerald-400';
       break;
-    case 'Pagado⭕':
-      styleClasses = 'bg-zinc-800/90 text-zinc-300 border-zinc-600/40';
+    case 'Pagado':
+      styleClasses = 'bg-zinc-800/90 text-zinc-200 border-zinc-600/40';
+      dotColor = 'bg-zinc-300';
       break;
     case 'Pendiente de cobro':
+    case 'Pendiente de pago':
       styleClasses = 'bg-amber-950/70 text-amber-300 border-amber-500/30';
+      dotColor = 'bg-amber-400';
       break;
-    case 'Enviado📦':
+    case 'Enviado':
       styleClasses = 'bg-indigo-950/70 text-indigo-300 border-indigo-500/30';
+      dotColor = 'bg-indigo-400';
       break;
     case 'En producción':
       styleClasses = 'bg-sky-950/70 text-sky-300 border-sky-500/30';
+      dotColor = 'bg-sky-400';
       break;
     case 'Cancelado':
       styleClasses = 'bg-rose-950/70 text-rose-300 border-rose-500/30';
+      dotColor = 'bg-rose-400';
       break;
     default:
       styleClasses = 'bg-zinc-800/80 text-zinc-300 border-zinc-700/50';
+      dotColor = 'bg-zinc-400';
       break;
   }
 
@@ -70,12 +83,14 @@ export const StatusPill: React.FC<StatusPillProps> = ({
             setOpen(!open);
           }
         }}
-        className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium border backdrop-blur-sm transition-all whitespace-nowrap ${styleClasses} ${
+        className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium border backdrop-blur-sm transition-all whitespace-nowrap ${styleClasses} ${
           onStatusChange ? 'cursor-pointer hover:brightness-110 active:scale-95' : ''
         }`}
-        title={onStatusChange ? 'Toca para cambiar el estado' : status}
+        title={onStatusChange ? 'Cambiar estado' : status}
       >
+        <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${dotColor}`} />
         <span>{status}</span>
+        {onStatusChange && <ChevronDown className="w-3 h-3 opacity-60 -mr-0.5" />}
       </button>
 
       {open && onStatusChange && (

@@ -5,35 +5,75 @@ export type Platform =
   | 'Vinted'
   | 'Etsy'
   | 'eBay'
+  | 'Amazon'
   | 'Cults3D'
   | 'En persona'
   | 'Internet'
   | 'Otro';
 
 export type Status = 
-  | 'Cobrado✅'
-  | 'Pagado⭕'
-  | 'Pendiente de cobro'
-  | 'Enviado📦'
+  | 'Cobrado'
+  | 'Pagado'
+  | 'Pendiente de pago'
   | 'En producción'
+  | 'Pendiente de cobro'
+  | 'Enviado'
   | 'Cancelado'
   | 'Otro';
+
+export type ShippingCompany = 'Correos' | 'InPost' | 'Seur' | 'Otro';
 
 export interface Operation {
   id: string;
   fecha: string; // ISO format YYYY-MM-DD or DD/MM/YYYY
   producto: string;
+  unidades: number; // Default 1, multiplies unit cost
+  costeUnitario?: number; // Base filament cost per 1 unit
   material?: string;
   precio: number | null; // Gross sales revenue in EUR
-  costes: number; // Purchase or material cost in EUR
-  costesOperativos: number; // Operational costs in EUR
+  costes: number; // Total filament or purchase cost in EUR
+  costesOperativos: number; // Legacy field kept for compatibility (0)
   beneficio: number; // Calculated net profit in EUR
   lugarVenta: Platform;
   estado: Status;
   comentarios?: string;
   vendedor?: string;
   tipo: OperationType;
+  fechaLimite?: string; // Auto-calculated shipping deadline for sales, empty for purchases
+  fotoQr?: string; // Base64 image attached to this order (QR / barcode / photo)
+  empresaEnvio?: ShippingCompany; // Correos, InPost, Seur, Otro
+  fechaSubidaQr?: number; // Timestamp in ms when QR was uploaded (auto-deletes after 10 days)
+  esPedidoFilamento?: boolean; // True if purchase is a 1000g filament spool order
   createdAt: number;
+}
+
+export interface ProductCatalogItem {
+  producto: string;
+  costeUnitario: number;
+  material: string;
+}
+
+export interface FilamentSpool {
+  id: string;
+  nombre: string; // Material/filament identifier
+  gramosIniciales: number; // 1000g per spool ordered
+  precioBobina: number; // Price per 1000g spool in EUR
+  bobinasCompradas: number;
+  gramosConsumidos: number; // Calculated via rule of three from sales
+  gramosRestantes: number; // gramosIniciales - gramosConsumidos
+  ultimaCompraFecha?: string;
+}
+
+export interface MonthlySummary {
+  monthKey: string; // YYYY-MM
+  monthLabel: string; // e.g., "Septiembre 2026"
+  numVentas: number;
+  numPedidos: number; // Compras
+  dineroBruto: number; // Total sales price
+  dineroGastadoCompras: number; // Total spent on purchases
+  costesVentas: number; // Filament costs of sales
+  dineroNeto: number; // Net profit (Bruto - costesVentas - dineroGastadoCompras)
+  gramosConsumidos: number; // Total filament grams consumed in the month
 }
 
 export type TimeFilter = 'todo' | 'hoy' | 'semana' | 'mes' | 'ano' | 'personalizado';
