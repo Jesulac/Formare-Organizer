@@ -3,9 +3,9 @@
   "name": "Formare 3D — Control de Producción y Ventas",
   "icons": [
     {
-      "src": "/favicon.svg",
-      "type": "image/svg+xml",
-      "sizes": "any",
+      "src": "/favicon.jpg?v=2",
+      "type": "image/jpeg",
+      "sizes": "2048x2048",
       "purpose": "any maskable"
     }
   ],
