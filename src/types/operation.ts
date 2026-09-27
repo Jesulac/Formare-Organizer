@@ -21,7 +21,7 @@ export type Status =
   | 'Cancelado'
   | 'Otro';
 
-export type ShippingCompany = 'Correos' | 'InPost' | 'Seur' | 'Otro';
+export type ShippingCompany = 'Correos' | 'InPost' | 'Seur' | 'Vinted Go' | 'Otro';
 
 export interface Operation {
   id: string;

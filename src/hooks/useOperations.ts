@@ -228,23 +228,25 @@ function computeSpoolsList(
     });
   });
 
-  return Array.from(spoolsMap.values()).map((item, idx) => {
-    const consumidosRedondeados = Math.round(item.gramosConsumidos);
-    const baseRestantes = Math.round(item.gramosIniciales - consumidosRedondeados);
-    const ajuste = filamentAdjustments[item.nombre] ?? 0;
-    const gramosRestantes = Math.max(0, baseRestantes + ajuste);
-    return {
-      id: `spool-${idx}`,
-      nombre: item.nombre,
-      gramosIniciales: item.gramosIniciales,
-      precioBobina: item.precioBobina,
-      bobinasCompradas: item.bobinasCompradas,
-      gramosConsumidos: consumidosRedondeados,
-      gramosRestantes,
-      ajusteManualGramos: ajuste,
-      ultimaCompraFecha: item.ultimaCompraFecha,
-    };
-  });
+  return Array.from(spoolsMap.values())
+    .filter((item) => filamentAdjustments[`__deleted__:${item.nombre}`] !== 1)
+    .map((item, idx) => {
+      const consumidosRedondeados = Math.round(item.gramosConsumidos);
+      const baseRestantes = Math.round(item.gramosIniciales - consumidosRedondeados);
+      const ajuste = filamentAdjustments[item.nombre] ?? 0;
+      const gramosRestantes = Math.max(0, baseRestantes + ajuste);
+      return {
+        id: `spool-${idx}`,
+        nombre: item.nombre,
+        gramosIniciales: item.gramosIniciales,
+        precioBobina: item.precioBobina,
+        bobinasCompradas: item.bobinasCompradas,
+        gramosConsumidos: consumidosRedondeados,
+        gramosRestantes,
+        ajusteManualGramos: ajuste,
+        ultimaCompraFecha: item.ultimaCompraFecha,
+      };
+    });
 }
 
 export function useOperations() {
@@ -500,9 +502,12 @@ export function useOperations() {
       const nextOps = [newOp, ...operationsRef.current];
       let nextAdj = { ...filamentAdjustmentsRef.current };
 
-      // If this is a filament purchase and the spool previously had a negative base balance, ensure +1000g * unidades visibly adds to remaining grams
+      // If this is a filament purchase, un-delete if previously deleted and ensure +1000g * unidades visibly adds to remaining grams
       if (isFilamentoOrder) {
         const key = normalizeFilamentKey(newOp.material || newOp.producto);
+        if (nextAdj[`__deleted__:${key}`]) {
+          delete nextAdj[`__deleted__:${key}`];
+        }
         const prevSpools = computeSpoolsList(operationsRef.current, filamentAdjustmentsRef.current);
         const prevSpool = prevSpools.find((s) => s.nombre === key);
         const prevVisibleRemaining = prevSpool ? prevSpool.gramosRestantes : 0;
@@ -592,20 +597,41 @@ export function useOperations() {
 
   const attachQrToOperation = useCallback(
     (id: string, fotoQr: string | undefined, empresaEnvio?: ShippingCompany) => {
+      let isCarrierOnlyChange = false;
       const nextOps = operationsRef.current.map((op) => {
         if (op.id !== id) return op;
+        const qrChanged = op.fotoQr !== fotoQr;
+        if (!qrChanged && empresaEnvio !== undefined) {
+          isCarrierOnlyChange = true;
+        }
+        const nextEmpresaEnvio =
+          empresaEnvio !== undefined
+            ? empresaEnvio
+            : fotoQr
+            ? op.empresaEnvio || 'Correos'
+            : undefined;
+        const nextFechaSubidaQr = fotoQr
+          ? qrChanged
+            ? Date.now()
+            : op.fechaSubidaQr || Date.now()
+          : undefined;
+
         return {
           ...op,
           fotoQr,
-          empresaEnvio: fotoQr ? empresaEnvio || op.empresaEnvio || 'Correos' : undefined,
-          fechaSubidaQr: fotoQr ? Date.now() : undefined,
+          empresaEnvio: nextEmpresaEnvio,
+          fechaSubidaQr: nextFechaSubidaQr,
         };
       });
 
       commitStateChange(
         nextOps,
         filamentAdjustmentsRef.current,
-        fotoQr ? 'Foto / QR guardado en tiempo real' : 'Foto / QR eliminado',
+        isCarrierOnlyChange
+          ? `Método de envío (${empresaEnvio}) guardado`
+          : fotoQr
+          ? 'Foto / QR guardado en tiempo real'
+          : 'Foto / QR eliminado',
         id
       );
     },
@@ -765,6 +791,21 @@ export function useOperations() {
         operationsRef.current,
         nextAdj,
         `Stock de ${spoolName} actualizado a ${validTarget}g y guardado`
+      );
+    },
+    [commitStateChange]
+  );
+
+  const deleteFilamentSpool = useCallback(
+    (spoolName: string) => {
+      const nextAdj = {
+        ...filamentAdjustmentsRef.current,
+        [`__deleted__:${spoolName}`]: 1,
+      };
+      commitStateChange(
+        operationsRef.current,
+        nextAdj,
+        `Filamento "${spoolName}" eliminado del stock`
       );
     },
     [commitStateChange]
@@ -994,6 +1035,7 @@ export function useOperations() {
     addOperation,
     updateOperation,
     updateFilamentRemaining,
+    deleteFilamentSpool,
     attachQrToOperation,
     deleteOperation,
     duplicateOperation,

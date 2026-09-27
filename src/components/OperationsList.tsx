@@ -36,7 +36,7 @@ interface OperationsListProps {
   lastModifiedId?: string | null;
 }
 
-const SHIPPING_COMPANIES: ShippingCompany[] = ['Correos', 'InPost', 'Seur', 'Otro'];
+const SHIPPING_COMPANIES: ShippingCompany[] = ['Correos', 'InPost', 'Seur', 'Vinted Go', 'Otro'];
 
 function getMonthKey(fechaStr: string): string {
   const d = parseDate(fechaStr);
@@ -88,7 +88,8 @@ export const OperationsList: React.FC<OperationsListProps> = ({
     if (!file || !uploadingForOpId) return;
     try {
       const compressed = await compressImageFile(file, 750);
-      onAttachQr(uploadingForOpId, compressed, 'Correos');
+      const targetOp = operations.find((o) => o.id === uploadingForOpId);
+      onAttachQr(uploadingForOpId, compressed, targetOp?.empresaEnvio || 'Correos');
     } catch (err) {
       console.error('Error al procesar la imagen', err);
     } finally {

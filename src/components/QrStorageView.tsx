@@ -20,7 +20,7 @@ interface QrStorageViewProps {
   onStatusChange?: (id: string, newStatus: Status) => void;
 }
 
-const SHIPPING_COMPANIES: ShippingCompany[] = ['Correos', 'InPost', 'Seur', 'Otro'];
+const SHIPPING_COMPANIES: ShippingCompany[] = ['Correos', 'InPost', 'Seur', 'Vinted Go', 'Otro'];
 const TEN_DAYS_MS = 10 * 24 * 60 * 60 * 1000;
 
 export const QrStorageView: React.FC<QrStorageViewProps> = ({
@@ -114,7 +114,7 @@ export const QrStorageView: React.FC<QrStorageViewProps> = ({
             <span>Almacenamiento de QR y Etiquetas de Envío</span>
           </h2>
           <p className="text-xs text-zinc-400 mt-0.5">
-            Cada venta genera automáticamente un espacio con su <strong className="text-zinc-200">lugar de venta</strong> y <strong className="text-zinc-200">fecha límite</strong> para escanear en Correos, InPost o Seur.
+            Cada venta genera automáticamente un espacio con su <strong className="text-zinc-200">lugar de venta</strong> y <strong className="text-zinc-200">fecha límite</strong> para escanear en Correos, InPost, Seur o Vinted Go.
           </p>
           <div className="flex items-center gap-1.5 text-[11px] text-amber-300/90 mt-1.5">
             <ShieldCheck className="w-3.5 h-3.5 text-amber-400 shrink-0" />
@@ -274,7 +274,7 @@ export const QrStorageView: React.FC<QrStorageViewProps> = ({
                 >
                   <Upload className="w-6 h-6" />
                   <span className="text-xs font-medium">Subir QR o Código de Barras</span>
-                  <span className="text-[10px] text-zinc-500">Correos · InPost · Seur</span>
+                  <span className="text-[10px] text-zinc-500">Correos · InPost · Seur · Vinted Go</span>
                 </button>
               )}
             </div>

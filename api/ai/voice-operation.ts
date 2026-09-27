@@ -1,39 +1,9 @@
-import {
-  FunctionDeclaration,
-  GoogleGenAI,
-  LiveServerMessage,
-  Modality,
-  Type,
-} from '@google/genai';
-
-export const config = {
-  api: {
-    bodyParser: {
-      sizeLimit: '25mb',
-    },
-  },
-};
-
-const GEMINI_VOICE_MODEL = 'gemini-3.1-flash-live-preview';
-const GEMINI_VOICE_MODEL_LABEL = 'Gemini 3 Flash Live';
-const DEFAULT_FALLBACK_KEY =
-  'AQ.Ab8RN6IzXZb4IOblOZeUiqd9AVja-94Yv9PBsLCrX8DaNjMPKg';
-
-function getGeminiClient(): GoogleGenAI | null {
-  const envKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || '';
-  const apiKey =
-    envKey && envKey !== 'MY_GEMINI_API_KEY' ? envKey : DEFAULT_FALLBACK_KEY;
-  if (!apiKey) return null;
-
-  return new GoogleGenAI({
-    apiKey,
-    httpOptions: {
-      headers: {
-        'User-Agent': 'aistudio-build',
-      },
-    },
-  });
-}
+const GATEWAY_URL = 'https://api.kilo.ai/api/gateway/chat/completions';
+const GATEWAY_MODELS = [
+  'stepfun/step-3.7-flash:free',
+  'stepfun/step-3.7-flash',
+  'kilo-auto/free',
+];
 
 function normalizeStr(str: string): string {
   return (str || '')
@@ -256,44 +226,28 @@ function parseVoiceOperationSmartFallback(
   };
 }
 
-const rellenarOperacionDeclaration: FunctionDeclaration = {
-  name: 'rellenarOperacionFormare3D',
-  description:
-    'Rellena todos los apartados del formulario de operación de Formare 3D a partir de lo que ha dicho el usuario por voz.',
-  parameters: {
-    type: Type.OBJECT,
-    properties: {
-      transcripcion: { type: Type.STRING },
-      tipo: { type: Type.STRING },
-      producto: { type: Type.STRING },
-      unidades: { type: Type.INTEGER },
-      fecha: { type: Type.STRING },
-      material: { type: Type.STRING },
-      precio: { type: Type.NUMBER },
-      costes: { type: Type.NUMBER },
-      costeUnitario: { type: Type.NUMBER },
-      lugarVenta: { type: Type.STRING },
-      estado: { type: Type.STRING },
-      vendedor: { type: Type.STRING },
-      comentarios: { type: Type.STRING },
-      esPedidoFilamento: { type: Type.BOOLEAN },
-    },
-    required: [
-      'transcripcion',
-      'tipo',
-      'producto',
-      'unidades',
-      'fecha',
-      'material',
-      'precio',
-      'costes',
-      'lugarVenta',
-      'estado',
-      'vendedor',
-      'esPedidoFilamento',
-    ],
-  },
-};
+function extractJsonFromText(content: string): any | null {
+  if (!content || typeof content !== 'string') return null;
+  const cleaned = content
+    .replace(/```json/gi, '')
+    .replace(/```/g, '')
+    .trim();
+
+  try {
+    return JSON.parse(cleaned);
+  } catch {
+    const firstBrace = cleaned.indexOf('{');
+    const lastBrace = cleaned.lastIndexOf('}');
+    if (firstBrace !== -1 && lastBrace > firstBrace) {
+      try {
+        return JSON.parse(cleaned.slice(firstBrace, lastBrace + 1));
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  }
+}
 
 export default async function handler(req: any, res: any) {
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
@@ -309,241 +263,181 @@ export default async function handler(req: any, res: any) {
   try {
     const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body || {};
     const {
-      audioBase64,
+      text = '',
       transcriptText = '',
       productCatalog = [],
       todayDate = new Date().toISOString().slice(0, 10),
     } = body;
 
-    const cleanTranscript = String(transcriptText || '').trim();
-    if (!audioBase64 && !cleanTranscript) {
+    const cleanInput = String(text || transcriptText || '').trim();
+    if (!cleanInput) {
       return res.status(400).json({
-        error: 'No se recibió audio ni texto para procesar.',
+        error: 'Escribe los datos de la operación para que la IA los procese.',
       });
     }
 
-    const ai = getGeminiClient();
-    if (ai) {
-      const catalogContext = Array.isArray(productCatalog)
-        ? productCatalog
-            .slice(0, 80)
-            .map(
-              (c: any) =>
-                `- "${c.producto}" (Coste base 1 ud: ${c.costeUnitario}€, Material habitual: "${c.material || 'PETG Negro (Elegoo)'}")`
-            )
-            .join('\n')
-        : '';
+    const catalogContext = Array.isArray(productCatalog)
+      ? productCatalog
+          .slice(0, 60)
+          .map(
+            (c: any) =>
+              `- "${c.producto}" (${c.costeUnitario}€/ud, ${c.material || 'PETG Negro (Elegoo)'})`
+          )
+          .join('\n')
+      : '';
 
-      const systemInstruction = `Eres el asistente de voz en tiempo real de Formare 3D (modelo Gemini 3 Flash Live), una empresa de impresión 3D gestionada por Jorge, Sandra y Alejandro.
-Llama INMEDIATAMENTE a la función "rellenarOperacionFormare3D" con todos los campos extraídos.
-Fecha actual (hoy): ${todayDate}.
-Catálogo de productos de Formare 3D:
-${catalogContext || '(Catálogo vacío)'}`;
+    const systemPrompt = `Extrae los datos de la operación de Formare 3D y devuelve SOLO un objeto JSON válido sin pensar largo ni añadir texto adicional.
+Hoy: ${todayDate}.
+Catálogo Formare 3D:
+${catalogContext || '(Vacío)'}
 
-      const liveData = await new Promise<any>((resolve) => {
-        let settled = false;
-        let liveSession: any = null;
-        let inputTranscriptPieces = '';
+Claves JSON exactas:
+- "tipo": "venta" | "compra" | "inversion"
+- "producto": nombre limpio del producto (usa el del catálogo si coincide)
+- "unidades": entero >= 1
+- "fecha": "YYYY-MM-DD" (por defecto "${todayDate}")
+- "material": filamento usado (ej. "PETG Negro (Elegoo)", "ASA Negro (Winkle)", "PLA Negro (Elegoo / i3D)", "PETG Negro CF (Bambu / Elegoo)", "PETG Rojo (Winkle)", "TPU Negro")
+- "precio": número en euros (0 si es compra o inversion)
+- "costes": coste total en euros (si es venta de catálogo y no indica coste: costeUnitario * unidades)
+- "costeUnitario": coste de 1 unidad en euros
+- "lugarVenta": "Wallapop" | "Vinted" | "Etsy" | "eBay" | "Amazon" | "Internet" | "En persona" | "Cults3D" | "Otro"
+- "estado": "Cobrado" | "Pagado" | "Pendiente de pago" | "En producción" | "Pendiente de cobro" | "Enviado" | "Cancelado" | "Otro"
+- "vendedor": "Jorge" | "Sandra" | "Alejandro" | "Jorge, Sandra" | "Otro"
+- "comentarios": string
+- "esPedidoFilamento": boolean`;
 
-        const finish = (val: any) => {
-          if (settled) return;
-          settled = true;
-          clearTimeout(timer);
-          try {
-            liveSession?.close?.();
-          } catch {
-            // Ignore
-          }
-          resolve(val);
+    for (const model of GATEWAY_MODELS) {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 22000);
+
+      try {
+        const headers: Record<string, string> = {
+          'Content-Type': 'application/json',
         };
+        if (process.env.KILO_API_KEY) {
+          headers['Authorization'] = `Bearer ${process.env.KILO_API_KEY}`;
+        }
 
-        const timer = setTimeout(() => {
-          const combined = (inputTranscriptPieces.trim() || cleanTranscript).trim();
-          finish(
-            combined
-              ? parseVoiceOperationSmartFallback(combined, productCatalog, todayDate)
-              : null
-          );
-        }, 8500);
-
-        ai.live
-          .connect({
-            model: GEMINI_VOICE_MODEL,
-            config: {
-              responseModalities: [Modality.AUDIO],
-              speechConfig: {
-                voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Zephyr' } },
-              },
-              inputAudioTranscription: {},
-              outputAudioTranscription: {},
-              systemInstruction,
-              tools: [{ functionDeclarations: [rellenarOperacionDeclaration] }],
-            },
-            callbacks: {
-              onmessage: (message: LiveServerMessage) => {
-                const inText = (message as any)?.serverContent?.inputTranscription?.text;
-                if (inText) inputTranscriptPieces += ' ' + inText;
-
-                const toolCalls = (message as any)?.toolCall?.functionCalls;
-                if (Array.isArray(toolCalls) && toolCalls.length > 0) {
-                  const call =
-                    toolCalls.find((fc: any) => fc.name === 'rellenarOperacionFormare3D') ||
-                    toolCalls[0];
-                  if (call && call.args) {
-                    const args = call.args as any;
-                    const fallback = parseVoiceOperationSmartFallback(
-                      `${args.transcripcion || inputTranscriptPieces || cleanTranscript} ${args.producto || ''}`,
-                      productCatalog,
-                      todayDate
-                    );
-                    const uds =
-                      Number(args.unidades) >= 1
-                        ? Math.round(Number(args.unidades))
-                        : fallback.unidades || 1;
-                    const cleanProd = String(args.producto || '')
-                      .replace(/^(?:\d+|un|una|dos|tres|cuatro|cinco)\s+/i, '')
-                      .trim();
-                    const matched = productCatalog.find(
-                      (c: any) =>
-                        c.producto.toLowerCase() === cleanProd.toLowerCase() ||
-                        c.producto.toLowerCase() === (fallback.producto || '').toLowerCase()
-                    );
-                    const costes =
-                      Number(args.costes) > 0
-                        ? Number(args.costes)
-                        : matched && matched.costeUnitario > 0
-                        ? Number((matched.costeUnitario * uds).toFixed(2))
-                        : fallback.costes;
-                    finish({
-                      transcripcion:
-                        args.transcripcion || inputTranscriptPieces.trim() || cleanTranscript,
-                      tipo:
-                        args.tipo === 'compra' || args.tipo === 'inversion'
-                          ? args.tipo
-                          : 'venta',
-                      producto: matched ? matched.producto : cleanProd || fallback.producto,
-                      unidades: uds,
-                      fecha:
-                        args.fecha && /^\d{4}-\d{2}-\d{2}$/.test(args.fecha)
-                          ? args.fecha
-                          : fallback.fecha || todayDate,
-                      material:
-                        args.material ||
-                        matched?.material ||
-                        fallback.material ||
-                        'PETG Negro (Elegoo)',
-                      precio: Number(args.precio) > 0 ? Number(args.precio) : fallback.precio,
-                      costes,
-                      costeUnitario:
-                        uds > 0 && costes > 0
-                          ? Number((costes / uds).toFixed(2))
-                          : matched?.costeUnitario || fallback.costeUnitario || 0,
-                      lugarVenta: String(args.lugarVenta || fallback.lugarVenta || 'Wallapop'),
-                      estado: String(args.estado || fallback.estado || 'Cobrado'),
-                      vendedor: String(args.vendedor || fallback.vendedor || 'Jorge'),
-                      comentarios: String(args.comentarios || ''),
-                      esPedidoFilamento: Boolean(
-                        args.esPedidoFilamento ?? fallback.esPedidoFilamento
-                      ),
-                    });
-                    return;
-                  }
-                }
-
-                if (message.serverContent?.turnComplete) {
-                  const combined = (inputTranscriptPieces.trim() || cleanTranscript).trim();
-                  if (combined) {
-                    finish(
-                      parseVoiceOperationSmartFallback(combined, productCatalog, todayDate)
-                    );
-                  }
-                }
-              },
-              onerror: () => finish(null),
-              onclose: () => {
-                if (!settled) {
-                  const combined = (inputTranscriptPieces.trim() || cleanTranscript).trim();
-                  finish(
-                    combined
-                      ? parseVoiceOperationSmartFallback(combined, productCatalog, todayDate)
-                      : null
-                  );
-                }
-              },
-            },
-          })
-          .then(async (session) => {
-            liveSession = session;
-            if (cleanTranscript) {
-              session.sendClientContent({
-                turns: [
-                  {
-                    role: 'user',
-                    parts: [
-                      {
-                        text: `Dictado por voz del usuario: "${cleanTranscript}". Llama inmediatamente a rellenarOperacionFormare3D.`,
-                      },
-                    ],
-                  },
-                ],
-                turnComplete: true,
-              });
-            } else if (audioBase64) {
-              const pcmBuf = Buffer.from(audioBase64, 'base64');
-              const silence = Buffer.alloc(48000);
-              const fullBuf = Buffer.concat([pcmBuf, silence]);
-              const step = 6400;
-              for (let i = 0; i < fullBuf.length; i += step) {
-                if (settled) break;
-                session.sendRealtimeInput({
-                  audio: {
-                    data: fullBuf.subarray(i, i + step).toString('base64'),
-                    mimeType: 'audio/pcm;rate=16000',
-                  },
-                });
-                await new Promise((r) => setTimeout(r, 10));
-              }
-              if (!settled) {
-                session.sendRealtimeInput({ audioStreamEnd: true });
-              }
-            }
-          })
-          .catch(() => finish(null));
-      });
-
-      if (liveData && liveData.producto) {
-        return res.status(200).json({
-          ok: true,
-          modelUsed: GEMINI_VOICE_MODEL,
-          modelLabel: GEMINI_VOICE_MODEL_LABEL,
-          data: liveData,
+        const response = await fetch(GATEWAY_URL, {
+          method: 'POST',
+          headers,
+          signal: controller.signal,
+          body: JSON.stringify({
+            model,
+            temperature: 0,
+            reasoning_effort: 'low',
+            reasoning: { effort: 'low' },
+            messages: [
+              { role: 'system', content: systemPrompt },
+              { role: 'user', content: cleanInput },
+            ],
+          }),
         });
+
+        clearTimeout(timer);
+
+        if (!response.ok) {
+          continue;
+        }
+
+        const json: any = await response.json();
+        const rawContent = json?.choices?.[0]?.message?.content || '';
+        const parsed = extractJsonFromText(rawContent);
+
+        if (parsed && typeof parsed === 'object') {
+          const fallback = parseVoiceOperationSmartFallback(
+            `${cleanInput} ${parsed.producto || ''}`,
+            productCatalog,
+            todayDate
+          );
+          const rawTipo = String(parsed.tipo || '').toLowerCase().trim();
+          const tipo =
+            rawTipo.includes('compra') || rawTipo.includes('pedido')
+              ? 'compra'
+              : rawTipo.includes('inver') || rawTipo.includes('activo')
+              ? 'inversion'
+              : rawTipo.includes('venta')
+              ? 'venta'
+              : fallback.tipo || 'venta';
+          const uds =
+            Number(parsed.unidades) >= 1
+              ? Math.round(Number(parsed.unidades))
+              : fallback.unidades || 1;
+          const cleanProd = String(parsed.producto || '')
+            .replace(/^(?:\d+|un|una|dos|tres|cuatro|cinco)\s+/i, '')
+            .trim();
+          const matched = productCatalog.find(
+            (c: any) =>
+              c.producto.toLowerCase() === cleanProd.toLowerCase() ||
+              c.producto.toLowerCase() === (fallback.producto || '').toLowerCase()
+          );
+          const costes =
+            Number(parsed.costes) > 0
+              ? Number(Number(parsed.costes).toFixed(2))
+              : matched && matched.costeUnitario > 0
+              ? Number((matched.costeUnitario * uds).toFixed(2))
+              : fallback.costes;
+
+          return res.status(200).json({
+            ok: true,
+            data: {
+              transcripcion: cleanInput,
+              tipo,
+              producto: matched ? matched.producto : cleanProd || fallback.producto,
+              unidades: uds,
+              fecha:
+                parsed.fecha && /^\d{4}-\d{2}-\d{2}$/.test(String(parsed.fecha))
+                  ? String(parsed.fecha)
+                  : fallback.fecha || todayDate,
+              material:
+                (parsed.material && String(parsed.material).trim()) ||
+                matched?.material ||
+                fallback.material ||
+                (tipo === 'venta' ? 'PETG Negro (Elegoo)' : ''),
+              precio:
+                tipo === 'compra' || tipo === 'inversion'
+                  ? 0
+                  : Number(parsed.precio) > 0
+                  ? Number(Number(parsed.precio).toFixed(2))
+                  : fallback.precio,
+              costes,
+              costeUnitario:
+                uds > 0 && costes > 0
+                  ? Number((costes / uds).toFixed(2))
+                  : matched?.costeUnitario || fallback.costeUnitario || 0,
+              lugarVenta: String(
+                parsed.lugarVenta || fallback.lugarVenta || (tipo === 'venta' ? 'Wallapop' : 'Internet')
+              ),
+              estado: String(
+                parsed.estado || fallback.estado || (tipo === 'venta' ? 'Cobrado' : 'Pagado')
+              ),
+              vendedor: String(parsed.vendedor || fallback.vendedor || 'Jorge'),
+              comentarios: String(parsed.comentarios || ''),
+              esPedidoFilamento: Boolean(
+                parsed.esPedidoFilamento ?? fallback.esPedidoFilamento
+              ),
+            },
+          });
+        }
+      } catch {
+        clearTimeout(timer);
       }
     }
 
-    if (cleanTranscript) {
-      const fallbackData = parseVoiceOperationSmartFallback(
-        cleanTranscript,
-        productCatalog,
-        todayDate
-      );
-      return res.status(200).json({
-        ok: true,
-        modelUsed: GEMINI_VOICE_MODEL,
-        modelLabel: GEMINI_VOICE_MODEL_LABEL,
-        data: fallbackData,
-      });
-    }
-
-    return res.status(400).json({
-      error: 'No se detectó voz suficiente. Habla cerca del micrófono o escribe el dictado.',
+    const fallbackData = parseVoiceOperationSmartFallback(
+      cleanInput,
+      productCatalog,
+      todayDate
+    );
+    return res.status(200).json({
+      ok: true,
+      data: fallbackData,
     });
   } catch (err: any) {
-    console.error('Vercel /api/ai/voice-operation error:', err);
     return res.status(500).json({
       error:
         err?.message ||
-        'No se pudo procesar el dictado por voz en este momento. Inténtalo de nuevo.',
+        'No se pudo procesar el texto con Inteligencia Artificial. Inténtalo de nuevo.',
     });
   }
 }

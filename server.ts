@@ -205,13 +205,13 @@ async function startServer() {
     }
   });
 
-  // API: Voice-to-Operation AI extraction using Gemini 3 Flash Live
+  // API: AI text-to-operation extraction
   app.post('/api/ai/voice-operation', async (req, res) => {
     try {
-      const { audioBase64, transcriptText = '' } = req.body || {};
-      if (!audioBase64 && !String(transcriptText).trim()) {
+      const { text = '', transcriptText = '' } = req.body || {};
+      if (!String(text || transcriptText).trim()) {
         return res.status(400).json({
-          error: 'No se recibió audio ni texto para procesar.',
+          error: 'Escribe los datos de la operación para procesarlos con IA.',
         });
       }
 
@@ -222,7 +222,7 @@ async function startServer() {
       return res.status(500).json({
         error:
           err?.message ||
-          'No se pudo procesar el dictado por voz en este momento. Inténtalo de nuevo.',
+          'No se pudo procesar el texto con Inteligencia Artificial en este momento.',
       });
     }
   });

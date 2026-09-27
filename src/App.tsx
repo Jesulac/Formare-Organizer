@@ -33,6 +33,7 @@ export default function App() {
     addOperation,
     updateOperation,
     updateFilamentRemaining,
+    deleteFilamentSpool,
     attachQrToOperation,
     deleteOperation,
     duplicateOperation,
@@ -253,6 +254,7 @@ export default function App() {
             spools={filamentStock}
             onAddFilamentOrder={addOperation}
             onUpdateFilamentRemaining={updateFilamentRemaining}
+            onDeleteFilamentSpool={deleteFilamentSpool}
           />
         )}
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   X, 
   Trash2, 
@@ -13,8 +13,6 @@ import {
   QrCode,
   Upload,
   Hash,
-  Mic,
-  Square,
   Sparkles,
   Loader2
 } from 'lucide-react';
@@ -73,46 +71,9 @@ const statusesList: Status[] = [
   'Otro',
 ];
 
-const shippingCompanies: ShippingCompany[] = ['Correos', 'InPost', 'Seur', 'Otro'];
+const shippingCompanies: ShippingCompany[] = ['Correos', 'InPost', 'Seur', 'Vinted Go', 'Otro'];
 
 const KNOWN_SELLERS = ['Jorge', 'Sandra', 'Alejandro', 'Jorge, Sandra'];
-
-function downsampleTo16kHzPcm16Base64(
-  chunks: Float32Array[],
-  inputSampleRate: number
-): string {
-  let totalLength = 0;
-  for (const c of chunks) {
-    totalLength += c.length;
-  }
-  if (totalLength === 0) return '';
-
-  const merged = new Float32Array(totalLength);
-  let mergeOffset = 0;
-  for (const c of chunks) {
-    merged.set(c, mergeOffset);
-    mergeOffset += c.length;
-  }
-
-  const targetRate = 16000;
-  const ratio = inputSampleRate > 0 ? inputSampleRate / targetRate : 1;
-  const outputLength = Math.max(1, Math.floor(totalLength / ratio));
-  const pcm16 = new Int16Array(outputLength);
-
-  for (let i = 0; i < outputLength; i++) {
-    const srcIdx = Math.min(totalLength - 1, Math.floor(i * ratio));
-    const s = Math.max(-1, Math.min(1, merged[srcIdx]));
-    pcm16[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
-  }
-
-  const bytes = new Uint8Array(pcm16.buffer);
-  let binary = '';
-  const step = 0x8000;
-  for (let i = 0; i < bytes.length; i += step) {
-    binary += String.fromCharCode(...bytes.subarray(i, i + step));
-  }
-  return btoa(binary);
-}
 
 export const OperationModal: React.FC<OperationModalProps> = ({
   isOpen,
@@ -147,65 +108,16 @@ export const OperationModal: React.FC<OperationModalProps> = ({
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  // Voice AI Dictation States
-  const [isRecording, setIsRecording] = useState(false);
-  const [recordingSeconds, setRecordingSeconds] = useState(0);
+  // AI Text Autocomplete States
   const [isProcessingVoice, setIsProcessingVoice] = useState(false);
   const [voiceTranscript, setVoiceTranscript] = useState('');
   const [voiceStatusMsg, setVoiceStatusMsg] = useState<string | null>(null);
-
-  const audioCtxRef = useRef<AudioContext | null>(null);
-  const sampleRateRef = useRef<number>(16000);
-  const scriptProcessorRef = useRef<ScriptProcessorNode | null>(null);
-  const mediaStreamRef = useRef<MediaStream | null>(null);
-  const pcmChunksRef = useRef<Float32Array[]>([]);
-  const speechRecognitionRef = useRef<any>(null);
-  const timerIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const liveTranscriptRef = useRef<string>('');
-
-  const cleanupVoiceResources = () => {
-    if (timerIntervalRef.current) {
-      clearInterval(timerIntervalRef.current);
-      timerIntervalRef.current = null;
-    }
-    if (speechRecognitionRef.current) {
-      try {
-        speechRecognitionRef.current.stop();
-      } catch {
-        // Ignore stop error
-      }
-      speechRecognitionRef.current = null;
-    }
-    if (scriptProcessorRef.current) {
-      try {
-        scriptProcessorRef.current.disconnect();
-      } catch {
-        // Ignore disconnect error
-      }
-      scriptProcessorRef.current = null;
-    }
-    if (audioCtxRef.current) {
-      try {
-        void audioCtxRef.current.close();
-      } catch {
-        // Ignore close error
-      }
-      audioCtxRef.current = null;
-    }
-    if (mediaStreamRef.current) {
-      mediaStreamRef.current.getTracks().forEach((track) => track.stop());
-      mediaStreamRef.current = null;
-    }
-    setIsRecording(false);
-  };
 
   useEffect(() => {
     setConfirmingDelete(false);
     setErrorMsg(null);
     setVoiceStatusMsg(null);
     setVoiceTranscript('');
-    liveTranscriptRef.current = '';
-    cleanupVoiceResources();
 
     const defaultToday = formatDateInput(new Date().toISOString());
 
@@ -291,10 +203,6 @@ export const OperationModal: React.FC<OperationModalProps> = ({
       setEmpresaEnvio('Correos');
       setEsPedidoFilamento(false);
     }
-
-    return () => {
-      cleanupVoiceResources();
-    };
   }, [operationToEdit, initialData, isOpen]);
 
   if (!isOpen) return null;
@@ -398,36 +306,30 @@ export const OperationModal: React.FC<OperationModalProps> = ({
 
     setErrorMsg(null);
     setVoiceStatusMsg(
-      'Todos los apartados se han rellenado con Gemini 3 Flash Live.'
+      'Todos los apartados se han rellenado automáticamente con Inteligencia Artificial.'
     );
   };
 
-  const processVoiceWithGemini = async (pcmBase64?: string | null, textFallback?: string) => {
+  const processTextWithAi = async (customText?: string) => {
+    const textToUse = (customText ?? voiceTranscript).trim();
+    if (!textToUse) {
+      setErrorMsg('Escribe los datos de la operación en la caja de texto para que la Inteligencia Artificial los rellene.');
+      return;
+    }
+
     setIsProcessingVoice(true);
     setErrorMsg(null);
-    setVoiceStatusMsg('Conectando con Gemini 3 Flash Live y rellenando campos...');
+    setVoiceStatusMsg('Analizando el texto con Inteligencia Artificial y rellenando todos los apartados...');
 
-    const transcriptToUse = (textFallback ?? liveTranscriptRef.current ?? voiceTranscript).trim();
     const todayDate = formatDateInput(new Date().toISOString());
 
     try {
-      const audioBase64 = pcmBase64 || '';
-      const mimeType = 'audio/pcm;rate=16000';
-
-      if (!audioBase64 && !transcriptToUse) {
-        setErrorMsg('No se detectó voz. Habla cerca del micrófono o escribe el dictado.');
-        setVoiceStatusMsg(null);
-        setIsProcessingVoice(false);
-        return;
-      }
-
       const res = await fetch('/api/ai/voice-operation', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          audioBase64: audioBase64 || undefined,
-          mimeType,
-          transcriptText: transcriptToUse,
+          text: textToUse,
+          transcriptText: textToUse,
           productCatalog,
           todayDate,
         }),
@@ -435,124 +337,26 @@ export const OperationModal: React.FC<OperationModalProps> = ({
 
       const result = await res.json().catch(() => null);
       if (!res.ok || !result || !result.ok) {
-        if (transcriptToUse) {
-          const fallbackData = parseVoiceOperationSmartFallback(
-            transcriptToUse,
-            productCatalog,
-            todayDate
-          );
-          applyExtractedAiData(fallbackData);
-          return;
-        }
-        throw new Error(
-          result?.error || 'No se pudo escuchar el audio con claridad. Habla más cerca del micrófono o escribe el dictado.'
-        );
-      }
-
-      applyExtractedAiData(result.data);
-    } catch (err: any) {
-      console.warn('Fallback local tras error de red/API en dictado por voz:', err);
-      if (transcriptToUse) {
         const fallbackData = parseVoiceOperationSmartFallback(
-          transcriptToUse,
+          textToUse,
           productCatalog,
           todayDate
         );
         applyExtractedAiData(fallbackData);
-      } else {
-        const rawMsg = String(err?.message || '');
-        const cleanMsg =
-          rawMsg.includes('503') || rawMsg.includes('UNAVAILABLE') || rawMsg.startsWith('{')
-            ? 'Gemini 3 Flash Live tiene alta demanda puntual. Vuelve a pulsar Dictar por Voz o escribe el dictado.'
-            : rawMsg || 'Error al procesar el dictado por voz con Gemini 3 Flash Live.';
-        setErrorMsg(cleanMsg);
-        setVoiceStatusMsg(null);
+        return;
       }
+
+      applyExtractedAiData(result.data);
+    } catch {
+      const fallbackData = parseVoiceOperationSmartFallback(
+        textToUse,
+        productCatalog,
+        todayDate
+      );
+      applyExtractedAiData(fallbackData);
     } finally {
       setIsProcessingVoice(false);
     }
-  };
-
-  const handleStartVoiceRecording = async () => {
-    setErrorMsg(null);
-    setVoiceStatusMsg(null);
-    liveTranscriptRef.current = '';
-    setVoiceTranscript('');
-    pcmChunksRef.current = [];
-    setRecordingSeconds(0);
-
-    // Parallel Web Speech API for live visual transcript preview while speaking
-    const SpeechRec =
-      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (SpeechRec) {
-      try {
-        const recognition = new SpeechRec();
-        recognition.lang = 'es-ES';
-        recognition.continuous = true;
-        recognition.interimResults = true;
-        recognition.onresult = (event: any) => {
-          let transcript = '';
-          for (let i = 0; i < event.results.length; i++) {
-            transcript += event.results[i][0].transcript + ' ';
-          }
-          const clean = transcript.trim();
-          if (clean) {
-            liveTranscriptRef.current = clean;
-            setVoiceTranscript(clean);
-          }
-        };
-        recognition.start();
-        speechRecognitionRef.current = recognition;
-      } catch {
-        // Ignore if browser blocks Web Speech API; 16kHz PCM audio capture handles it
-      }
-    }
-
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      mediaStreamRef.current = stream;
-
-      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
-      const audioCtx: AudioContext = new AudioCtx();
-      if (audioCtx.state === 'suspended') {
-        await audioCtx.resume();
-      }
-      sampleRateRef.current = audioCtx.sampleRate || 16000;
-      audioCtxRef.current = audioCtx;
-
-      const source = audioCtx.createMediaStreamSource(stream);
-      const processor = audioCtx.createScriptProcessor(4096, 1, 1);
-      scriptProcessorRef.current = processor;
-
-      processor.onaudioprocess = (e) => {
-        const inputData = e.inputBuffer.getChannelData(0);
-        pcmChunksRef.current.push(new Float32Array(inputData));
-      };
-
-      source.connect(processor);
-      processor.connect(audioCtx.destination);
-
-      setIsRecording(true);
-      timerIntervalRef.current = setInterval(() => {
-        setRecordingSeconds((prev) => prev + 1);
-      }, 1000);
-    } catch (err) {
-      console.warn('Microphone access error:', err);
-      cleanupVoiceResources();
-      setErrorMsg(
-        'No se pudo acceder al micrófono. Permite el acceso al micrófono en tu navegador o escribe el dictado en el cuadro de voz.'
-      );
-    }
-  };
-
-  const handleStopVoiceRecording = () => {
-    const capturedPcmBase64 = downsampleTo16kHzPcm16Base64(
-      pcmChunksRef.current,
-      sampleRateRef.current
-    );
-    const capturedTranscript = liveTranscriptRef.current;
-    cleanupVoiceResources();
-    void processVoiceWithGemini(capturedPcmBase64, capturedTranscript);
   };
 
   // Handle selecting an existing product from catalog
@@ -629,7 +433,7 @@ export const OperationModal: React.FC<OperationModalProps> = ({
       comentarios: comentarios.trim() || undefined,
       fechaLimite: tipo === 'venta' ? effectiveFechaLimite : '',
       fotoQr,
-      empresaEnvio: fotoQr ? empresaEnvio : undefined,
+      empresaEnvio: fotoQr ? empresaEnvio : operationToEdit?.empresaEnvio,
       fechaSubidaQr: fotoQr ? operationToEdit?.fechaSubidaQr || Date.now() : undefined,
       esPedidoFilamento:
         tipo === 'compra' &&
@@ -727,85 +531,71 @@ export const OperationModal: React.FC<OperationModalProps> = ({
 
         {/* Form Body */}
         <form onSubmit={handleSubmit} className="space-y-3.5 text-xs">
-          {/* APARTADO DE VOZ CON IA (Gemini) */}
+          {/* APARTADO DE INTELIGENCIA ARTIFICIAL */}
           <div className="p-3.5 rounded-2xl bg-gradient-to-br from-emerald-950/50 via-zinc-900/90 to-zinc-950 border border-emerald-500/35 space-y-2.5 shadow-lg">
-            <div className="flex items-center justify-between gap-2">
+            <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
                 <div className="flex items-center gap-1.5 text-emerald-300 font-bold text-xs">
                   <Sparkles className="w-4 h-4 text-emerald-400 shrink-0" />
-                  <span>Autocompletar por Voz con IA</span>
+                  <span>Autocompletar con Inteligencia Artificial</span>
                 </div>
-                <p className="text-[10px] text-zinc-400 mt-0.5 leading-snug">
-                  Modelo: <span className="font-mono text-emerald-300/90">Gemini 3 Flash Live</span> (<span className="font-mono text-emerald-300/90">gemini-3.1-flash-live-preview</span>). Di por ejemplo:{' '}
-                  <em className="text-zinc-300">
-                    &laquo;Venta de Volante F1 Logitech por 18 euros en Wallapop, en producción, vendedor Jorge&raquo;
-                  </em>
+                <p className="text-[11px] text-zinc-400 mt-0.5 leading-snug">
+                  Escribe los detalles de la operación y la Inteligencia Artificial rellenará todos los apartados automáticamente.
                 </p>
               </div>
-
-              {isRecording ? (
+              {voiceTranscript.trim() && !isProcessingVoice && (
                 <button
                   type="button"
-                  onClick={handleStopVoiceRecording}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-rose-500 hover:bg-rose-400 text-white font-bold text-xs shadow-lg shadow-rose-500/30 animate-pulse cursor-pointer shrink-0"
+                  onClick={() => {
+                    setVoiceTranscript('');
+                    setVoiceStatusMsg(null);
+                  }}
+                  className="text-[10px] text-zinc-400 hover:text-white px-2 py-0.5 rounded-lg bg-white/5 hover:bg-white/10 transition-colors cursor-pointer shrink-0"
                 >
-                  <Square className="w-3.5 h-3.5 fill-current" />
-                  <span>Parar ({recordingSeconds}s)</span>
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  disabled={isProcessingVoice}
-                  onClick={handleStartVoiceRecording}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-black font-bold text-xs shadow-lg shadow-emerald-500/20 active:scale-95 transition-all cursor-pointer shrink-0"
-                >
-                  {isProcessingVoice ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      <span>Procesando...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Mic className="w-4 h-4 stroke-[2.5]" />
-                      <span>Dictar por Voz</span>
-                    </>
-                  )}
+                  Limpiar
                 </button>
               )}
             </div>
 
-            {/* Live transcript or manual voice text fallback */}
-            <div className="flex items-center gap-2">
-              <input
-                type="text"
+            <div className="space-y-2">
+              <textarea
+                rows={3}
                 value={voiceTranscript}
-                onChange={(e) => {
-                  setVoiceTranscript(e.target.value);
-                  liveTranscriptRef.current = e.target.value;
-                }}
+                onChange={(e) => setVoiceTranscript(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter' && voiceTranscript.trim()) {
+                  if (e.key === 'Enter' && !e.shiftKey && voiceTranscript.trim()) {
                     e.preventDefault();
-                    void processVoiceWithGemini(null, voiceTranscript);
+                    void processTextWithAi(voiceTranscript);
                   }
                 }}
-                placeholder={
-                  isRecording
-                    ? 'Escuchando tu voz... habla ahora y pulsa Parar al terminar'
-                    : 'Transcripción de voz o escribe aquí qué operación quieres rellenar...'
-                }
-                className="flex-1 min-w-0 bg-black/60 border border-white/10 rounded-xl px-3 py-1.5 text-[11px] text-white placeholder-zinc-500 focus:outline-none focus:border-emerald-500/50"
+                placeholder="Ej: Venta de 2 Volantes F1 Logitech G29 por 36 euros en Wallapop, en producción, vendedor Jorge..."
+                className="w-full bg-black/70 border border-white/15 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-emerald-500/60 focus:ring-1 focus:ring-emerald-500/30 resize-none leading-relaxed"
               />
-              {voiceTranscript.trim() && !isRecording && (
+
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-[10px] text-zinc-500">
+                  Pulsa <kbd className="px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-300 font-mono text-[9px]">Enter</kbd> o el botón para rellenar
+                </span>
+
                 <button
                   type="button"
-                  disabled={isProcessingVoice}
-                  onClick={() => void processVoiceWithGemini(null, voiceTranscript)}
-                  className="px-2.5 py-1.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 text-[11px] font-semibold cursor-pointer shrink-0"
+                  disabled={isProcessingVoice || !voiceTranscript.trim()}
+                  onClick={() => void processTextWithAi(voiceTranscript)}
+                  className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 disabled:opacity-40 disabled:pointer-events-none text-black font-bold text-xs shadow-lg shadow-emerald-500/20 active:scale-95 transition-all cursor-pointer shrink-0"
                 >
-                  Rellenar con IA
+                  {isProcessingVoice ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Procesando con IA...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-4 h-4 stroke-[2.2]" />
+                      <span>Rellenar automáticamente con IA</span>
+                    </>
+                  )}
                 </button>
-              )}
+              </div>
             </div>
 
             {voiceStatusMsg && (

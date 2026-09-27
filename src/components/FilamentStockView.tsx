@@ -1,18 +1,20 @@
 import React, { useState } from 'react';
 import { FilamentSpool, Operation } from '../types/operation';
 import { formatEuro, formatDateDisplay, formatDateInput, calculateFilamentGrams } from '../utils/calculations';
-import { Disc, Plus, AlertTriangle, CheckCircle2, Scale, Calculator, Edit3, Check, X } from 'lucide-react';
+import { Disc, Plus, AlertTriangle, CheckCircle2, Scale, Calculator, Edit3, Check, X, Trash2 } from 'lucide-react';
 
 interface FilamentStockViewProps {
   spools: FilamentSpool[];
   onAddFilamentOrder: (opData: Omit<Operation, 'id' | 'createdAt' | 'beneficio'>) => void;
   onUpdateFilamentRemaining: (spoolName: string, newRemainingGrams: number) => void;
+  onDeleteFilamentSpool?: (spoolName: string) => void;
 }
 
 export const FilamentStockView: React.FC<FilamentStockViewProps> = ({
   spools,
   onAddFilamentOrder,
   onUpdateFilamentRemaining,
+  onDeleteFilamentSpool,
 }) => {
   const [newSpoolName, setNewSpoolName] = useState('');
   const [newSpoolPrice, setNewSpoolPrice] = useState('15.99');
@@ -23,6 +25,7 @@ export const FilamentStockView: React.FC<FilamentStockViewProps> = ({
   // State for editing remaining grams on a specific filament spool
   const [editingSpoolName, setEditingSpoolName] = useState<string | null>(null);
   const [editRemainingValue, setEditRemainingValue] = useState<string>('');
+  const [confirmingDeleteSpool, setConfirmingDeleteSpool] = useState<string | null>(null);
 
   // Quick Rule of Three Tester
   const [testSpoolPrice, setTestSpoolPrice] = useState('15.99');
@@ -270,6 +273,7 @@ export const FilamentStockView: React.FC<FilamentStockViewProps> = ({
               : 0;
           const isLow = spool.gramosRestantes < 250;
           const isEditingThis = editingSpoolName === spool.nombre;
+          const isConfirmingDelete = confirmingDeleteSpool === spool.nombre;
           const hasManualAdjust = Boolean(spool.ajusteManualGramos && spool.ajusteManualGramos !== 0);
 
           return (
@@ -413,6 +417,35 @@ export const FilamentStockView: React.FC<FilamentStockViewProps> = ({
                 </div>
               )}
 
+              {/* Confirmation Banner before Deleting Filament */}
+              {isConfirmingDelete && (
+                <div className="p-3 rounded-xl bg-rose-950/90 border border-rose-500/40 space-y-2.5">
+                  <p className="text-[11px] font-medium text-rose-200 leading-snug">
+                    ¿Seguro que quieres eliminar <strong className="text-white">{spool.nombre}</strong> del stock de filamentos?
+                  </p>
+                  <div className="flex items-center justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setConfirmingDeleteSpool(null)}
+                      className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/15 text-zinc-200 text-[11px] font-medium cursor-pointer transition-colors"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onDeleteFilamentSpool?.(spool.nombre);
+                        setConfirmingDeleteSpool(null);
+                      }}
+                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-rose-500 hover:bg-rose-400 text-white font-bold text-[11px] shadow-lg shadow-rose-500/20 cursor-pointer transition-colors"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Sí, eliminar</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+
               <div className="pt-2 border-t border-white/5 flex items-center justify-between gap-2">
                 <span className="text-[10px] text-zinc-500 font-mono">
                   1g = {formatEuro(spool.precioBobina / 1000)}
@@ -436,6 +469,18 @@ export const FilamentStockView: React.FC<FilamentStockViewProps> = ({
                     <Plus className="w-3.5 h-3.5" />
                     <span>+1000g</span>
                   </button>
+                  {onDeleteFilamentSpool && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setConfirmingDeleteSpool(isConfirmingDelete ? null : spool.nombre)
+                      }
+                      className="inline-flex items-center justify-center p-1.5 rounded-lg bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 border border-rose-500/30 cursor-pointer transition-colors"
+                      title="Eliminar filamento"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
