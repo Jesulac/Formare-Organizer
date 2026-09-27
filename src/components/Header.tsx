@@ -6,9 +6,13 @@ import {
   Download, 
   Upload, 
   RotateCcw, 
+  Trash2,
   MoreVertical,
-  ChevronDown
+  Smartphone,
+  Monitor
 } from 'lucide-react';
+
+export type ViewMode = 'iphone' | 'desktop' | 'auto';
 
 interface HeaderProps {
   onNewOperation: () => void;
@@ -17,6 +21,9 @@ interface HeaderProps {
   onExportJSON: () => void;
   onImportJSON: (fileContent: string) => void;
   onResetData: () => void;
+  onClearAllData: () => void;
+  viewMode: ViewMode;
+  onViewModeChange: (mode: ViewMode) => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -26,8 +33,12 @@ export const Header: React.FC<HeaderProps> = ({
   onExportJSON,
   onImportJSON,
   onResetData,
+  onClearAllData,
+  viewMode,
+  onViewModeChange,
 }) => {
   const [showMenu, setShowMenu] = useState(false);
+  const [confirmAction, setConfirmAction] = useState<'reset' | 'clear' | null>(null);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -45,44 +56,85 @@ export const Header: React.FC<HeaderProps> = ({
 
   return (
     <header className="sticky top-0 z-30 glass-header border-b border-white/10 px-4 lg:px-8 py-3 pt-safe transition-all duration-200">
-      <div className="max-w-7xl mx-auto flex items-center justify-between gap-3">
+      <div className="max-w-7xl mx-auto flex items-center justify-between gap-2 sm:gap-3">
         {/* Left: App Title & Subtitle */}
         <div className="flex flex-col justify-center">
-          <h1 className="text-xl lg:text-2xl font-bold tracking-tight text-white flex items-center gap-2">
-            Ventas
-          </h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl lg:text-2xl font-bold tracking-tight text-white">
+              Ventas
+            </h1>
+            <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+              iOS 26 OLED
+            </span>
+          </div>
           <span className="text-xs font-normal text-zinc-400 -mt-0.5">
-            Tu actividad
+            Tu actividad · Wallapop & Vinted
           </span>
         </div>
 
         {/* Right: Actions */}
-        <div className="flex items-center gap-2 sm:gap-3">
+        <div className="flex items-center gap-1.5 sm:gap-2.5">
+          {/* View Switcher: iPhone vs Tabla */}
+          <div className="hidden md:flex items-center p-0.5 rounded-full bg-zinc-900/90 border border-white/10">
+            <button
+              type="button"
+              onClick={() => onViewModeChange('iphone')}
+              className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium transition-all cursor-pointer ${
+                viewMode === 'iphone'
+                  ? 'bg-emerald-500 text-black font-semibold shadow-sm'
+                  : 'text-zinc-400 hover:text-white'
+              }`}
+              title="Ver diseño móvil iPhone iOS 26"
+            >
+              <Smartphone className="w-3.5 h-3.5" />
+              <span>Vista iPhone</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => onViewModeChange('desktop')}
+              className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium transition-all cursor-pointer ${
+                viewMode === 'desktop'
+                  ? 'bg-emerald-500 text-black font-semibold shadow-sm'
+                  : 'text-zinc-400 hover:text-white'
+              }`}
+              title="Ver tabla completa de escritorio"
+            >
+              <Monitor className="w-3.5 h-3.5" />
+              <span>Tabla</span>
+            </button>
+          </div>
+
           {/* Quick Tool: Calculator */}
           <button
+            type="button"
             onClick={onOpenPricingCalculator}
-            className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium text-zinc-300 bg-white/5 hover:bg-white/10 border border-white/10 transition-all active:scale-95"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium text-zinc-200 bg-white/5 hover:bg-white/10 border border-white/10 transition-all active:scale-95 cursor-pointer"
             title="Calcular precio recomendado"
           >
             <Calculator className="w-3.5 h-3.5 text-emerald-400" />
-            <span className="hidden md:inline">Precio</span>
+            <span className="hidden sm:inline">Calcular precio</span>
           </button>
 
           {/* Quick Tool: Revenue Split */}
           <button
+            type="button"
             onClick={onOpenRevenueSplit}
-            className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium text-zinc-300 bg-white/5 hover:bg-white/10 border border-white/10 transition-all active:scale-95"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium text-zinc-200 bg-white/5 hover:bg-white/10 border border-white/10 transition-all active:scale-95 cursor-pointer"
             title="Calculadora de reparto de ingresos"
           >
             <PieChart className="w-3.5 h-3.5 text-blue-400" />
-            <span className="hidden md:inline">Reparto</span>
+            <span className="hidden sm:inline">Reparto</span>
           </button>
 
           {/* Extra Options Dropdown */}
           <div className="relative">
             <button
-              onClick={() => setShowMenu(!showMenu)}
-              className="p-2 rounded-full text-zinc-300 bg-white/5 hover:bg-white/10 border border-white/10 transition-all active:scale-95"
+              type="button"
+              onClick={() => {
+                setShowMenu(!showMenu);
+                setConfirmAction(null);
+              }}
+              className="p-2 rounded-full text-zinc-300 bg-white/5 hover:bg-white/10 border border-white/10 transition-all active:scale-95 cursor-pointer"
               aria-label="Opciones"
             >
               <MoreVertical className="w-4 h-4" />
@@ -92,41 +144,79 @@ export const Header: React.FC<HeaderProps> = ({
               <>
                 <div 
                   className="fixed inset-0 z-40" 
-                  onClick={() => setShowMenu(false)} 
+                  onClick={() => {
+                    setShowMenu(false);
+                    setConfirmAction(null);
+                  }} 
                 />
-                <div className="absolute right-0 mt-2 w-52 z-50 glass-modal rounded-2xl p-1.5 shadow-2xl border border-white/10 text-xs">
+                <div className="absolute right-0 mt-2 w-60 z-50 glass-modal rounded-2xl p-1.5 shadow-2xl border border-white/15 text-xs">
                   <div className="px-3 py-2 border-b border-white/10 font-semibold text-zinc-400 uppercase tracking-wider text-[10px]">
-                    Herramientas
+                    Vista y Herramientas
+                  </div>
+
+                  {/* Mobile/Small screen view mode switcher inside menu */}
+                  <div className="px-2 py-1.5 flex gap-1 md:hidden border-b border-white/10 mb-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onViewModeChange('iphone');
+                        setShowMenu(false);
+                      }}
+                      className={`flex-1 flex items-center justify-center gap-1 py-1.5 rounded-xl text-[11px] font-medium ${
+                        viewMode === 'iphone' ? 'bg-emerald-500 text-black font-semibold' : 'bg-white/5 text-zinc-300'
+                      }`}
+                    >
+                      <Smartphone className="w-3.5 h-3.5" />
+                      iPhone
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onViewModeChange('desktop');
+                        setShowMenu(false);
+                      }}
+                      className={`flex-1 flex items-center justify-center gap-1 py-1.5 rounded-xl text-[11px] font-medium ${
+                        viewMode === 'desktop' ? 'bg-emerald-500 text-black font-semibold' : 'bg-white/5 text-zinc-300'
+                      }`}
+                    >
+                      <Monitor className="w-3.5 h-3.5" />
+                      Tabla
+                    </button>
                   </div>
                   
                   <button
+                    type="button"
                     onClick={() => {
                       onOpenPricingCalculator();
                       setShowMenu(false);
                     }}
-                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-zinc-200 hover:bg-white/10 transition-colors sm:hidden text-left"
+                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-zinc-200 hover:bg-white/10 transition-colors text-left cursor-pointer"
                   >
                     <Calculator className="w-4 h-4 text-emerald-400" />
                     Calcular Precio
                   </button>
 
                   <button
+                    type="button"
                     onClick={() => {
                       onOpenRevenueSplit();
                       setShowMenu(false);
                     }}
-                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-zinc-200 hover:bg-white/10 transition-colors sm:hidden text-left"
+                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-zinc-200 hover:bg-white/10 transition-colors text-left cursor-pointer"
                   >
                     <PieChart className="w-4 h-4 text-blue-400" />
                     Calculadora Reparto
                   </button>
 
+                  <div className="my-1 border-t border-white/10" />
+
                   <button
+                    type="button"
                     onClick={() => {
                       onExportJSON();
                       setShowMenu(false);
                     }}
-                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-zinc-200 hover:bg-white/10 transition-colors text-left"
+                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-zinc-200 hover:bg-white/10 transition-colors text-left cursor-pointer"
                   >
                     <Download className="w-4 h-4 text-zinc-400" />
                     Exportar Copia (JSON)
@@ -134,7 +224,7 @@ export const Header: React.FC<HeaderProps> = ({
 
                   <label className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-zinc-200 hover:bg-white/10 transition-colors cursor-pointer text-left">
                     <Upload className="w-4 h-4 text-zinc-400" />
-                    Restaurar Copia (JSON)
+                    Importar Copia (JSON)
                     <input
                       type="file"
                       accept=".json"
@@ -143,18 +233,81 @@ export const Header: React.FC<HeaderProps> = ({
                     />
                   </label>
 
-                  <button
-                    onClick={() => {
-                      if (confirm('¿Restablecer los datos originales de demostración?')) {
-                        onResetData();
-                      }
-                      setShowMenu(false);
-                    }}
-                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-amber-400 hover:bg-amber-500/10 transition-colors text-left"
-                  >
-                    <RotateCcw className="w-4 h-4" />
-                    Restaurar Datos Ejemplo
-                  </button>
+                  <div className="my-1 border-t border-white/10" />
+
+                  {confirmAction === 'reset' ? (
+                    <div className="p-2 rounded-xl bg-amber-500/10 border border-amber-500/30 space-y-2">
+                      <p className="text-[11px] text-amber-300 font-medium">
+                        ¿Restaurar las operaciones originales de demostración?
+                      </p>
+                      <div className="flex gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            onResetData();
+                            setConfirmAction(null);
+                            setShowMenu(false);
+                          }}
+                          className="flex-1 py-1.5 rounded-lg bg-amber-500 text-black font-semibold text-[11px] cursor-pointer"
+                        >
+                          Sí, restaurar
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setConfirmAction(null)}
+                          className="flex-1 py-1.5 rounded-lg bg-white/10 text-zinc-300 text-[11px] cursor-pointer"
+                        >
+                          Cancelar
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setConfirmAction('reset')}
+                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-amber-400 hover:bg-amber-500/10 transition-colors text-left cursor-pointer"
+                    >
+                      <RotateCcw className="w-4 h-4" />
+                      Restaurar Datos Iniciales
+                    </button>
+                  )}
+
+                  {confirmAction === 'clear' ? (
+                    <div className="p-2 rounded-xl bg-rose-500/10 border border-rose-500/30 space-y-2 mt-1">
+                      <p className="text-[11px] text-rose-300 font-medium">
+                        ¿Vaciar todas las operaciones y empezar de cero?
+                      </p>
+                      <div className="flex gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            onClearAllData();
+                            setConfirmAction(null);
+                            setShowMenu(false);
+                          }}
+                          className="flex-1 py-1.5 rounded-lg bg-rose-500 text-white font-semibold text-[11px] cursor-pointer"
+                        >
+                          Vaciar todo
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setConfirmAction(null)}
+                          className="flex-1 py-1.5 rounded-lg bg-white/10 text-zinc-300 text-[11px] cursor-pointer"
+                        >
+                          Cancelar
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setConfirmAction('clear')}
+                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-rose-400 hover:bg-rose-500/10 transition-colors text-left cursor-pointer"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      Eliminar Datos de Ejemplo
+                    </button>
+                  )}
                 </div>
               </>
             )}
@@ -162,8 +315,9 @@ export const Header: React.FC<HeaderProps> = ({
 
           {/* Primary Action Button: + Nueva Operación */}
           <button
+            type="button"
             onClick={onNewOperation}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-emerald-500 hover:bg-emerald-400 text-black font-semibold text-xs lg:text-sm shadow-lg shadow-emerald-500/20 active:scale-95 transition-all cursor-pointer shrink-0"
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-emerald-500 hover:bg-emerald-400 text-black font-semibold text-xs lg:text-sm shadow-lg shadow-emerald-500/20 active:scale-95 transition-all cursor-pointer shrink-0"
           >
             <Plus className="w-4 h-4 stroke-[3]" />
             <span>Nueva</span>

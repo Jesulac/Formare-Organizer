@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useOperations } from './hooks/useOperations';
-import { Header } from './components/Header';
+import { Header, ViewMode } from './components/Header';
 import { DashboardSummary } from './components/DashboardSummary';
 import { FilterBar } from './components/FilterBar';
 import { OperationsList } from './components/OperationsList';
@@ -8,13 +8,12 @@ import { EmptyState } from './components/EmptyState';
 import { OperationModal } from './components/OperationModal';
 import { PricingCalculatorModal } from './components/PricingCalculatorModal';
 import { RevenueSplitModal } from './components/RevenueSplitModal';
-import { Operation } from './types/operation';
+import { Operation, Status } from './types/operation';
 import { Plus } from 'lucide-react';
 
 export default function App() {
   const {
     operations,
-    rawOperations,
     stats,
     filters,
     setFilters,
@@ -24,9 +23,13 @@ export default function App() {
     deleteOperation,
     duplicateOperation,
     resetToDefaultData,
+    clearAllData,
     exportJSON,
     importJSON,
   } = useOperations();
+
+  // View Mode ('auto' adapts to screen width; user can also toggle 'iphone' or 'desktop' right in the preview)
+  const [viewMode, setViewMode] = useState<ViewMode>('auto');
 
   // Modal States
   const [isOpModalOpen, setIsOpModalOpen] = useState(false);
@@ -46,6 +49,10 @@ export default function App() {
     setSelectedOp(op);
     setInitialModalData(undefined);
     setIsOpModalOpen(true);
+  };
+
+  const handleQuickStatusChange = (id: string, newStatus: Status) => {
+    updateOperation(id, { estado: newStatus });
   };
 
   const handleCreateWithCalculatedPrice = (
@@ -73,7 +80,7 @@ export default function App() {
   );
 
   return (
-    <div className="min-h-screen bg-black text-zinc-100 flex flex-col font-sans selection:bg-emerald-500/30 selection:text-emerald-200 relative pb-20 lg:pb-12">
+    <div className="min-h-screen bg-black text-zinc-100 flex flex-col font-sans selection:bg-emerald-500/30 selection:text-emerald-200 relative pb-24 lg:pb-12">
       
       {/* Top Navigation Header */}
       <Header
@@ -83,10 +90,15 @@ export default function App() {
         onExportJSON={exportJSON}
         onImportJSON={importJSON}
         onResetData={resetToDefaultData}
+        onClearAllData={clearAllData}
+        viewMode={viewMode}
+        onViewModeChange={setViewMode}
       />
 
       {/* Main Content Area */}
-      <main className="flex-1 w-full max-w-7xl mx-auto">
+      <main className={`flex-1 w-full mx-auto transition-all duration-300 ${
+        viewMode === 'iphone' ? 'max-w-md' : 'max-w-7xl'
+      }`}>
         
         {/* Top Financial Totals Summary */}
         <DashboardSummary stats={stats} />
@@ -106,6 +118,8 @@ export default function App() {
               onSelectOperation={handleSelectOp}
               onDuplicateOperation={duplicateOperation}
               onDeleteOperation={deleteOperation}
+              onStatusChange={handleQuickStatusChange}
+              viewMode={viewMode}
             />
           ) : (
             <EmptyState
@@ -117,10 +131,13 @@ export default function App() {
 
       </main>
 
-      {/* Floating Action Button for Mobile (+ Nueva) */}
+      {/* Floating Action Button (+ Nueva) */}
       <button
+        type="button"
         onClick={handleOpenNewOp}
-        className="lg:hidden fixed bottom-6 right-5 z-40 w-14 h-14 rounded-full bg-emerald-500 text-black flex items-center justify-center shadow-2xl shadow-emerald-500/40 active:scale-90 transition-all cursor-pointer border border-emerald-400"
+        className={`${
+          viewMode === 'iphone' ? 'flex' : 'lg:hidden flex'
+        } fixed bottom-6 right-5 z-40 w-14 h-14 rounded-full bg-emerald-500 hover:bg-emerald-400 text-black items-center justify-center shadow-2xl shadow-emerald-500/40 active:scale-90 transition-all cursor-pointer border border-emerald-300`}
         aria-label="Nueva operación"
       >
         <Plus className="w-7 h-7 stroke-[3]" />

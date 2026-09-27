@@ -1,15 +1,17 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Operation, Status } from '../types/operation';
 import { formatEuro, formatDateDisplay } from '../utils/calculations';
 import { StatusPill } from './StatusPill';
-import { Edit3, Copy, Trash2, ChevronRight, User } from 'lucide-react';
+import { Edit3, Copy, Trash2, ChevronRight, User, Check, X } from 'lucide-react';
+import { ViewMode } from './Header';
 
 interface OperationsListProps {
   operations: Operation[];
   onSelectOperation: (op: Operation) => void;
   onDuplicateOperation: (id: string) => void;
   onDeleteOperation: (id: string) => void;
-  onStatusChange?: (id: string, newStatus: Status) => void;
+  onStatusChange: (id: string, newStatus: Status) => void;
+  viewMode: ViewMode;
 }
 
 export const OperationsList: React.FC<OperationsListProps> = ({
@@ -17,13 +19,21 @@ export const OperationsList: React.FC<OperationsListProps> = ({
   onSelectOperation,
   onDuplicateOperation,
   onDeleteOperation,
+  onStatusChange,
+  viewMode,
 }) => {
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+
+  const showMobileCards =
+    viewMode === 'iphone' ? 'block' : viewMode === 'desktop' ? 'hidden' : 'block lg:hidden';
+  const showDesktopTable =
+    viewMode === 'desktop' ? 'block' : viewMode === 'iphone' ? 'hidden' : 'hidden lg:block';
+
   return (
     <div className="w-full">
-      {/* 1. MOBILE VIEW (iPhone Card Layout) */}
-      <div className="block lg:hidden space-y-2.5">
+      {/* 1. MOBILE / iPHONE VIEW (iOS 26 OLED Card Layout) */}
+      <div className={`${showMobileCards} space-y-2.5 max-w-lg mx-auto`}>
         {operations.map((op) => {
-          const isVenta = op.tipo === 'venta';
           const isCierre = op.tipo === 'cierre';
           
           return (
@@ -38,7 +48,7 @@ export const OperationsList: React.FC<OperationsListProps> = ({
                   <h4 className="text-sm font-semibold text-white truncate flex items-center gap-1.5">
                     <span className="truncate">{op.producto}</span>
                     {isCierre && (
-                      <span className="text-[10px] bg-purple-950/80 text-purple-300 border border-purple-500/30 px-1.5 py-0.2 rounded-md font-normal shrink-0">
+                      <span className="text-[10px] bg-purple-950/80 text-purple-300 border border-purple-500/30 px-1.5 py-0.5 rounded-md font-normal shrink-0">
                         Cierre
                       </span>
                     )}
@@ -61,16 +71,19 @@ export const OperationsList: React.FC<OperationsListProps> = ({
                   </div>
                 </div>
 
-                {/* Status Pill */}
-                <StatusPill status={op.estado} />
+                {/* Interactive Status Pill */}
+                <StatusPill
+                  status={op.estado}
+                  onStatusChange={(newStatus) => onStatusChange(op.id, newStatus)}
+                />
               </div>
 
               {/* Material or Comments if present */}
               {(op.material || op.comentarios) && (
-                <p className="text-[11px] text-zinc-400 line-clamp-1 italic">
-                  {op.material && <span>{op.material}</span>}
-                  {op.material && op.comentarios && <span> — </span>}
-                  {op.comentarios && <span>{op.comentarios}</span>}
+                <p className="text-[11px] text-zinc-400 line-clamp-1">
+                  {op.material && <span className="text-zinc-300">{op.material}</span>}
+                  {op.material && op.comentarios && <span className="text-zinc-600"> · </span>}
+                  {op.comentarios && <span className="italic">{op.comentarios}</span>}
                 </p>
               )}
 
@@ -79,10 +92,10 @@ export const OperationsList: React.FC<OperationsListProps> = ({
                 {/* Revenue / Price */}
                 <div>
                   <span className="text-[10px] text-zinc-500 uppercase tracking-wider block">
-                    {op.tipo === 'compra' || op.tipo === 'inversion' ? 'Coste' : 'Precio'}
+                    {op.tipo === 'compra' || op.tipo === 'inversion' ? 'Salida' : 'Precio'}
                   </span>
-                  <span className="font-mono font-semibold text-zinc-200">
-                    {op.precio !== null ? formatEuro(op.precio) : formatEuro(-op.costes)}
+                  <span className="font-mono font-semibold text-zinc-100">
+                    {op.precio !== null ? `+${formatEuro(op.precio)}` : formatEuro(-Math.abs(op.costes))}
                   </span>
                 </div>
 
@@ -92,7 +105,7 @@ export const OperationsList: React.FC<OperationsListProps> = ({
                     Costes
                   </span>
                   <span className="font-mono text-zinc-400">
-                    {formatEuro(op.costes)}
+                    {formatEuro(op.costes + (op.costesOperativos || 0))}
                   </span>
                 </div>
 
@@ -110,7 +123,7 @@ export const OperationsList: React.FC<OperationsListProps> = ({
                         : 'text-zinc-400'
                     }`}
                   >
-                    {formatEuro(op.beneficio)}
+                    {op.beneficio > 0 ? `+${formatEuro(op.beneficio)}` : formatEuro(op.beneficio)}
                   </span>
                 </div>
 
@@ -122,7 +135,7 @@ export const OperationsList: React.FC<OperationsListProps> = ({
       </div>
 
       {/* 2. DESKTOP VIEW (Elegantly Styled OLED Table) */}
-      <div className="hidden lg:block overflow-x-auto glass-card rounded-2xl border border-white/10 shadow-2xl">
+      <div className={`${showDesktopTable} overflow-x-auto glass-card rounded-2xl border border-white/10 shadow-2xl`}>
         <table className="w-full text-left text-xs border-collapse">
           <thead>
             <tr className="border-b border-white/10 bg-zinc-950/60 text-zinc-400 text-[11px] font-semibold uppercase tracking-wider">
@@ -133,20 +146,22 @@ export const OperationsList: React.FC<OperationsListProps> = ({
               <th className="py-3.5 px-4 text-right">Costes</th>
               <th className="py-3.5 px-4 text-right">C. Oper.</th>
               <th className="py-3.5 px-4 text-right">Beneficio</th>
-              <th className="py-3.5 px-4">Canal</th>
+              <th className="py-3.5 px-4">Lugar</th>
               <th className="py-3.5 px-4">Estado</th>
-              <th className="py-3.5 px-4">Vendedor / Notas</th>
+              <th className="py-3.5 px-4">Comentarios & Vendedor</th>
               <th className="py-3.5 px-4 text-center">Acciones</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-white/5">
             {operations.map((op) => {
               const isCierre = op.tipo === 'cierre';
+              const isConfirmingDelete = confirmDeleteId === op.id;
 
               return (
                 <tr
                   key={op.id}
-                  className={`hover:bg-white/[0.03] transition-colors group ${
+                  onClick={() => onSelectOperation(op)}
+                  className={`hover:bg-white/[0.04] transition-colors group cursor-pointer ${
                     isCierre ? 'bg-purple-950/20' : ''
                   }`}
                 >
@@ -196,7 +211,7 @@ export const OperationsList: React.FC<OperationsListProps> = ({
                           : 'text-zinc-400'
                       }
                     >
-                      {formatEuro(op.beneficio)}
+                      {op.beneficio > 0 ? `+${formatEuro(op.beneficio)}` : formatEuro(op.beneficio)}
                     </span>
                   </td>
 
@@ -206,49 +221,76 @@ export const OperationsList: React.FC<OperationsListProps> = ({
                   </td>
 
                   {/* Estado */}
-                  <td className="py-3 px-4 whitespace-nowrap">
-                    <StatusPill status={op.estado} />
+                  <td className="py-3 px-4 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                    <StatusPill
+                      status={op.estado}
+                      onStatusChange={(newStatus) => onStatusChange(op.id, newStatus)}
+                    />
                   </td>
 
                   {/* Vendedor & Comentarios */}
                   <td className="py-3 px-4 text-zinc-400 max-w-xs truncate">
                     {op.vendedor && (
                       <span className="text-purple-300 font-medium mr-1.5">
-                        [{op.vendedor}]
+                        {op.vendedor}
                       </span>
                     )}
-                    <span>{op.comentarios || '—'}</span>
+                    {op.vendedor && op.comentarios && <span className="text-zinc-600 mr-1.5">·</span>}
+                    <span>{op.comentarios || (!op.vendedor ? '—' : '')}</span>
                   </td>
 
                   {/* Acciones */}
-                  <td className="py-3 px-4 text-center whitespace-nowrap">
-                    <div className="inline-flex items-center gap-1 opacity-80 group-hover:opacity-100 transition-opacity">
-                      <button
-                        onClick={() => onSelectOperation(op)}
-                        className="p-1.5 rounded-lg text-zinc-300 hover:text-white hover:bg-white/10 transition-colors"
-                        title="Editar operación"
-                      >
-                        <Edit3 className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        onClick={() => onDuplicateOperation(op.id)}
-                        className="p-1.5 rounded-lg text-zinc-300 hover:text-white hover:bg-white/10 transition-colors"
-                        title="Duplicar operación"
-                      >
-                        <Copy className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        onClick={() => {
-                          if (confirm(`¿Eliminar "${op.producto}"?`)) {
+                  <td className="py-3 px-4 text-center whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                    {isConfirmingDelete ? (
+                      <div className="inline-flex items-center gap-1 bg-rose-950/80 border border-rose-500/30 rounded-lg px-1.5 py-0.5">
+                        <button
+                          type="button"
+                          onClick={() => {
                             onDeleteOperation(op.id);
-                          }
-                        }}
-                        className="p-1.5 rounded-lg text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 transition-colors"
-                        title="Eliminar operación"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
+                            setConfirmDeleteId(null);
+                          }}
+                          className="p-1 text-rose-300 hover:text-white cursor-pointer"
+                          title="Confirmar eliminación"
+                        >
+                          <Check className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setConfirmDeleteId(null)}
+                          className="p-1 text-zinc-400 hover:text-white cursor-pointer"
+                          title="Cancelar"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="inline-flex items-center gap-1 opacity-80 group-hover:opacity-100 transition-opacity">
+                        <button
+                          type="button"
+                          onClick={() => onSelectOperation(op)}
+                          className="p-1.5 rounded-lg text-zinc-300 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                          title="Editar operación"
+                        >
+                          <Edit3 className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => onDuplicateOperation(op.id)}
+                          className="p-1.5 rounded-lg text-zinc-300 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                          title="Duplicar operación"
+                        >
+                          <Copy className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setConfirmDeleteId(op.id)}
+                          className="p-1.5 rounded-lg text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 transition-colors cursor-pointer"
+                          title="Eliminar operación"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    )}
                   </td>
                 </tr>
               );

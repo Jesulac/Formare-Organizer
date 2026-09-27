@@ -4,13 +4,11 @@ import {
   Trash2, 
   Copy, 
   Check, 
-  DollarSign, 
   Calendar, 
   Tag, 
   User, 
   FileText,
-  Boxes,
-  Sparkles
+  Boxes
 } from 'lucide-react';
 import { 
   Operation, 
@@ -80,8 +78,12 @@ export const OperationModal: React.FC<OperationModalProps> = ({
   const [estado, setEstado] = useState<Status>('Cobrado✅');
   const [vendedor, setVendedor] = useState('Jorge');
   const [comentarios, setComentarios] = useState('');
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   useEffect(() => {
+    setConfirmingDelete(false);
+    setErrorMsg(null);
     if (operationToEdit) {
       setTipo(operationToEdit.tipo || 'venta');
       setProducto(operationToEdit.producto || '');
@@ -133,7 +135,7 @@ export const OperationModal: React.FC<OperationModalProps> = ({
     e.preventDefault();
 
     if (!producto.trim()) {
-      alert('Por favor, introduce el nombre del producto o movimiento.');
+      setErrorMsg('Introduce el nombre del producto o concepto.');
       return;
     }
 
@@ -176,7 +178,7 @@ export const OperationModal: React.FC<OperationModalProps> = ({
         {/* Modal Header */}
         <div className="flex items-center justify-between pb-3 border-b border-white/10 mb-4">
           <h2 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
-            <span>{isEditing ? 'Editar Operación' : 'Nueva Operación'}</span>
+            <span>{isEditing ? 'Editar operación' : 'Nueva operación'}</span>
           </h2>
           
           <div className="flex items-center gap-2">
@@ -187,7 +189,7 @@ export const OperationModal: React.FC<OperationModalProps> = ({
                   onDuplicate(operationToEdit.id);
                   onClose();
                 }}
-                className="p-1.5 rounded-full text-zinc-400 hover:text-white hover:bg-white/10 transition-colors"
+                className="p-1.5 rounded-full text-zinc-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
                 title="Duplicar esta operación"
               >
                 <Copy className="w-4 h-4" />
@@ -195,24 +197,43 @@ export const OperationModal: React.FC<OperationModalProps> = ({
             )}
 
             {isEditing && operationToEdit && onDelete && (
-              <button
-                type="button"
-                onClick={() => {
-                  if (confirm(`¿Eliminar la operación "${operationToEdit.producto}"?`)) {
-                    onDelete(operationToEdit.id);
-                    onClose();
-                  }
-                }}
-                className="p-1.5 rounded-full text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 transition-colors"
-                title="Eliminar operación"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
+              confirmingDelete ? (
+                <div className="flex items-center gap-1 bg-rose-950/90 border border-rose-500/40 rounded-full px-2 py-0.5 text-[11px]">
+                  <span className="text-rose-200 font-medium mr-1">¿Eliminar?</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onDelete(operationToEdit.id);
+                      onClose();
+                    }}
+                    className="px-2 py-0.5 rounded-full bg-rose-500 text-white font-semibold cursor-pointer"
+                  >
+                    Sí
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setConfirmingDelete(false)}
+                    className="px-1.5 py-0.5 text-zinc-300 hover:text-white cursor-pointer"
+                  >
+                    No
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setConfirmingDelete(true)}
+                  className="p-1.5 rounded-full text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 transition-colors cursor-pointer"
+                  title="Eliminar operación"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              )
             )}
 
             <button
+              type="button"
               onClick={onClose}
-              className="p-1.5 rounded-full text-zinc-400 hover:text-white hover:bg-white/10 transition-colors"
+              className="p-1.5 rounded-full text-zinc-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
@@ -221,6 +242,11 @@ export const OperationModal: React.FC<OperationModalProps> = ({
 
         {/* Form Body */}
         <form onSubmit={handleSubmit} className="space-y-4 text-xs">
+          {errorMsg && (
+            <div className="p-2.5 rounded-xl bg-rose-950/80 border border-rose-500/30 text-rose-200 text-xs">
+              {errorMsg}
+            </div>
+          )}
           
           {/* Tipo de Operación Segmented Control */}
           <div>
@@ -241,8 +267,9 @@ export const OperationModal: React.FC<OperationModalProps> = ({
                   onClick={() => {
                     const newTipo = t.id as OperationType;
                     setTipo(newTipo);
-                    if (newTipo === 'compra') {
+                    if (newTipo === 'compra' || newTipo === 'inversion') {
                       setEstado('Pagado⭕');
+                      setLugarVenta('Internet');
                     } else if (newTipo === 'venta') {
                       setEstado('Cobrado✅');
                     }
@@ -268,7 +295,10 @@ export const OperationModal: React.FC<OperationModalProps> = ({
               type="text"
               required
               value={producto}
-              onChange={(e) => setProducto(e.target.value)}
+              onChange={(e) => {
+                setProducto(e.target.value);
+                if (errorMsg) setErrorMsg(null);
+              }}
               placeholder="Ej: Volante F1 Logitech, Bobina PETG, Pedido filamento..."
               className="w-full bg-zinc-900/90 border border-white/10 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-emerald-500/50 transition-all"
             />
@@ -293,7 +323,7 @@ export const OperationModal: React.FC<OperationModalProps> = ({
             <div>
               <label className="block text-zinc-300 font-medium mb-1 flex items-center gap-1">
                 <Tag className="w-3.5 h-3.5 text-zinc-400" />
-                Lugar / Canal
+                Lugar de venta
               </label>
               <select
                 value={lugarVenta}
@@ -311,7 +341,7 @@ export const OperationModal: React.FC<OperationModalProps> = ({
           <div>
             <label className="block text-zinc-300 font-medium mb-1 flex items-center gap-1">
               <Boxes className="w-3.5 h-3.5 text-zinc-400" />
-              Material Utilizado / Detalles
+              Material
             </label>
             <input
               type="text"
@@ -327,7 +357,7 @@ export const OperationModal: React.FC<OperationModalProps> = ({
             {/* Precio / Ingreso */}
             <div>
               <label className="block text-zinc-300 font-medium mb-1">
-                {tipo === 'compra' || tipo === 'inversion' ? 'Importe Total' : 'Precio (€)'}
+                Precio (€)
               </label>
               <input
                 type="number"
@@ -335,14 +365,15 @@ export const OperationModal: React.FC<OperationModalProps> = ({
                 value={precioStr}
                 onChange={(e) => setPrecioStr(e.target.value)}
                 placeholder="0.00"
-                className="w-full bg-zinc-900/90 border border-white/10 rounded-xl px-2.5 py-2 text-xs text-white font-mono placeholder-zinc-600 focus:outline-none focus:border-emerald-500/50"
+                disabled={tipo === 'compra' || tipo === 'inversion'}
+                className="w-full bg-zinc-900/90 border border-white/10 rounded-xl px-2.5 py-2 text-xs text-white font-mono placeholder-zinc-600 focus:outline-none focus:border-emerald-500/50 disabled:opacity-40"
               />
             </div>
 
             {/* Costes */}
             <div>
               <label className="block text-zinc-300 font-medium mb-1">
-                Coste Material (€)
+                Costes (€)
               </label>
               <input
                 type="number"
@@ -372,11 +403,11 @@ export const OperationModal: React.FC<OperationModalProps> = ({
 
           {/* Calculated Profit Banner Preview */}
           <div className="bg-zinc-900/90 border border-white/10 rounded-2xl p-3 flex items-center justify-between">
-            <span className="text-xs text-zinc-400 font-medium">Beneficio Estimado</span>
+            <span className="text-xs text-zinc-400 font-medium">Beneficio Calculado</span>
             <span className={`text-base font-bold font-mono ${
               previewBeneficio > 0 ? 'text-emerald-400' : previewBeneficio < 0 ? 'text-rose-400' : 'text-zinc-300'
             }`}>
-              {formatEuro(previewBeneficio)}
+              {previewBeneficio > 0 ? `+${formatEuro(previewBeneficio)}` : formatEuro(previewBeneficio)}
             </span>
           </div>
 
@@ -398,7 +429,7 @@ export const OperationModal: React.FC<OperationModalProps> = ({
             <div>
               <label className="block text-zinc-300 font-medium mb-1 flex items-center gap-1">
                 <User className="w-3.5 h-3.5 text-zinc-400" />
-                Vendedor / Resp.
+                Vendedor
               </label>
               <input
                 type="text"
@@ -414,13 +445,13 @@ export const OperationModal: React.FC<OperationModalProps> = ({
           <div>
             <label className="block text-zinc-300 font-medium mb-1 flex items-center gap-1">
               <FileText className="w-3.5 h-3.5 text-zinc-400" />
-              Comentarios & Observaciones
+              Comentarios
             </label>
             <textarea
               rows={2}
               value={comentarios}
               onChange={(e) => setComentarios(e.target.value)}
-              placeholder="Notas, número de unidades, comprador, número de seguimiento..."
+              placeholder="Unidades, pedido, comprador, incidencias..."
               className="w-full bg-zinc-900/90 border border-white/10 rounded-xl p-3 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-emerald-500/50"
             />
           </div>
@@ -429,10 +460,10 @@ export const OperationModal: React.FC<OperationModalProps> = ({
           <div className="pt-2">
             <button
               type="submit"
-              className="w-full h-12 rounded-2xl bg-emerald-500 text-black font-bold text-sm flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 active:scale-[0.98] transition-all cursor-pointer"
+              className="w-full h-12 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-black font-bold text-sm flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 active:scale-[0.98] transition-all cursor-pointer"
             >
               <Check className="w-5 h-5 stroke-[2.5]" />
-              <span>{isEditing ? 'Guardar Cambios' : 'Guardar Operación'}</span>
+              <span>Guardar</span>
             </button>
           </div>
 
