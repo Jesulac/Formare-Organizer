@@ -77,34 +77,29 @@ const shippingCompanies: ShippingCompany[] = ['Correos', 'InPost', 'Seur', 'Otro
 
 const KNOWN_SELLERS = ['Jorge', 'Sandra', 'Alejandro', 'Jorge, Sandra'];
 
-function getSupportedAudioMimeType(): string {
-  if (typeof MediaRecorder === 'undefined') return 'audio/webm';
-  const candidates = [
-    'audio/webm;codecs=opus',
-    'audio/webm',
-    'audio/mp4',
-    'audio/ogg;codecs=opus',
-    'audio/wav',
-  ];
-  for (const type of candidates) {
-    if (MediaRecorder.isTypeSupported(type)) {
-      return type;
+function float32ChunksToPcm16Base64(chunks: Float32Array[]): string {
+  let totalLength = 0;
+  for (const c of chunks) {
+    totalLength += c.length;
+  }
+  if (totalLength === 0) return '';
+
+  const pcm16 = new Int16Array(totalLength);
+  let offset = 0;
+  for (const chunk of chunks) {
+    for (let i = 0; i < chunk.length; i++) {
+      const s = Math.max(-1, Math.min(1, chunk[i]));
+      pcm16[offset++] = s < 0 ? s * 0x8000 : s * 0x7fff;
     }
   }
-  return '';
-}
 
-function blobToBase64(blob: Blob): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      const dataUrl = reader.result as string;
-      const base64 = dataUrl.includes(',') ? dataUrl.split(',')[1] : dataUrl;
-      resolve(base64);
-    };
-    reader.onerror = reject;
-    reader.readAsDataURL(blob);
-  });
+  const bytes = new Uint8Array(pcm16.buffer);
+  let binary = '';
+  const step = 0x8000;
+  for (let i = 0; i < bytes.length; i += step) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + step));
+  }
+  return btoa(binary);
 }
 
 export const OperationModal: React.FC<OperationModalProps> = ({
@@ -147,9 +142,10 @@ export const OperationModal: React.FC<OperationModalProps> = ({
   const [voiceTranscript, setVoiceTranscript] = useState('');
   const [voiceStatusMsg, setVoiceStatusMsg] = useState<string | null>(null);
 
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const scriptProcessorRef = useRef<ScriptProcessorNode | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
-  const audioChunksRef = useRef<Blob[]>([]);
+  const pcmChunksRef = useRef<Float32Array[]>([]);
   const speechRecognitionRef = useRef<any>(null);
   const timerIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const liveTranscriptRef = useRef<string>('');
@@ -167,11 +163,26 @@ export const OperationModal: React.FC<OperationModalProps> = ({
       }
       speechRecognitionRef.current = null;
     }
+    if (scriptProcessorRef.current) {
+      try {
+        scriptProcessorRef.current.disconnect();
+      } catch {
+        // Ignore disconnect error
+      }
+      scriptProcessorRef.current = null;
+    }
+    if (audioCtxRef.current) {
+      try {
+        void audioCtxRef.current.close();
+      } catch {
+        // Ignore close error
+      }
+      audioCtxRef.current = null;
+    }
     if (mediaStreamRef.current) {
       mediaStreamRef.current.getTracks().forEach((track) => track.stop());
       mediaStreamRef.current = null;
     }
-    mediaRecorderRef.current = null;
     setIsRecording(false);
   };
 
@@ -373,24 +384,20 @@ export const OperationModal: React.FC<OperationModalProps> = ({
     }
 
     setErrorMsg(null);
-    setVoiceStatusMsg('Todos los apartados se han rellenado con IA.');
+    setVoiceStatusMsg('Todos los apartados se han rellenado con Gemini 3.8 Live (gemini-3.8-live).');
   };
 
-  const processVoiceWithGemini = async (audioBlob?: Blob | null, textFallback?: string) => {
+  const processVoiceWithGemini = async (pcmBase64?: string | null, textFallback?: string) => {
     setIsProcessingVoice(true);
     setErrorMsg(null);
-    setVoiceStatusMsg('Analizando voz con Gemini IA y rellenando campos...');
+    setVoiceStatusMsg('Conectando con Gemini 3.8 Live (gemini-3.8-live) y rellenando campos...');
 
     const transcriptToUse = (textFallback ?? liveTranscriptRef.current ?? voiceTranscript).trim();
     const todayDate = formatDateInput(new Date().toISOString());
 
     try {
-      let audioBase64 = '';
-      let mimeType = 'audio/webm';
-      if (audioBlob && audioBlob.size > 0) {
-        audioBase64 = await blobToBase64(audioBlob);
-        mimeType = audioBlob.type || 'audio/webm';
-      }
+      const audioBase64 = pcmBase64 || '';
+      const mimeType = 'audio/pcm;rate=16000';
 
       if (!audioBase64 && !transcriptToUse) {
         setErrorMsg('No se detectó voz. Habla cerca del micrófono o escribe el dictado.');
@@ -423,7 +430,7 @@ export const OperationModal: React.FC<OperationModalProps> = ({
           return;
         }
         throw new Error(
-          result?.error || 'El modelo de voz está con alta demanda temporal. Intenta de nuevo.'
+          result?.error || 'Gemini 3.8 Live está procesando muchas solicitudes. Intenta de nuevo.'
         );
       }
 
@@ -441,8 +448,8 @@ export const OperationModal: React.FC<OperationModalProps> = ({
         const rawMsg = String(err?.message || '');
         const cleanMsg =
           rawMsg.includes('503') || rawMsg.includes('UNAVAILABLE') || rawMsg.startsWith('{')
-            ? 'El servidor de voz de IA tiene alta demanda puntual. Vuelve a pulsar Dictar por Voz o escribe el dictado.'
-            : rawMsg || 'Error al procesar el dictado por voz.';
+            ? 'Gemini 3.8 Live tiene alta demanda puntual. Vuelve a pulsar Dictar por Voz o escribe el dictado.'
+            : rawMsg || 'Error al procesar el dictado por voz con Gemini 3.8 Live.';
         setErrorMsg(cleanMsg);
         setVoiceStatusMsg(null);
       }
@@ -456,10 +463,10 @@ export const OperationModal: React.FC<OperationModalProps> = ({
     setVoiceStatusMsg(null);
     liveTranscriptRef.current = '';
     setVoiceTranscript('');
-    audioChunksRef.current = [];
+    pcmChunksRef.current = [];
     setRecordingSeconds(0);
 
-    // Optional parallel Web Speech API for live visual transcript preview while speaking
+    // Parallel Web Speech API for live visual transcript preview while speaking
     const SpeechRec =
       (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (SpeechRec) {
@@ -482,36 +489,30 @@ export const OperationModal: React.FC<OperationModalProps> = ({
         recognition.start();
         speechRecognitionRef.current = recognition;
       } catch {
-        // Ignore if browser blocks Web Speech API; MediaRecorder handles audio capture
+        // Ignore if browser blocks Web Speech API; 16kHz PCM audio capture handles it
       }
     }
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       mediaStreamRef.current = stream;
-      const mimeType = getSupportedAudioMimeType();
-      const recorder = mimeType
-        ? new MediaRecorder(stream, { mimeType })
-        : new MediaRecorder(stream);
 
-      recorder.ondataavailable = (e) => {
-        if (e.data && e.data.size > 0) {
-          audioChunksRef.current.push(e.data);
-        }
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      const audioCtx = new AudioCtx({ sampleRate: 16000 });
+      audioCtxRef.current = audioCtx;
+
+      const source = audioCtx.createMediaStreamSource(stream);
+      const processor = audioCtx.createScriptProcessor(4096, 1, 1);
+      scriptProcessorRef.current = processor;
+
+      processor.onaudioprocess = (e) => {
+        const inputData = e.inputBuffer.getChannelData(0);
+        pcmChunksRef.current.push(new Float32Array(inputData));
       };
 
-      recorder.onstop = () => {
-        const chunks = audioChunksRef.current;
-        const audioBlob =
-          chunks.length > 0
-            ? new Blob(chunks, { type: recorder.mimeType || 'audio/webm' })
-            : null;
-        cleanupVoiceResources();
-        void processVoiceWithGemini(audioBlob, liveTranscriptRef.current);
-      };
+      source.connect(processor);
+      processor.connect(audioCtx.destination);
 
-      mediaRecorderRef.current = recorder;
-      recorder.start(250);
       setIsRecording(true);
       timerIntervalRef.current = setInterval(() => {
         setRecordingSeconds((prev) => prev + 1);
@@ -526,14 +527,10 @@ export const OperationModal: React.FC<OperationModalProps> = ({
   };
 
   const handleStopVoiceRecording = () => {
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-      mediaRecorderRef.current.stop();
-    } else {
-      cleanupVoiceResources();
-      if (liveTranscriptRef.current.trim()) {
-        void processVoiceWithGemini(null, liveTranscriptRef.current);
-      }
-    }
+    const capturedPcmBase64 = float32ChunksToPcm16Base64(pcmChunksRef.current);
+    const capturedTranscript = liveTranscriptRef.current;
+    cleanupVoiceResources();
+    void processVoiceWithGemini(capturedPcmBase64, capturedTranscript);
   };
 
   // Handle selecting an existing product from catalog
@@ -717,8 +714,7 @@ export const OperationModal: React.FC<OperationModalProps> = ({
                   <span>Autocompletar por Voz con IA</span>
                 </div>
                 <p className="text-[10px] text-zinc-400 mt-0.5 leading-snug">
-                  Modelos: <span className="font-mono text-emerald-300/90">gemini-3.5-transcribe</span> +{' '}
-                  <span className="font-mono text-emerald-300/90">gemini-3.8-flash</span>. Di por ejemplo:{' '}
+                  Modelo único: <span className="font-mono text-emerald-300/90">gemini-3.8-live</span> (Gemini 3.8 Live). Di por ejemplo:{' '}
                   <em className="text-zinc-300">
                     &laquo;Venta de Volante F1 Logitech por 18 euros en Wallapop, en producción, vendedor Jorge&raquo;
                   </em>
