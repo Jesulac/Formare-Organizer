@@ -1,26 +1,31 @@
 import React, { useState, useRef } from 'react';
 import { Operation, Status, MonthlySummary, ShippingCompany } from '../types/operation';
-import { formatEuro, formatDateDisplay, parseDate, compressImageFile, calculateSandraCommission } from '../utils/calculations';
+import {
+  formatEuro,
+  formatDateDisplay,
+  parseDate,
+  compressImageFile,
+  calculateSandraCommission,
+} from '../utils/calculations';
 import { StatusPill } from './StatusPill';
-import { 
-  Edit3, 
-  Copy, 
-  Trash2, 
-  User, 
-  Check, 
-  X, 
-  QrCode, 
-  Image as ImageIcon, 
-  Upload, 
-  Clock, 
+import { OledSelect } from './OledSelect';
+import {
+  Edit3,
+  Copy,
+  Trash2,
+  User,
+  Check,
+  X,
+  QrCode,
+  Image as ImageIcon,
+  Upload,
+  Clock,
   Layers,
   CalendarClock,
   BarChart3,
-  ChevronLeft,
-  ChevronRight,
   Minus,
   Plus,
-  FileText
+  FileText,
 } from 'lucide-react';
 import { ViewMode } from './Header';
 
@@ -45,6 +50,23 @@ function getMonthKey(fechaStr: string): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 }
 
+function formatCompactDate(dateStr: string | undefined): string {
+  if (!dateStr) return '—';
+  const d = parseDate(dateStr);
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const year = String(d.getFullYear()).slice(-2);
+  return `${day}/${month}/${year}`;
+}
+
+function formatGramsMaxTwoDecimals(grams: number | undefined | null): string {
+  const val = Number((grams || 0).toFixed(2));
+  return val.toLocaleString('es-ES', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  });
+}
+
 export const OperationsList: React.FC<OperationsListProps> = ({
   operations,
   monthlySummaries,
@@ -61,7 +83,6 @@ export const OperationsList: React.FC<OperationsListProps> = ({
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [previewQrOpId, setPreviewQrOpId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const tableScrollRef = useRef<HTMLDivElement | null>(null);
   const [uploadingForOpId, setUploadingForOpId] = useState<string | null>(null);
 
   const previewQrOp = operations.find((o) => o.id === previewQrOpId) || null;
@@ -98,12 +119,6 @@ export const OperationsList: React.FC<OperationsListProps> = ({
     } finally {
       setUploadingForOpId(null);
     }
-  };
-
-  const scrollTableHorizontally = (direction: 'left' | 'right') => {
-    if (!tableScrollRef.current) return;
-    const offset = direction === 'left' ? -300 : 300;
-    tableScrollRef.current.scrollBy({ left: offset, behavior: 'smooth' });
   };
 
   return (
@@ -193,7 +208,11 @@ export const OperationsList: React.FC<OperationsListProps> = ({
                 )}
 
                 {/* Card Bottom Row: Financial Values & Units Stepper */}
-                <div className={`grid ${comisionSandra > 0 ? 'grid-cols-5' : 'grid-cols-4'} items-center gap-2 pt-2 border-t border-white/5 text-xs`}>
+                <div
+                  className={`grid ${
+                    comisionSandra > 0 ? 'grid-cols-5' : 'grid-cols-4'
+                  } items-center gap-2 pt-2 border-t border-white/5 text-xs`}
+                >
                   <div>
                     <span className="text-[10px] text-zinc-500 uppercase tracking-wider block">
                       Precio
@@ -214,10 +233,10 @@ export const OperationsList: React.FC<OperationsListProps> = ({
 
                   {comisionSandra > 0 && (
                     <div>
-                      <span className="text-[10px] text-rose-400/90 uppercase tracking-wider block">
-                        × 0,15
+                      <span className="text-[10px] text-purple-300/90 uppercase tracking-wider block">
+                        B. Sandra
                       </span>
-                      <span className="font-mono font-semibold text-rose-300">
+                      <span className="font-mono font-semibold text-purple-300">
                         {formatEuro(comisionSandra)}
                       </span>
                     </div>
@@ -277,7 +296,9 @@ export const OperationsList: React.FC<OperationsListProps> = ({
                     <span>
                       Fecha límite:{' '}
                       <strong className="text-amber-300 font-mono">
-                        {op.tipo === 'venta' && op.fechaLimite ? formatDateDisplay(op.fechaLimite) : '—'}
+                        {op.tipo === 'venta' && op.fechaLimite
+                          ? formatDateDisplay(op.fechaLimite)
+                          : '—'}
                       </strong>
                     </span>
                   </div>
@@ -312,7 +333,7 @@ export const OperationsList: React.FC<OperationsListProps> = ({
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-1.5 text-emerald-300 font-bold text-xs uppercase tracking-wider">
                       <BarChart3 className="w-4 h-4" />
-                      <span>Resumen {monthSummary.monthLabel}</span>
+                      <span>Cierre Mensual: {monthSummary.monthLabel}</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <span className="text-[11px] font-mono text-zinc-300">
@@ -331,7 +352,7 @@ export const OperationsList: React.FC<OperationsListProps> = ({
                       )}
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 pt-1 border-t border-emerald-500/20 text-[11px]">
+                  <div className="grid grid-cols-2 sm:grid-cols-6 gap-2 pt-1.5 border-t border-emerald-500/20 text-[11px]">
                     <div>
                       <span className="text-zinc-400 block">Bruto generado</span>
                       <span className="font-mono font-semibold text-white">
@@ -345,6 +366,12 @@ export const OperationsList: React.FC<OperationsListProps> = ({
                       </span>
                     </div>
                     <div>
+                      <span className="text-purple-300/90 block">B. Sandra</span>
+                      <span className="font-mono font-semibold text-purple-300">
+                        {formatEuro(monthSummary.beneficioSandra || 0)}
+                      </span>
+                    </div>
+                    <div>
                       <span className="text-zinc-400 block">Gastos en general</span>
                       <span className="font-mono font-semibold text-rose-300">
                         {formatEuro(monthSummary.dineroGastadoCompras)}
@@ -352,16 +379,18 @@ export const OperationsList: React.FC<OperationsListProps> = ({
                     </div>
                     <div>
                       <span className="text-zinc-400 block">Neto generado</span>
-                      <span className={`font-mono font-bold ${
-                        monthSummary.dineroNeto >= 0 ? 'text-emerald-400' : 'text-rose-400'
-                      }`}>
+                      <span
+                        className={`font-mono font-bold ${
+                          monthSummary.dineroNeto >= 0 ? 'text-emerald-400' : 'text-rose-400'
+                        }`}
+                      >
                         {formatEuro(monthSummary.dineroNeto)}
                       </span>
                     </div>
                     <div>
-                      <span className="text-zinc-400 block">Filamento usado</span>
+                      <span className="text-zinc-400 block">Filamento consumido</span>
                       <span className="font-mono font-semibold text-sky-300">
-                        {monthSummary.gramosConsumidos} g
+                        {formatGramsMaxTwoDecimals(monthSummary.gramosConsumidos)} g
                       </span>
                     </div>
                   </div>
@@ -372,60 +401,35 @@ export const OperationsList: React.FC<OperationsListProps> = ({
         })}
       </div>
 
-      {/* 2. VISTA TABLA TOTALMENTE RESPONSIVE (Contenedor horizontal con overflow-x-auto y paddings ajustados) */}
-      <div className={`${showDesktopTable} w-full max-w-full glass-card rounded-2xl border border-white/10 shadow-2xl overflow-hidden`}>
-        {/* Top responsive scroll helper bar */}
-        <div className="flex items-center justify-between px-3 py-1.5 bg-zinc-950/90 border-b border-white/10 text-[11px] text-zinc-400">
-          <span className="truncate">
-            Tabla de operaciones ({operations.length} registros) — Toca cualquier fila para editar
-          </span>
-          <div className="flex items-center gap-1.5 shrink-0">
-            <span className="hidden sm:inline text-[10px] text-zinc-500">Desplazar columnas:</span>
-            <button
-              type="button"
-              onClick={() => scrollTableHorizontally('left')}
-              className="p-1 rounded-lg bg-white/5 hover:bg-white/10 text-zinc-300 border border-white/10 cursor-pointer"
-              title="Desplazar tabla a la izquierda"
-            >
-              <ChevronLeft className="w-3.5 h-3.5" />
-            </button>
-            <button
-              type="button"
-              onClick={() => scrollTableHorizontally('right')}
-              className="p-1 rounded-lg bg-white/5 hover:bg-white/10 text-zinc-300 border border-white/10 cursor-pointer"
-              title="Desplazar tabla a la derecha"
-            >
-              <ChevronRight className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        </div>
-
-        {/* Horizontal scroll wrapper */}
-        <div
-          ref={tableScrollRef}
-          className="w-full max-w-full overflow-x-auto overscroll-x-contain scroll-smooth custom-table-scroll"
-        >
-          <table className="w-full min-w-[1040px] text-left text-[11px] border-collapse table-auto">
+      {/* 2. VISTA TABLA COMPLETA EN PANTALLA (Aprovechando el 100% del ancho disponible sin apretar columnas) */}
+      <div
+        className={`${showDesktopTable} w-full max-w-none glass-card rounded-2xl border border-white/10 shadow-2xl overflow-hidden`}
+      >
+        <div className="w-full max-w-none overflow-x-auto">
+          <table className="w-full table-auto text-left text-xs border-collapse">
             <thead>
-              <tr className="border-b border-white/10 bg-zinc-950/95 text-zinc-300 text-[10px] font-bold uppercase tracking-wider">
-                <th className="py-2.5 px-2 whitespace-nowrap">Fecha</th>
-                <th className="py-2.5 px-1.5 whitespace-nowrap">Venta/Compra</th>
-                <th className="py-2.5 px-2 min-w-[130px]">Producto</th>
-                <th className="py-2.5 px-2 text-center whitespace-nowrap">Unidades</th>
-                <th className="py-2.5 px-2 min-w-[110px]">Material</th>
-                <th className="py-2.5 px-2 text-right whitespace-nowrap">Precio</th>
-                <th className="py-2.5 px-2 text-right whitespace-nowrap" title="Precio × 0,15 cuando el vendedor es Sandra o Jorge, Sandra (se suma a Gastos en General)">
-                  Precio × 0,15
+              <tr className="border-b border-white/10 bg-zinc-950/95 text-zinc-300 text-[11px] font-bold tracking-tight">
+                <th className="py-3 px-2.5 whitespace-nowrap">Fecha</th>
+                <th className="py-3 px-2 whitespace-nowrap">Tipo</th>
+                <th className="py-3 px-2.5 min-w-[150px]">Producto</th>
+                <th className="py-3 px-2 text-center whitespace-nowrap">Unidades</th>
+                <th className="py-3 px-2.5 min-w-[140px]">Material</th>
+                <th className="py-3 px-2 text-right whitespace-nowrap">Precio</th>
+                <th
+                  className="py-3 px-2 text-right whitespace-nowrap text-purple-300"
+                  title="Beneficio Sandra (Precio × 0,15) cuando el vendedor incluye a Sandra"
+                >
+                  B. Sandra
                 </th>
-                <th className="py-2.5 px-2 text-right whitespace-nowrap">Costes</th>
-                <th className="py-2.5 px-2 text-right whitespace-nowrap">Beneficio</th>
-                <th className="py-2.5 px-2 whitespace-nowrap">Lugar</th>
-                <th className="py-2.5 px-2 whitespace-nowrap">Estado</th>
-                <th className="py-2.5 px-2 whitespace-nowrap">Vendedor</th>
-                <th className="py-2.5 px-2 min-w-[95px]">Comentarios</th>
-                <th className="py-2.5 px-2 whitespace-nowrap">Fecha límite</th>
-                <th className="py-2.5 px-2 text-center whitespace-nowrap">Foto / QR</th>
-                <th className="py-2.5 px-2 text-center whitespace-nowrap">Acciones</th>
+                <th className="py-3 px-2 text-right whitespace-nowrap">Costes</th>
+                <th className="py-3 px-2 text-right whitespace-nowrap">Beneficio</th>
+                <th className="py-3 px-2 whitespace-nowrap">Lugar</th>
+                <th className="py-3 px-2 whitespace-nowrap">Estado</th>
+                <th className="py-3 px-2 whitespace-nowrap">Vendedor</th>
+                <th className="py-3 px-2.5 min-w-[120px]">Comentarios</th>
+                <th className="py-3 px-2 whitespace-nowrap">Fecha límite</th>
+                <th className="py-3 px-1.5 text-center whitespace-nowrap">QR</th>
+                <th className="py-3 px-2 text-center whitespace-nowrap">Acciones</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
@@ -449,15 +453,15 @@ export const OperationsList: React.FC<OperationsListProps> = ({
                           : 'hover:bg-white/[0.04]'
                       }`}
                     >
-                      {/* Fecha */}
-                      <td className="py-2 px-2 font-mono text-zinc-300 whitespace-nowrap align-middle">
+                      {/* 1. Fecha */}
+                      <td className="py-2.5 px-2.5 font-mono tabular-nums text-xs text-zinc-300 whitespace-nowrap align-middle">
                         {formatDateDisplay(op.fecha)}
                       </td>
 
-                      {/* Casilla Venta / Compra */}
-                      <td className="py-2 px-1.5 whitespace-nowrap align-middle">
+                      {/* 2. Venta / Compra */}
+                      <td className="py-2.5 px-2 whitespace-nowrap align-middle">
                         <span
-                          className={`inline-block text-[10px] font-semibold px-1.5 py-0.5 rounded-md border ${
+                          className={`inline-block text-[10.5px] font-semibold px-2 py-0.5 rounded-md border ${
                             isCompra
                               ? 'bg-rose-950/60 text-rose-300 border-rose-500/30'
                               : 'bg-emerald-950/60 text-emerald-300 border-emerald-500/30'
@@ -467,29 +471,34 @@ export const OperationsList: React.FC<OperationsListProps> = ({
                         </span>
                       </td>
 
-                      {/* Producto */}
-                      <td className="py-2 px-2 font-semibold text-white max-w-[165px] break-words leading-snug align-middle">
+                      {/* 3. Producto */}
+                      <td
+                        className="py-2.5 px-2.5 font-semibold text-white text-xs leading-snug align-middle"
+                        title={op.producto}
+                      >
                         {op.producto}
                       </td>
 
-                      {/* Unidades (con ajuste rápido +/-) */}
+                      {/* 4. Unidades */}
                       <td
-                        className="py-2 px-2 text-center whitespace-nowrap align-middle"
+                        className="py-2.5 px-2 text-center whitespace-nowrap align-middle"
                         onClick={(e) => e.stopPropagation()}
                       >
                         <div className="inline-flex items-center justify-center gap-1 bg-zinc-900/90 border border-white/10 rounded-lg px-1.5 py-0.5">
                           {onUnitsChange && (
                             <button
                               type="button"
-                              onClick={() => onUnitsChange(op.id, Math.max(1, (op.unidades || 1) - 1))}
+                              onClick={() =>
+                                onUnitsChange(op.id, Math.max(1, (op.unidades || 1) - 1))
+                              }
                               className="text-zinc-400 hover:text-white p-0.5 cursor-pointer"
                               title="Restar 1 unidad"
                             >
-                              <Minus className="w-2.5 h-2.5" />
+                              <Minus className="w-3 h-3" />
                             </button>
                           )}
-                          <span className="font-mono font-bold text-emerald-300 text-[11px] min-w-[24px] text-center">
-                            {op.unidades || 1} {(op.unidades || 1) === 1 ? 'ud.' : 'uds.'}
+                          <span className="font-mono tabular-nums font-bold text-emerald-300 text-xs min-w-[18px] text-center">
+                            {op.unidades || 1}
                           </span>
                           {onUnitsChange && (
                             <button
@@ -498,26 +507,29 @@ export const OperationsList: React.FC<OperationsListProps> = ({
                               className="text-zinc-400 hover:text-white p-0.5 cursor-pointer"
                               title="Sumar 1 unidad"
                             >
-                              <Plus className="w-2.5 h-2.5" />
+                              <Plus className="w-3 h-3" />
                             </button>
                           )}
                         </div>
                       </td>
 
-                      {/* Material */}
-                      <td className="py-2 px-2 text-zinc-300 max-w-[140px] break-words leading-snug align-middle">
+                      {/* 5. Material */}
+                      <td
+                        className="py-2.5 px-2.5 text-zinc-300 text-xs leading-snug align-middle"
+                        title={op.material || ''}
+                      >
                         {op.material || '—'}
                       </td>
 
-                      {/* Precio */}
-                      <td className="py-2 px-2 text-right font-mono font-medium text-zinc-100 whitespace-nowrap align-middle">
+                      {/* 6. Precio */}
+                      <td className="py-2.5 px-2 text-right font-mono tabular-nums text-xs font-medium text-zinc-100 whitespace-nowrap align-middle">
                         {op.precio !== null ? formatEuro(op.precio) : '—'}
                       </td>
 
-                      {/* Precio × 0,15 (Solo para Sandra o Jorge, Sandra -> se suma a Gastos en General) */}
-                      <td className="py-2 px-2 text-right font-mono whitespace-nowrap align-middle">
+                      {/* 7. B. Sandra */}
+                      <td className="py-2.5 px-2 text-right font-mono tabular-nums text-xs whitespace-nowrap align-middle">
                         {comisionSandra > 0 ? (
-                          <span className="inline-block px-1.5 py-0.5 rounded bg-rose-500/15 text-rose-300 border border-rose-500/25 font-semibold text-[10px]">
+                          <span className="text-purple-300 font-semibold">
                             {formatEuro(comisionSandra)}
                           </span>
                         ) : (
@@ -525,13 +537,13 @@ export const OperationsList: React.FC<OperationsListProps> = ({
                         )}
                       </td>
 
-                      {/* Costes */}
-                      <td className="py-2 px-2 text-right font-mono text-zinc-400 whitespace-nowrap align-middle">
+                      {/* 8. Costes */}
+                      <td className="py-2.5 px-2 text-right font-mono tabular-nums text-xs text-zinc-400 whitespace-nowrap align-middle">
                         {formatEuro(op.costes)}
                       </td>
 
-                      {/* Beneficio */}
-                      <td className="py-2 px-2 text-right font-mono font-bold whitespace-nowrap align-middle">
+                      {/* 9. Beneficio */}
+                      <td className="py-2.5 px-2 text-right font-mono tabular-nums text-xs font-bold whitespace-nowrap align-middle">
                         <span
                           className={
                             op.beneficio > 0
@@ -545,34 +557,40 @@ export const OperationsList: React.FC<OperationsListProps> = ({
                         </span>
                       </td>
 
-                      {/* Lugar */}
-                      <td className="py-2 px-2 text-zinc-200 font-medium whitespace-nowrap align-middle">
+                      {/* 10. Lugar */}
+                      <td className="py-2.5 px-2 text-zinc-200 text-xs font-medium whitespace-nowrap align-middle">
                         {op.lugarVenta}
                       </td>
 
-                      {/* Estado (Sin emojis, con Portal para no cortarse) */}
-                      <td className="py-2 px-2 whitespace-nowrap align-middle" onClick={(e) => e.stopPropagation()}>
+                      {/* 11. Estado */}
+                      <td
+                        className="py-2.5 px-2 whitespace-nowrap align-middle"
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         <StatusPill
                           status={op.estado}
                           onStatusChange={(newStatus) => onStatusChange(op.id, newStatus)}
                         />
                       </td>
 
-                      {/* Vendedor */}
-                      <td className="py-2 px-2 text-purple-300 font-medium whitespace-nowrap align-middle">
+                      {/* 12. Vendedor */}
+                      <td className="py-2.5 px-2 text-purple-300 text-xs font-medium whitespace-nowrap align-middle">
                         {op.vendedor || '—'}
                       </td>
 
-                      {/* Comentarios */}
-                      <td className="py-2 px-2 text-zinc-400 max-w-[125px] break-words leading-snug align-middle">
+                      {/* 13. Comentarios / Notas */}
+                      <td
+                        className="py-2.5 px-2.5 text-zinc-400 text-xs leading-snug align-middle"
+                        title={op.comentarios || ''}
+                      >
                         {op.comentarios || '—'}
                       </td>
 
-                      {/* Fecha límite */}
-                      <td className="py-2 px-2 font-mono whitespace-nowrap align-middle">
+                      {/* 14. Fecha límite */}
+                      <td className="py-2.5 px-2 font-mono tabular-nums whitespace-nowrap align-middle">
                         {op.tipo === 'venta' && op.fechaLimite ? (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-300 border border-amber-500/30 text-[10px] font-semibold">
-                            <Clock className="w-3 h-3 shrink-0" />
+                          <span className="inline-flex items-center gap-1 text-amber-300 text-xs font-semibold">
+                            <Clock className="w-3 h-3 shrink-0 text-amber-400" />
                             <span>{formatDateDisplay(op.fechaLimite)}</span>
                           </span>
                         ) : (
@@ -580,42 +598,46 @@ export const OperationsList: React.FC<OperationsListProps> = ({
                         )}
                       </td>
 
-                      {/* Foto / QR enlazado a este pedido */}
-                      <td className="py-2 px-2 text-center whitespace-nowrap align-middle" onClick={(e) => e.stopPropagation()}>
+                      {/* 15. Foto / QR */}
+                      <td
+                        className="py-2.5 px-1.5 text-center whitespace-nowrap align-middle"
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         {op.fotoQr ? (
                           <button
                             type="button"
                             onClick={() => setPreviewQrOpId(op.id)}
-                            className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 text-[10px] font-semibold cursor-pointer transition-colors"
-                            title="Ver foto / código de barras / QR adjunto"
+                            className="inline-flex items-center justify-center p-1.5 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 cursor-pointer transition-colors"
+                            title="Ver foto / código QR adjunto"
                           >
-                            <QrCode className="w-3 h-3" />
-                            <span>Ver Foto</span>
+                            <QrCode className="w-4 h-4" />
                           </button>
                         ) : (
                           <button
                             type="button"
                             onClick={(e) => handleTriggerPhotoUpload(op.id, e)}
-                            className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-zinc-300 hover:text-white border border-white/10 text-[10px] cursor-pointer transition-colors"
-                            title="Adjuntar foto o código de barras a este pedido"
+                            className="inline-flex items-center justify-center p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white border border-white/10 cursor-pointer transition-colors"
+                            title="Adjuntar foto o código QR"
                           >
-                            <Upload className="w-3 h-3" />
-                            <span>Adjuntar</span>
+                            <Upload className="w-4 h-4" />
                           </button>
                         )}
                       </td>
 
-                      {/* Acciones */}
-                      <td className="py-2 px-2 text-center whitespace-nowrap align-middle" onClick={(e) => e.stopPropagation()}>
+                      {/* 16. Acciones */}
+                      <td
+                        className="py-2.5 px-2 text-center whitespace-nowrap align-middle"
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         {isConfirmingDelete ? (
-                          <div className="inline-flex items-center gap-1 bg-rose-950/80 border border-rose-500/30 rounded-lg px-1.5 py-0.5">
+                          <div className="inline-flex items-center gap-1 bg-rose-950/90 border border-rose-500/40 rounded-lg px-1.5 py-0.5">
                             <button
                               type="button"
                               onClick={() => {
                                 onDeleteOperation(op.id);
                                 setConfirmDeleteId(null);
                               }}
-                              className="p-1 text-rose-300 hover:text-white cursor-pointer"
+                              className="p-0.5 text-rose-300 hover:text-white cursor-pointer"
                               title="Confirmar eliminación"
                             >
                               <Check className="w-3.5 h-3.5" />
@@ -623,26 +645,18 @@ export const OperationsList: React.FC<OperationsListProps> = ({
                             <button
                               type="button"
                               onClick={() => setConfirmDeleteId(null)}
-                              className="p-1 text-zinc-400 hover:text-white cursor-pointer"
+                              className="p-0.5 text-zinc-400 hover:text-white cursor-pointer"
                               title="Cancelar"
                             >
                               <X className="w-3.5 h-3.5" />
                             </button>
                           </div>
                         ) : (
-                          <div className="inline-flex items-center gap-0.5">
-                            <button
-                              type="button"
-                              onClick={() => onSelectOperation(op)}
-                              className="p-1 rounded-lg text-zinc-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
-                              title="Editar operación"
-                            >
-                              <Edit3 className="w-3.5 h-3.5" />
-                            </button>
+                          <div className="inline-flex items-center justify-center gap-1">
                             <button
                               type="button"
                               onClick={() => onDuplicateOperation(op.id)}
-                              className="p-1 rounded-lg text-zinc-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                              className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
                               title="Duplicar operación"
                             >
                               <Copy className="w-3.5 h-3.5" />
@@ -650,7 +664,7 @@ export const OperationsList: React.FC<OperationsListProps> = ({
                             <button
                               type="button"
                               onClick={() => setConfirmDeleteId(op.id)}
-                              className="p-1 rounded-lg text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 transition-colors cursor-pointer"
+                              className="p-1.5 rounded-lg text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 transition-colors cursor-pointer"
                               title="Eliminar operación"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
@@ -660,54 +674,96 @@ export const OperationsList: React.FC<OperationsListProps> = ({
                       </td>
                     </tr>
 
-                    {/* Fila de Resumen Mensual automático al final de cada mes */}
+                    {/* Fila de Cierre Mensual automático al final de cada mes */}
                     {monthSummary && (
-                      <tr className="bg-emerald-950/30 border-y border-emerald-500/30 text-[11px]">
-                        <td colSpan={3} className="py-2 px-2 font-bold text-emerald-300 uppercase tracking-wider whitespace-nowrap">
-                          <div className="flex items-center gap-1.5">
-                            <Layers className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                            <span>Cierre Mensual: {monthSummary.monthLabel}</span>
-                          </div>
-                        </td>
-                        <td className="py-2 px-2 text-zinc-300 font-mono whitespace-nowrap">
-                          <span className="text-emerald-300 font-semibold">{monthSummary.numVentas}</span> ventas ·{' '}
-                          <span className="text-rose-300 font-semibold">{monthSummary.numPedidos}</span> pedidos
-                        </td>
-                        <td className="py-2 px-2 text-right font-mono font-semibold text-sky-300 whitespace-nowrap">
-                          <span className="text-[9px] text-zinc-400 block uppercase">Gastos Producción</span>
-                          {formatEuro(monthSummary.costesVentas)}
-                        </td>
-                        <td className="py-2 px-2 text-right font-mono font-bold text-white whitespace-nowrap">
-                          <span className="text-[9px] text-zinc-400 block uppercase">Bruto</span>
-                          {formatEuro(monthSummary.dineroBruto)}
-                        </td>
-                        <td className="py-2 px-2 text-right font-mono font-semibold text-rose-300 whitespace-nowrap">
-                          <span className="text-[9px] text-zinc-400 block uppercase">Gastos en General</span>
-                          {formatEuro(monthSummary.dineroGastadoCompras)}
-                        </td>
-                        <td className="py-2 px-2 text-right font-mono font-extrabold whitespace-nowrap">
-                          <span className="text-[9px] text-zinc-400 block uppercase">Neto Mes</span>
-                          <span className={monthSummary.dineroNeto >= 0 ? 'text-emerald-400' : 'text-rose-400'}>
-                            {formatEuro(monthSummary.dineroNeto)}
-                          </span>
-                        </td>
-                        <td colSpan={8} className="py-2 px-2 text-zinc-300 font-mono whitespace-nowrap">
-                          <div className="flex items-center justify-between gap-2">
-                            <span>
-                              Filamento consumido en {monthSummary.monthLabel}:{' '}
-                              <strong className="text-sky-300">{monthSummary.gramosConsumidos} g</strong>
-                            </span>
-                            {onExportMonthPDF && (
-                              <button
-                                type="button"
-                                onClick={() => onExportMonthPDF(monthSummary.monthKey)}
-                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 text-[10px] font-sans font-semibold cursor-pointer transition-colors"
-                                title={`Descargar resumen de ${monthSummary.monthLabel} en PDF`}
-                              >
-                                <FileText className="w-3 h-3" />
-                                <span>Descargar PDF</span>
-                              </button>
-                            )}
+                      <tr className="bg-emerald-950/30 border-y border-emerald-500/30 text-xs">
+                        <td colSpan={16} className="py-3 px-4">
+                          <div className="flex flex-wrap items-center justify-between gap-4">
+                            {/* Left: Month Title & Counts */}
+                            <div className="flex items-center gap-2.5">
+                              <div className="flex items-center gap-1.5 font-bold text-emerald-300 uppercase tracking-wider">
+                                <Layers className="w-4 h-4 text-emerald-400 shrink-0" />
+                                <span>Cierre Mensual: {monthSummary.monthLabel}</span>
+                              </div>
+                              <span className="text-zinc-400 font-mono text-[11px]">
+                                ({monthSummary.numVentas} ventas · {monthSummary.numPedidos} pedidos)
+                              </span>
+                            </div>
+
+                            {/* Center/Right: All Monthly Closing Metrics including B. Sandra and 2-decimal Filament */}
+                            <div className="flex flex-wrap items-center gap-5 sm:gap-6 font-mono tabular-nums">
+                              <div>
+                                <span className="text-[10px] font-sans text-zinc-400 block uppercase">
+                                  Bruto Mes
+                                </span>
+                                <span className="font-bold text-white">
+                                  {formatEuro(monthSummary.dineroBruto)}
+                                </span>
+                              </div>
+
+                              <div>
+                                <span className="text-[10px] font-sans text-zinc-400 block uppercase">
+                                  Gastos Producción
+                                </span>
+                                <span className="font-semibold text-sky-300">
+                                  {formatEuro(monthSummary.costesVentas)}
+                                </span>
+                              </div>
+
+                              <div>
+                                <span className="text-[10px] font-sans text-purple-300/90 block uppercase">
+                                  B. Sandra
+                                </span>
+                                <span className="font-bold text-purple-300">
+                                  {formatEuro(monthSummary.beneficioSandra || 0)}
+                                </span>
+                              </div>
+
+                              <div>
+                                <span className="text-[10px] font-sans text-zinc-400 block uppercase">
+                                  Gastos en General
+                                </span>
+                                <span className="font-semibold text-rose-300">
+                                  {formatEuro(monthSummary.dineroGastadoCompras)}
+                                </span>
+                              </div>
+
+                              <div>
+                                <span className="text-[10px] font-sans text-zinc-400 block uppercase">
+                                  Beneficio Neto
+                                </span>
+                                <span
+                                  className={`font-extrabold ${
+                                    monthSummary.dineroNeto >= 0
+                                      ? 'text-emerald-400'
+                                      : 'text-rose-400'
+                                  }`}
+                                >
+                                  {formatEuro(monthSummary.dineroNeto)}
+                                </span>
+                              </div>
+
+                              <div>
+                                <span className="text-[10px] font-sans text-zinc-400 block uppercase">
+                                  Filamento Consumido
+                                </span>
+                                <span className="font-bold text-sky-300">
+                                  {formatGramsMaxTwoDecimals(monthSummary.gramosConsumidos)} g
+                                </span>
+                              </div>
+
+                              {onExportMonthPDF && (
+                                <button
+                                  type="button"
+                                  onClick={() => onExportMonthPDF(monthSummary.monthKey)}
+                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 text-xs font-sans font-semibold cursor-pointer transition-colors"
+                                  title={`Descargar resumen de ${monthSummary.monthLabel} en PDF`}
+                                >
+                                  <FileText className="w-3.5 h-3.5" />
+                                  <span>Descargar PDF</span>
+                                </button>
+                              )}
+                            </div>
                           </div>
                         </td>
                       </tr>
@@ -733,7 +789,9 @@ export const OperationsList: React.FC<OperationsListProps> = ({
                 <h3 className="text-sm font-bold text-white">{previewQrOp.producto}</h3>
                 <p className="text-[11px] text-zinc-400">
                   {previewQrOp.lugarVenta} · Fecha límite:{' '}
-                  {previewQrOp.fechaLimite ? formatDateDisplay(previewQrOp.fechaLimite) : 'Sin fecha límite'}
+                  {previewQrOp.fechaLimite
+                    ? formatDateDisplay(previewQrOp.fechaLimite)
+                    : 'Sin fecha límite'}
                 </p>
               </div>
               <button
@@ -758,18 +816,13 @@ export const OperationsList: React.FC<OperationsListProps> = ({
             <div className="flex items-center justify-between gap-3 text-xs">
               <div className="flex-1">
                 <label className="block text-zinc-400 text-[11px] mb-1">Empresa de envío</label>
-                <select
+                <OledSelect
                   value={previewQrOp.empresaEnvio || 'Correos'}
-                  onChange={(e) => {
-                    const emp = e.target.value as ShippingCompany;
-                    onAttachQr(previewQrOp.id, previewQrOp.fotoQr, emp);
+                  onChange={(val) => {
+                    onAttachQr(previewQrOp.id, previewQrOp.fotoQr, val as ShippingCompany);
                   }}
-                  className="w-full bg-zinc-900 border border-white/10 rounded-xl px-3 py-2 text-xs text-white"
-                >
-                  {SHIPPING_COMPANIES.map((c) => (
-                    <option key={c} value={c}>{c}</option>
-                  ))}
-                </select>
+                  options={SHIPPING_COMPANIES.map((c) => ({ value: c, label: c }))}
+                />
               </div>
 
               <div className="flex items-end gap-2 pt-4">

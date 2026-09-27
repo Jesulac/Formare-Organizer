@@ -79,10 +79,11 @@ export interface MonthlySummary {
   numVentas: number;
   numPedidos: number; // Compras
   dineroBruto: number; // Total sales price
-  dineroGastadoCompras: number; // Total spent on purchases
+  dineroGastadoCompras: number; // Total spent on purchases + B. Sandra
+  beneficioSandra: number; // Total B. Sandra (precio * 0.15) in the month
   costesVentas: number; // Filament costs of sales
-  dineroNeto: number; // Net profit (Bruto - costesVentas - dineroGastadoCompras)
-  gramosConsumidos: number; // Total filament grams consumed in the month
+  dineroNeto: number; // Net profit (Bruto - costesVentas)
+  gramosConsumidos: number; // Total filament grams consumed in the month (max 2 decimals)
 }
 
 export type TimeFilter = 'todo' | 'hoy' | 'semana' | 'mes' | 'ano' | 'personalizado';

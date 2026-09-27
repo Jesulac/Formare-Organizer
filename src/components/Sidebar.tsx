@@ -87,33 +87,44 @@ export const Sidebar: React.FC<SidebarProps> = ({
     onCloseMobile();
   };
 
-  const navGroups = [
+  const navGroups: {
+    label: string;
+    items: {
+      id: ActiveSection;
+      label: string;
+      description: string;
+      icon: React.ComponentType<{ className?: string }>;
+      badge?: string;
+      badgeTone?: 'neutral' | 'sky' | 'rose' | 'amber' | 'emerald';
+      alertDot?: boolean;
+    }[];
+  }[] = [
     {
       label: 'Operaciones y Finanzas',
       items: [
         {
-          id: 'ventas' as ActiveSection,
+          id: 'ventas',
           label: 'Panel General',
           description: 'Ventas, compras y cierres',
           icon: Table2,
           badge: String(counts.totalOperations),
-          badgeTone: 'neutral' as const,
+          badgeTone: 'neutral',
         },
         {
-          id: 'produccion' as ActiveSection,
+          id: 'produccion',
           label: 'Cola de Producción',
           description: 'En impresión y pendientes',
           icon: Printer,
           badge: counts.inProduction > 0 ? String(counts.inProduction) : undefined,
-          badgeTone: counts.inProduction > 0 ? ('sky' as const) : ('neutral' as const),
+          badgeTone: counts.inProduction > 0 ? 'sky' : 'neutral',
         },
         {
-          id: 'gastos' as ActiveSection,
+          id: 'gastos',
           label: 'Gastos en General',
-          description: 'Bobinas, compras y 15% Sandra',
+          description: 'Bobinas, compras y B. Sandra',
           icon: Receipt,
           badge: formatEuro(counts.gastosGeneralesTotal),
-          badgeTone: 'rose' as const,
+          badgeTone: 'rose',
         },
       ],
     },
@@ -121,21 +132,21 @@ export const Sidebar: React.FC<SidebarProps> = ({
       label: 'Inventario y Logística',
       items: [
         {
-          id: 'filamentos' as ActiveSection,
+          id: 'filamentos',
           label: 'Stock Filamentos',
           description: 'Control de bobinas 1000g',
           icon: Disc,
           badge: `${counts.spoolsCount} bob.`,
-          badgeTone: counts.lowStockCount > 0 ? ('amber' as const) : ('neutral' as const),
+          badgeTone: counts.lowStockCount > 0 ? 'amber' : 'neutral',
           alertDot: counts.lowStockCount > 0,
         },
         {
-          id: 'qr' as ActiveSection,
+          id: 'qr',
           label: 'Almacén de QR',
           description: 'Etiquetas Correos / InPost',
           icon: QrCode,
           badge: counts.qrCount > 0 ? String(counts.qrCount) : undefined,
-          badgeTone: 'emerald' as const,
+          badgeTone: 'emerald',
         },
       ],
     },
@@ -143,7 +154,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       label: 'Herramientas',
       items: [
         {
-          id: 'calculadora' as ActiveSection,
+          id: 'calculadora',
           label: 'Calculadora 3D',
           description: 'Precios, márgenes y tornillería',
           icon: Calculator,

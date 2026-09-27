@@ -100,9 +100,10 @@ export function generateMonthlySalesPdf(
     purchaseOps.reduce((acc, op) => acc + Math.abs(op.costes || 0), 0) +
     comisionesSandraMes;
   const balanceNetoTotal = beneficioVentas;
-  const gramosConsumidos = salesOps.reduce(
-    (acc, op) => acc + getOperationConsumedGrams(op, 15.99),
-    0
+  const gramosConsumidos = Number(
+    salesOps
+      .reduce((acc, op) => acc + getOperationConsumedGrams(op, 15.99), 0)
+      .toFixed(2)
   );
   const pendienteCobro = salesOps
     .filter(
@@ -212,7 +213,7 @@ export function generateMonthlySalesPdf(
     {
       title: 'GASTOS PRODUCCIÓN',
       value: formatEuro(costesVentas),
-      sub: `Solo filamento (~${gramosConsumidos} g)`,
+      sub: `Solo filamento (${gramosConsumidos.toLocaleString('es-ES', { maximumFractionDigits: 2 })} g)`,
       color: [3, 105, 161] as [number, number, number],
       accent: [14, 165, 233] as [number, number, number],
     },
@@ -221,7 +222,7 @@ export function generateMonthlySalesPdf(
       value: formatEuro(gastosCompras),
       sub:
         comisionesSandraMes > 0
-          ? `Compras (${purchaseOps.length}) + 15% Sandra`
+          ? `Compras (${purchaseOps.length}) + B. Sandra (${formatEuro(comisionesSandraMes)})`
           : `Bobinas y compras (${purchaseOps.length})`,
       color: [225, 29, 72] as [number, number, number],
       accent: [244, 63, 94] as [number, number, number],

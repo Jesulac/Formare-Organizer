@@ -6,6 +6,7 @@ import {
   formatEuro,
 } from '../utils/calculations';
 import { FilamentSpool } from '../types/operation';
+import { OledSelect } from './OledSelect';
 
 interface PricingCalculatorViewProps {
   spools: FilamentSpool[];
@@ -61,7 +62,7 @@ export const PricingCalculatorView: React.FC<PricingCalculatorViewProps> = ({
       : selectedSpool || 'PLA';
 
   return (
-    <section className="px-3 sm:px-4 lg:px-6 py-4 max-w-[1400px] mx-auto space-y-5">
+    <section className="px-2 sm:px-3 lg:px-4 py-4 w-full max-w-none space-y-5">
       {/* Header Banner */}
       <div className="glass-card rounded-2xl p-4 sm:p-5 border border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
@@ -129,18 +130,21 @@ export const PricingCalculatorView: React.FC<PricingCalculatorViewProps> = ({
                   <label className="block text-[11px] text-zinc-400 mb-1">
                     Bobina / Color
                   </label>
-                  <select
+                  <OledSelect
                     value={selectedSpool}
-                    onChange={(e) => handleSelectSpool(e.target.value)}
-                    className="w-full bg-black/60 border border-white/10 rounded-lg px-2.5 py-2 text-xs text-white focus:outline-none focus:border-emerald-500/50"
-                  >
-                    {spools.map((s) => (
-                      <option key={s.nombre} value={s.nombre}>
-                        {s.nombre} ({s.gramosRestantes}g disp.)
-                      </option>
-                    ))}
-                    {spools.length === 0 && <option value="Negro">Negro</option>}
-                  </select>
+                    onChange={(val) => handleSelectSpool(val)}
+                    options={
+                      spools.length > 0
+                        ? spools.map((s) => ({
+                            value: s.nombre,
+                            label: s.nombre,
+                            sublabel: `${s.gramosRestantes}g disponibles`,
+                            badge: `${formatEuro(s.precioBobina)}/kg`,
+                          }))
+                        : [{ value: 'Negro', label: 'Negro' }]
+                    }
+                    buttonClassName="bg-black/60 hover:bg-black/80 border border-white/10 rounded-lg px-2.5 py-2 text-xs text-white"
+                  />
                 </div>
 
                 <div>

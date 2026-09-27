@@ -92,6 +92,11 @@ input, select, textarea {
   color-scheme: dark;
 }
 
+select, option, optgroup {
+  background-color: #09090b !important;
+  color: #f4f4f5 !important;
+}
+
 input[type="date"] {
   -webkit-appearance: none;
   appearance: none;

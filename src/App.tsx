@@ -12,7 +12,7 @@ import { PricingCalculatorView } from './components/PricingCalculatorView';
 import { FilamentStockView } from './components/FilamentStockView';
 import { QrStorageView } from './components/QrStorageView';
 import { Operation, Status } from './types/operation';
-import { calculateSandraExpense, formatEuro } from './utils/calculations';
+import { calculateSandraCommission, formatEuro, parseDate } from './utils/calculations';
 import {
   Plus,
   CheckCircle2,
@@ -329,43 +329,55 @@ export default function App() {
 
   // Operations and breakdown for 'Gastos en General' section
   const gastosOperations = useMemo(() => {
-    return rawOperations.filter((op) => {
-      if (op.tipo === 'cierre' || op.estado === 'Cancelado') return false;
-      const sandraExp = calculateSandraExpense(op);
-      const isDirectPurchase =
-        op.tipo === 'compra' ||
-        op.tipo === 'inversion' ||
-        op.tipo === 'otro' ||
-        Boolean(op.esPedidoFilamento) ||
-        (op.precio === null && (op.costes || 0) > 0);
+    return rawOperations
+      .filter((op) => {
+        if (!op || op.tipo === 'cierre' || op.estado === 'Cancelado') return false;
+        const sandraExp = calculateSandraCommission(op.precio, op.vendedor, op.tipo);
+        const isCompraGasto =
+          op.tipo === 'compra' || op.tipo === 'inversion' || op.tipo === 'otro';
+        const isVentaConSandra = op.tipo === 'venta' && sandraExp > 0;
 
-      if (gastosSubFilter === 'compras') return isDirectPurchase;
-      if (gastosSubFilter === 'sandra15') return sandraExp > 0;
-      return isDirectPurchase || sandraExp > 0;
-    });
+        if (gastosSubFilter === 'compras') {
+          return isCompraGasto;
+        }
+        if (gastosSubFilter === 'sandra15') {
+          return isVentaConSandra;
+        }
+        return isCompraGasto || isVentaConSandra;
+      })
+      .sort((a, b) => {
+        const aIsRecentUser = (a.createdAt || 0) >= 1800000000000;
+        const bIsRecentUser = (b.createdAt || 0) >= 1800000000000;
+        if (aIsRecentUser !== bIsRecentUser) {
+          return aIsRecentUser ? -1 : 1;
+        }
+        const diff = parseDate(b.fecha).getTime() - parseDate(a.fecha).getTime();
+        if (diff !== 0) return diff;
+        return (b.createdAt || 0) - (a.createdAt || 0);
+      });
   }, [rawOperations, gastosSubFilter]);
 
   const gastosBreakdown = useMemo(() => {
     let comprasBobinas = 0;
     let otrosGastos = 0;
     let totalSandra15 = 0;
+    let comprasCount = 0;
+    let sandraCount = 0;
 
     rawOperations.forEach((op) => {
-      if (op.tipo === 'cierre' || op.estado === 'Cancelado') return;
-      const sandraExp = calculateSandraExpense(op);
-      if (sandraExp > 0) {
+      if (!op || op.tipo === 'cierre' || op.estado === 'Cancelado') return;
+      const sandraExp = calculateSandraCommission(op.precio, op.vendedor, op.tipo);
+      if (op.tipo === 'venta' && sandraExp > 0) {
         totalSandra15 += sandraExp;
+        sandraCount += 1;
       }
 
-      const isDirectPurchase =
-        op.tipo === 'compra' ||
-        op.tipo === 'inversion' ||
-        op.tipo === 'otro' ||
-        Boolean(op.esPedidoFilamento) ||
-        (op.precio === null && (op.costes || 0) > 0);
+      const isCompraGasto =
+        op.tipo === 'compra' || op.tipo === 'inversion' || op.tipo === 'otro';
 
-      if (isDirectPurchase) {
-        const totalOpCost = (op.costes || 0) + (op.costesOperativos || 0);
+      if (isCompraGasto) {
+        comprasCount += 1;
+        const totalOpCost = Math.abs(op.costes || 0);
         if (
           op.esPedidoFilamento ||
           op.producto.toLowerCase().includes('filamento') ||
@@ -387,6 +399,9 @@ export default function App() {
       otrosGastos: Number(otrosGastos.toFixed(2)),
       totalSandra15: Number(totalSandra15.toFixed(2)),
       totalGastosGenerales,
+      comprasCount,
+      sandraCount,
+      totalCount: comprasCount + sandraCount,
     };
   }, [rawOperations]);
 
@@ -442,13 +457,13 @@ export default function App() {
 
         {/* Main Content Viewport */}
         <main
-          className={`flex-1 w-full min-w-0 mx-auto transition-all duration-300 ${
+          className={`flex-1 w-full min-w-0 transition-all duration-300 ${
             viewMode === 'iphone' &&
             (activeSection === 'ventas' ||
               activeSection === 'produccion' ||
               activeSection === 'gastos')
-              ? 'max-w-md'
-              : 'max-w-[1650px]'
+              ? 'max-w-md mx-auto'
+              : 'max-w-none'
           }`}
         >
           {/* 1. PANEL GENERAL (VENTAS Y COMPRAS) */}
@@ -462,7 +477,7 @@ export default function App() {
                 uniqueSellers={uniqueSellers}
               />
 
-              <section className="px-2 sm:px-4 lg:px-6 py-2 w-full min-w-0 max-w-full">
+              <section className="px-2 sm:px-3 lg:px-4 py-2 w-full min-w-0 max-w-none">
                 {operations.length > 0 ? (
                   <OperationsList
                     operations={operations}
@@ -489,9 +504,9 @@ export default function App() {
 
           {/* 2. COLA DE PRODUCCIÓN Y ENVÍOS */}
           {activeSection === 'produccion' && (
-            <div className="space-y-3 pt-3">
+            <div className="space-y-3 pt-3 w-full max-w-none">
               {/* Production Overview Cards */}
-              <section className="px-3 sm:px-4 lg:px-6">
+              <section className="px-2 sm:px-3 lg:px-4">
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3">
                   <div className="glass-card rounded-2xl p-3.5 sm:p-4 border border-sky-500/25 bg-sky-950/15">
                     <span className="text-xs font-medium text-sky-300 flex items-center justify-between">
@@ -548,7 +563,7 @@ export default function App() {
               </section>
 
               {/* Segmented Filter Bar for Production Queue */}
-              <section className="px-3 sm:px-4 lg:px-6 flex flex-wrap items-center justify-between gap-2">
+              <section className="px-2 sm:px-3 lg:px-4 flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center p-1 bg-zinc-900/90 border border-white/10 rounded-xl overflow-x-auto no-scrollbar">
                   {[
                     { id: 'all_active', label: 'Todos los activos' },
@@ -592,11 +607,11 @@ export default function App() {
                 </button>
               </section>
 
-              <section className="px-2 sm:px-4 lg:px-6 py-1 w-full min-w-0 max-w-full">
+              <section className="px-2 sm:px-3 lg:px-4 py-1 w-full min-w-0 max-w-none">
                 {productionOperations.length > 0 ? (
                   <OperationsList
                     operations={productionOperations}
-                    monthlySummaries={[]}
+                    monthlySummaries={{}}
                     onSelectOperation={handleSelectOp}
                     onDuplicateOperation={duplicateOperation}
                     onDeleteOperation={deleteOperation}
@@ -618,9 +633,9 @@ export default function App() {
 
           {/* 3. GASTOS EN GENERAL Y COMPRAS */}
           {activeSection === 'gastos' && (
-            <div className="space-y-3 pt-3">
+            <div className="space-y-3 pt-3 w-full max-w-none">
               {/* Gastos en General KPI Breakdown */}
-              <section className="px-3 sm:px-4 lg:px-6">
+              <section className="px-2 sm:px-3 lg:px-4">
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3">
                   <div className="glass-card rounded-2xl p-3.5 sm:p-4 border border-rose-500/30 bg-rose-950/15">
                     <span className="text-xs font-medium text-rose-300">
@@ -630,7 +645,7 @@ export default function App() {
                       {formatEuro(gastosBreakdown.totalGastosGenerales)}
                     </span>
                     <span className="text-[11px] text-zinc-400 mt-0.5 block">
-                      Bobinas + compras + 15% Sandra
+                      Bobinas + compras + B. Sandra
                     </span>
                   </div>
 
@@ -648,7 +663,7 @@ export default function App() {
 
                   <div className="glass-card rounded-2xl p-3.5 sm:p-4 border border-white/10">
                     <span className="text-xs font-medium text-purple-300">
-                      15% Sandra (Precio × 0,15)
+                      B. Sandra (Beneficio Sandra)
                     </span>
                     <span className="text-2xl font-bold font-mono tabular-nums text-purple-300 mt-1 block">
                       {formatEuro(gastosBreakdown.totalSandra15)}
@@ -673,12 +688,21 @@ export default function App() {
               </section>
 
               {/* Filter & Action Bar for Gastos en General */}
-              <section className="px-3 sm:px-4 lg:px-6 flex flex-wrap items-center justify-between gap-2">
+              <section className="px-2 sm:px-3 lg:px-4 flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center p-1 bg-zinc-900/90 border border-white/10 rounded-xl overflow-x-auto no-scrollbar">
                   {[
-                    { id: 'all_gastos', label: 'Todos los Gastos en General' },
-                    { id: 'compras', label: 'Solo Compras y Bobinas' },
-                    { id: 'sandra15', label: 'Ventas con 15% Sandra' },
+                    {
+                      id: 'all_gastos',
+                      label: `Todos los Gastos en General (${gastosBreakdown.totalCount})`,
+                    },
+                    {
+                      id: 'compras',
+                      label: `Solo Compras y Bobinas (${gastosBreakdown.comprasCount})`,
+                    },
+                    {
+                      id: 'sandra15',
+                      label: `Ventas con B. Sandra (${gastosBreakdown.sandraCount})`,
+                    },
                   ].map((tab) => (
                     <button
                       key={tab.id}
@@ -709,11 +733,11 @@ export default function App() {
                 </button>
               </section>
 
-              <section className="px-2 sm:px-4 lg:px-6 py-1 w-full min-w-0 max-w-full">
+              <section className="px-2 sm:px-3 lg:px-4 py-1 w-full min-w-0 max-w-none">
                 {gastosOperations.length > 0 ? (
                   <OperationsList
                     operations={gastosOperations}
-                    monthlySummaries={[]}
+                    monthlySummaries={{}}
                     onSelectOperation={handleSelectOp}
                     onDuplicateOperation={duplicateOperation}
                     onDeleteOperation={deleteOperation}

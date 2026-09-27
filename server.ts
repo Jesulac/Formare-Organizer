@@ -25,6 +25,22 @@ interface ServerPersistedState {
   deletedOperationIds?: string[];
 }
 
+function filterOutGhostOps(ops: any[], deletedIds: string[] = []): any[] {
+  const delSet = new Set(deletedIds);
+  return ops.filter((op) => {
+    if (!op || typeof op !== 'object' || !op.id) return false;
+    if (delSet.has(op.id)) return false;
+    const prod = String(op.producto || '').toLowerCase().trim();
+    if (
+      prod.includes('pedido filamento pla azul (esun)') &&
+      !String(op.id).startsWith('op-v7-')
+    ) {
+      return false;
+    }
+    return true;
+  });
+}
+
 function loadStateFromDisk(): ServerPersistedState {
   // 1. Check runtime file in tmpdir (live session edits outside git-tracked repo)
   try {
@@ -37,20 +53,21 @@ function loadStateFromDisk(): ServerPersistedState {
         const updatedAt =
           typeof parsed.updatedAt === 'number' ? parsed.updatedAt : 1;
         const clientId = parsed.clientId || 'server-init';
+        const delIds = Array.isArray(parsed.deletedOperationIds)
+          ? parsed.deletedOperationIds
+          : [];
         return {
           version: 6,
           revision,
           updatedAt,
           syncId: parsed.syncId || `${revision}-${updatedAt}-${clientId}`,
           clientId,
-          operations: parsed.operations,
+          operations: filterOutGhostOps(parsed.operations, delIds),
           filamentAdjustments:
             parsed.filamentAdjustments && typeof parsed.filamentAdjustments === 'object'
               ? parsed.filamentAdjustments
               : {},
-          deletedOperationIds: Array.isArray(parsed.deletedOperationIds)
-            ? parsed.deletedOperationIds
-            : [],
+          deletedOperationIds: delIds,
         };
       }
     }
@@ -217,7 +234,7 @@ async function startServer() {
         updatedAt,
         syncId,
         clientId,
-        operations,
+        operations: filterOutGhostOps(operations, mergedDeleted),
         filamentAdjustments:
           filamentAdjustments && typeof filamentAdjustments === 'object'
             ? filamentAdjustments

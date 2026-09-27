@@ -129,14 +129,14 @@ export const StatusPill: React.FC<StatusPillProps> = ({
             setOpen(!open);
           }
         }}
-        className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-medium border backdrop-blur-sm transition-all whitespace-nowrap ${styleClasses} ${
+        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium border backdrop-blur-sm transition-all whitespace-nowrap ${styleClasses} ${
           onStatusChange ? 'cursor-pointer hover:brightness-110 active:scale-95' : ''
         }`}
-        title={onStatusChange ? 'Cambiar estado' : status}
+        title={onStatusChange ? `Estado: ${status} (clic para cambiar)` : status}
       >
         <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${dotColor}`} />
         <span>{status}</span>
-        {onStatusChange && <ChevronDown className="w-3 h-3 opacity-60 -mr-0.5" />}
+        {onStatusChange && <ChevronDown className="w-3 h-3 opacity-60 shrink-0 -mr-0.5" />}
       </button>
 
       {open &&
@@ -147,7 +147,7 @@ export const StatusPill: React.FC<StatusPillProps> = ({
             ref={dropdownRef}
             onClick={(e) => e.stopPropagation()}
             style={{ top: `${menuPos.top}px`, left: `${menuPos.left}px` }}
-            className="fixed w-44 z-[9999] glass-modal rounded-2xl p-1 shadow-2xl border border-white/15 text-left"
+            className="fixed w-44 z-[9999] bg-[#09090b]/98 backdrop-blur-2xl rounded-2xl p-1.5 shadow-2xl border border-white/15 text-left"
           >
             {ALL_STATUSES.map((s) => {
               const itemColors = getStatusColors(s);

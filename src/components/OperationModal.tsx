@@ -44,6 +44,7 @@ import {
 } from '../utils/calculations';
 import { normalizeFilamentKey } from '../hooks/useOperations';
 import { parseVoiceOperationSmartFallback } from '../utils/voiceParser';
+import { OledSelect } from './OledSelect';
 
 interface OperationModalProps {
   isOpen: boolean;
@@ -843,20 +844,20 @@ export const OperationModal: React.FC<OperationModalProps> = ({
             </label>
 
             {tipo === 'venta' && productCatalog.length > 0 && (
-              <select
+              <OledSelect
                 value=""
-                onChange={(e) => handleSelectCatalogProduct(e.target.value)}
-                className="w-full bg-zinc-900/90 border border-emerald-500/30 rounded-xl px-3 py-2 text-xs text-emerald-300 focus:outline-none focus:border-emerald-500"
-              >
-                <option value="">
-                  Seleccionar producto registrado (carga coste y material)...
-                </option>
-                {productCatalog.map((item) => (
-                  <option key={item.producto} value={item.producto}>
-                    {item.producto} — Coste base: {formatEuro(item.costeUnitario)}
-                  </option>
-                ))}
-              </select>
+                onChange={(val) => {
+                  if (val) handleSelectCatalogProduct(val);
+                }}
+                placeholder="Seleccionar producto registrado (carga coste y material)..."
+                options={productCatalog.map((item) => ({
+                  value: item.producto,
+                  label: item.producto,
+                  sublabel: item.material || undefined,
+                  badge: formatEuro(item.costeUnitario),
+                }))}
+                buttonClassName="bg-zinc-900/95 hover:bg-zinc-900 border border-emerald-500/35 rounded-xl px-3 py-2 text-xs text-emerald-300"
+              />
             )}
 
             <input
@@ -905,21 +906,18 @@ export const OperationModal: React.FC<OperationModalProps> = ({
                 <Tag className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
                 <span className="truncate">Lugar</span>
               </label>
-              <select
+              <OledSelect
                 value={lugarVenta}
-                onChange={(e) => {
-                  const nextLugar = e.target.value as Platform;
+                onChange={(val) => {
+                  const nextLugar = val as Platform;
                   setLugarVenta(nextLugar);
                   if (tipo === 'venta') {
                     setFechaLimiteCustom(calculateDeadlineDate(fecha, nextLugar, tipo));
                   }
                 }}
-                className="block w-full min-w-0 bg-zinc-900/90 border border-white/10 rounded-xl px-2.5 py-2 h-[38px] text-xs text-white focus:outline-none focus:border-emerald-500/50"
-              >
-                {platformsList.map((p) => (
-                  <option key={p} value={p}>{p}</option>
-                ))}
-              </select>
+                options={platformsList.map((p) => ({ value: p, label: p }))}
+                buttonClassName="bg-zinc-900/90 hover:bg-zinc-900 border border-white/10 rounded-xl px-2.5 py-2 h-[38px] text-xs text-white"
+              />
             </div>
           </div>
 
@@ -986,50 +984,34 @@ export const OperationModal: React.FC<OperationModalProps> = ({
               </button>
             </div>
 
-            {/* Datalist of stock filaments for autocomplete */}
-            <datalist id="stock-filaments-datalist">
-              {filamentStock.map((spool) => (
-                <option key={spool.nombre} value={spool.nombre}>
-                  {formatEuro(spool.precioBobina)} / kg · {spool.gramosRestantes}g disp.
-                </option>
-              ))}
-            </datalist>
-
             {!isMultiMaterialMode ? (
-              /* MODO 1 SOLO MATERIAL: Sin casilla de gramos, con selector rápido + botón + */
+              /* MODO 1 SOLO MATERIAL: Sin casilla de gramos, con selector rápido OLED + botón + */
               <div className="flex items-center gap-2">
                 <div className="relative flex-1 min-w-0 flex items-center">
                   <input
                     type="text"
-                    list="stock-filaments-datalist"
                     value={materialRows[0]?.material || ''}
                     onChange={(e) => handleChangeMaterialRow(0, 'material', e.target.value)}
                     placeholder="Ej: PETG Negro (Elegoo), ASA Negro (Winkle)..."
                     className="w-full bg-zinc-900/90 border border-white/10 rounded-xl pl-3 pr-9 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-emerald-500/50"
                   />
                   {filamentStock.length > 0 && (
-                    <div
-                      className="absolute right-1.5 inset-y-1 w-7 flex items-center justify-center rounded-lg bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white cursor-pointer"
-                      title="Elegir filamento del stock"
-                    >
-                      <ChevronDown className="w-3.5 h-3.5 pointer-events-none" />
-                      <select
-                        value=""
-                        onChange={(e) => {
-                          if (e.target.value) {
-                            handleChangeMaterialRow(0, 'material', e.target.value);
-                          }
+                    <div className="absolute right-1.5 inset-y-1 flex items-center">
+                      <OledSelect
+                        iconOnly
+                        value={materialRows[0]?.material || ''}
+                        onChange={(val) => {
+                          if (val) handleChangeMaterialRow(0, 'material', val);
                         }}
-                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                        aria-label="Seleccionar filamento del stock"
-                      >
-                        <option value="">Seleccionar filamento del stock...</option>
-                        {filamentStock.map((spool) => (
-                          <option key={spool.nombre} value={spool.nombre}>
-                            {spool.nombre} ({spool.gramosRestantes}g disp.)
-                          </option>
-                        ))}
-                      </select>
+                        title="Elegir filamento del stock"
+                        menuWidth={260}
+                        options={filamentStock.map((spool) => ({
+                          value: spool.nombre,
+                          label: spool.nombre,
+                          sublabel: `${spool.gramosRestantes}g disponibles`,
+                          badge: `${formatEuro(spool.precioBobina)}/kg`,
+                        }))}
+                      />
                     </div>
                   )}
                 </div>
@@ -1062,11 +1044,10 @@ export const OperationModal: React.FC<OperationModalProps> = ({
                     return (
                       <div key={idx} className="space-y-1">
                         <div className="grid grid-cols-12 gap-2 items-center">
-                          {/* Filamento input + quick dropdown */}
+                          {/* Filamento input + quick OLED dropdown */}
                           <div className="col-span-7 relative flex items-center min-w-0">
                             <input
                               type="text"
-                              list="stock-filaments-datalist"
                               value={row.material}
                               onChange={(e) =>
                                 handleChangeMaterialRow(idx, 'material', e.target.value)
@@ -1075,28 +1056,22 @@ export const OperationModal: React.FC<OperationModalProps> = ({
                               className="w-full bg-black/80 border border-white/15 rounded-xl pl-2.5 pr-8 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-emerald-500"
                             />
                             {filamentStock.length > 0 && (
-                              <div
-                                className="absolute right-1 inset-y-1 w-6 flex items-center justify-center rounded-lg bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white cursor-pointer"
-                                title="Seleccionar filamento del stock"
-                              >
-                                <ChevronDown className="w-3.5 h-3.5 pointer-events-none" />
-                                <select
-                                  value=""
-                                  onChange={(e) => {
-                                    if (e.target.value) {
-                                      handleChangeMaterialRow(idx, 'material', e.target.value);
-                                    }
+                              <div className="absolute right-1 inset-y-1 flex items-center">
+                                <OledSelect
+                                  iconOnly
+                                  value={row.material}
+                                  onChange={(val) => {
+                                    if (val) handleChangeMaterialRow(idx, 'material', val);
                                   }}
-                                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                                  aria-label={`Seleccionar filamento ${idx + 1}`}
-                                >
-                                  <option value="">Elegir del stock...</option>
-                                  {filamentStock.map((spool) => (
-                                    <option key={spool.nombre} value={spool.nombre}>
-                                      {spool.nombre} ({formatEuro(spool.precioBobina)}/kg)
-                                    </option>
-                                  ))}
-                                </select>
+                                  title={`Seleccionar filamento ${idx + 1} del stock`}
+                                  menuWidth={260}
+                                  options={filamentStock.map((spool) => ({
+                                    value: spool.nombre,
+                                    label: spool.nombre,
+                                    sublabel: `${spool.gramosRestantes}g disponibles`,
+                                    badge: `${formatEuro(spool.precioBobina)}/kg`,
+                                  }))}
+                                />
                               </div>
                             )}
                           </div>
@@ -1280,15 +1255,11 @@ export const OperationModal: React.FC<OperationModalProps> = ({
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-zinc-300 font-medium mb-1">Estado</label>
-              <select
+              <OledSelect
                 value={estado}
-                onChange={(e) => setEstado(e.target.value as Status)}
-                className="w-full bg-zinc-900/90 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500/50"
-              >
-                {statusesList.map((s) => (
-                  <option key={s} value={s}>{s}</option>
-                ))}
-              </select>
+                onChange={(val) => setEstado(val as Status)}
+                options={statusesList.map((s) => ({ value: s, label: s }))}
+              />
             </div>
 
             <div>
@@ -1296,17 +1267,17 @@ export const OperationModal: React.FC<OperationModalProps> = ({
                 <User className="w-3.5 h-3.5 text-zinc-400" />
                 Vendedor
               </label>
-              <select
+              <OledSelect
                 value={vendedorSelect}
-                onChange={(e) => setVendedorSelect(e.target.value)}
-                className="w-full bg-zinc-900/90 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500/50"
-              >
-                <option value="Jorge">Jorge</option>
-                <option value="Sandra">Sandra</option>
-                <option value="Alejandro">Alejandro</option>
-                <option value="Jorge, Sandra">Jorge, Sandra</option>
-                <option value="Otro">Otro</option>
-              </select>
+                onChange={(val) => setVendedorSelect(val)}
+                options={[
+                  { value: 'Jorge', label: 'Jorge' },
+                  { value: 'Sandra', label: 'Sandra' },
+                  { value: 'Alejandro', label: 'Alejandro' },
+                  { value: 'Jorge, Sandra', label: 'Jorge, Sandra' },
+                  { value: 'Otro', label: 'Otro' },
+                ]}
+              />
             </div>
           </div>
 
@@ -1326,7 +1297,7 @@ export const OperationModal: React.FC<OperationModalProps> = ({
           {previewSandraCommission > 0 && (
             <div className="p-2.5 rounded-xl bg-rose-950/30 border border-rose-500/30 flex items-center justify-between text-xs">
               <span className="text-rose-200/90">
-                Precio × 0,15 ({effectiveVendedorPreview}) → <strong className="text-rose-300">Gastos en General</strong>:
+                B. Sandra ({effectiveVendedorPreview}) → <strong className="text-rose-300">Gastos en General</strong>:
               </span>
               <span className="font-mono font-bold text-rose-300">
                 {formatEuro(previewSandraCommission)}
@@ -1362,15 +1333,11 @@ export const OperationModal: React.FC<OperationModalProps> = ({
                 />
                 <div className="flex-1 min-w-0 space-y-1">
                   <label className="block text-[11px] text-zinc-400">Empresa de envío</label>
-                  <select
+                  <OledSelect
                     value={empresaEnvio}
-                    onChange={(e) => setEmpresaEnvio(e.target.value as ShippingCompany)}
-                    className="w-full bg-zinc-950 border border-white/10 rounded-xl px-2.5 py-1.5 text-xs text-white"
-                  >
-                    {shippingCompanies.map((c) => (
-                      <option key={c} value={c}>{c}</option>
-                    ))}
-                  </select>
+                    onChange={(val) => setEmpresaEnvio(val as ShippingCompany)}
+                    options={shippingCompanies.map((c) => ({ value: c, label: c }))}
+                  />
                 </div>
                 <button
                   type="button"

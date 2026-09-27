@@ -2,6 +2,7 @@ import React, { useState, useRef, useMemo } from 'react';
 import { Operation, ShippingCompany, Status } from '../types/operation';
 import { formatDateDisplay, compressImageFile, parseDate } from '../utils/calculations';
 import { StatusPill } from './StatusPill';
+import { OledSelect } from './OledSelect';
 import { 
   QrCode, 
   Upload, 
@@ -97,7 +98,7 @@ export const QrStorageView: React.FC<QrStorageViewProps> = ({
   };
 
   return (
-    <section className="px-3 sm:px-4 lg:px-6 py-4 space-y-4 max-w-[1600px] mx-auto">
+    <section className="px-2 sm:px-3 lg:px-4 py-4 space-y-4 w-full max-w-none">
       <input
         ref={fileInputRef}
         type="file"
@@ -207,19 +208,16 @@ export const QrStorageView: React.FC<QrStorageViewProps> = ({
                   <Truck className="w-3 h-3 text-emerald-400" />
                   <span>Lugar de envío</span>
                 </label>
-                <select
+                <OledSelect
                   value={op.empresaEnvio || 'Correos'}
-                  onChange={(e) =>
-                    onAttachQr(op.id, op.fotoQr, e.target.value as ShippingCompany)
+                  onChange={(val) =>
+                    onAttachQr(op.id, op.fotoQr, val as ShippingCompany)
                   }
-                  className="w-full bg-zinc-900 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500/50"
-                >
-                  {SHIPPING_COMPANIES.map((carrier) => (
-                    <option key={carrier} value={carrier}>
-                      {carrier}
-                    </option>
-                  ))}
-                </select>
+                  options={SHIPPING_COMPANIES.map((carrier) => ({
+                    value: carrier,
+                    label: carrier,
+                  }))}
+                />
               </div>
 
               {/* QR / Barcode Upload or Preview Area */}

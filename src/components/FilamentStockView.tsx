@@ -126,7 +126,7 @@ export const FilamentStockView: React.FC<FilamentStockViewProps> = ({
   );
 
   return (
-    <section className="px-3 sm:px-4 lg:px-6 py-4 space-y-5 max-w-[1600px] mx-auto">
+    <section className="px-2 sm:px-3 lg:px-4 py-4 space-y-5 w-full max-w-none">
       {/* Header Banner */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 glass-card rounded-2xl p-4 border border-white/10">
         <div>

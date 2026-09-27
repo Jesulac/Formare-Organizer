@@ -24,6 +24,22 @@ interface ServerPersistedState {
 const TMP_DB_FILE = path.join(os.tmpdir(), 'formare3d-operations-runtime-v6.json');
 const REPO_DB_FILE = path.join(process.cwd(), 'data', 'operations-db.json');
 
+function filterOutGhostOps(ops: any[], deletedIds: string[] = []): any[] {
+  const delSet = new Set(deletedIds);
+  return ops.filter((op) => {
+    if (!op || typeof op !== 'object' || !op.id) return false;
+    if (delSet.has(op.id)) return false;
+    const prod = String(op.producto || '').toLowerCase().trim();
+    if (
+      prod.includes('pedido filamento pla azul (esun)') &&
+      !String(op.id).startsWith('op-v7-')
+    ) {
+      return false;
+    }
+    return true;
+  });
+}
+
 function loadServerlessState(): ServerPersistedState {
   const g = globalThis as any;
   if (g.__FORMARE3D_STATE__ && Array.isArray(g.__FORMARE3D_STATE__.operations)) {
@@ -44,21 +60,22 @@ function loadServerlessState(): ServerPersistedState {
           const updatedAt =
             isTmp && typeof parsed.updatedAt === 'number' ? parsed.updatedAt : 1;
           const clientId = isTmp && parsed.clientId ? parsed.clientId : 'server-init';
+          const delIds =
+            isTmp && Array.isArray(parsed.deletedOperationIds)
+              ? parsed.deletedOperationIds
+              : [];
           const state: ServerPersistedState = {
             version: 6,
             revision: rev,
             updatedAt,
             syncId: isTmp && parsed.syncId ? parsed.syncId : `${rev}-${updatedAt}-${clientId}`,
             clientId,
-            operations: parsed.operations,
+            operations: filterOutGhostOps(parsed.operations, delIds),
             filamentAdjustments:
               parsed.filamentAdjustments && typeof parsed.filamentAdjustments === 'object'
                 ? parsed.filamentAdjustments
                 : {},
-            deletedOperationIds:
-              isTmp && Array.isArray(parsed.deletedOperationIds)
-                ? parsed.deletedOperationIds
-                : [],
+            deletedOperationIds: delIds,
           };
           g.__FORMARE3D_STATE__ = state;
           return state;
@@ -160,7 +177,7 @@ export default function handler(req: any, res: any) {
         updatedAt,
         syncId,
         clientId,
-        operations,
+        operations: filterOutGhostOps(operations, mergedDeleted),
         filamentAdjustments:
           filamentAdjustments && typeof filamentAdjustments === 'object'
             ? filamentAdjustments

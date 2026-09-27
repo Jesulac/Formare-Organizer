@@ -43,7 +43,17 @@ const MONTH_NAMES = [
 export function sanitizeAndMigrateOperations(rawList: any[]): Operation[] {
   const now = Date.now();
   return rawList
-    .filter((op) => op && op.tipo !== 'cierre')
+    .filter((op) => {
+      if (!op || op.tipo === 'cierre') return false;
+      const prod = String(op.producto || '').toLowerCase().trim();
+      if (
+        prod.includes('pedido filamento pla azul (esun)') &&
+        !String(op.id || '').startsWith('op-v7-')
+      ) {
+        return false;
+      }
+      return true;
+    })
     .map((op) => {
       const unidades = extractUnits(op.comentarios, op.unidades);
       const estado = normalizeStatus(op.estado);
@@ -78,12 +88,13 @@ export function sanitizeAndMigrateOperations(rawList: any[]): Operation[] {
         fechaSubidaQr = undefined;
       }
 
-      const isFilamentoOrder = Boolean(
-        op.esPedidoFilamento ??
-          (tipo === 'compra' &&
+      const isFilamentoOrder =
+        tipo === 'compra' &&
+        Boolean(
+          op.esPedidoFilamento ??
             ((op.producto && op.producto.toLowerCase().includes('filamento')) ||
-              (op.material && /(pla|petg|asa|tpu)/i.test(op.material))))
-      );
+              (op.material && /(pla|petg|asa|tpu)/i.test(op.material)))
+        );
 
       const beneficio = calculateBeneficio(
         op.precio ?? null,
@@ -551,15 +562,16 @@ export function useOperations() {
 
       const now = Date.now();
       const nextRev = revisionRef.current + 1;
-      const newId = `op-${now}-${Math.random().toString(36).substring(2, 6)}`;
+      const newId = `op-v7-${now}-${Math.random().toString(36).substring(2, 6)}`;
 
       const clearQrForPending = estado === 'Pendiente de cobro';
-      const isFilamentoOrder = Boolean(
-        opData.esPedidoFilamento ??
-          (opData.tipo === 'compra' &&
+      const isFilamentoOrder =
+        opData.tipo === 'compra' &&
+        Boolean(
+          opData.esPedidoFilamento ??
             ((opData.producto && opData.producto.toLowerCase().includes('filamento')) ||
-              (opData.material && /(pla|petg|asa|tpu)/i.test(opData.material))))
-      );
+              (opData.material && /(pla|petg|asa|tpu)/i.test(opData.material)))
+        );
 
       const otrosCostes =
         typeof opData.costesOperativos === 'number' && opData.costesOperativos > 0
@@ -752,7 +764,7 @@ export function useOperations() {
       if (!target) return;
       const now = Date.now();
       const nextRev = revisionRef.current + 1;
-      const newId = `op-${now}-${Math.random().toString(36).substring(2, 6)}`;
+      const newId = `op-v7-${now}-${Math.random().toString(36).substring(2, 6)}`;
       const dup: Operation = {
         ...target,
         id: newId,
@@ -1091,6 +1103,7 @@ export function useOperations() {
           numPedidos: 0,
           dineroBruto: 0,
           dineroGastadoCompras: 0,
+          beneficioSandra: 0,
           costesVentas: 0,
           dineroNeto: 0,
           gramosConsumidos: 0,
@@ -1100,21 +1113,31 @@ export function useOperations() {
       const summary = map[key];
       if (op.tipo === 'venta') {
         summary.numVentas += 1;
-        summary.dineroBruto += op.precio || 0;
-        summary.costesVentas += Math.abs(op.costes || 0);
-        summary.gramosConsumidos += getOperationConsumedGrams(op, 15.99);
-        // Si el vendedor es "Sandra" o "Jorge, Sandra", se suma precio * 0.15 a Gastos en General
-        summary.dineroGastadoCompras += calculateSandraCommission(
+        summary.dineroBruto = Number((summary.dineroBruto + (op.precio || 0)).toFixed(2));
+        summary.costesVentas = Number(
+          (summary.costesVentas + Math.abs(op.costes || 0)).toFixed(2)
+        );
+        summary.gramosConsumidos = Number(
+          (summary.gramosConsumidos + getOperationConsumedGrams(op, 15.99)).toFixed(2)
+        );
+        // Si el vendedor es "Sandra" o "Jorge, Sandra", se suma B. Sandra (precio * 0.15)
+        const bSandra = calculateSandraCommission(
           op.precio,
           op.vendedor,
           op.tipo
         );
+        summary.beneficioSandra = Number((summary.beneficioSandra + bSandra).toFixed(2));
+        summary.dineroGastadoCompras = Number(
+          (summary.dineroGastadoCompras + bSandra).toFixed(2)
+        );
       } else if (op.tipo === 'compra' || op.tipo === 'inversion') {
         summary.numPedidos += 1;
-        summary.dineroGastadoCompras += Math.abs(op.costes || 0);
+        summary.dineroGastadoCompras = Number(
+          (summary.dineroGastadoCompras + Math.abs(op.costes || 0)).toFixed(2)
+        );
       }
       // Beneficio neto del mes se calcula únicamente con los gastos de producción (costesVentas), sin restar compras generales
-      summary.dineroNeto = summary.dineroBruto - summary.costesVentas;
+      summary.dineroNeto = Number((summary.dineroBruto - summary.costesVentas).toFixed(2));
     });
 
     return map;

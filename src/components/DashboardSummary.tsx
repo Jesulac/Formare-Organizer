@@ -15,8 +15,8 @@ interface DashboardSummaryProps {
 
 export const DashboardSummary: React.FC<DashboardSummaryProps> = ({ stats }) => {
   return (
-    <section className="px-3 sm:px-4 lg:px-6 pt-3 pb-1">
-      <div className="max-w-[1600px] mx-auto">
+    <section className="px-2 sm:px-3 lg:px-4 pt-3 pb-1 w-full max-w-none">
+      <div className="w-full">
         {/* Responsive grid: 2 cols on mobile, 3 on tablet, 6 on desktop */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 sm:gap-3">
           
@@ -61,7 +61,7 @@ export const DashboardSummary: React.FC<DashboardSummaryProps> = ({ stats }) => 
               </span>
             </div>
             <span className="text-[10px] text-zinc-500 mt-0.5 truncate">
-              Bobinas, compras y 15% Sandra
+              Bobinas, compras y B. Sandra
             </span>
           </div>
 

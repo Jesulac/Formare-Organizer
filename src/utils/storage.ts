@@ -52,6 +52,18 @@ export function computeStateFingerprint(
   return `${operations.length}#${opsPart}#${adjPart}#${delPart}`;
 }
 
+function isLegacyGhostOperation(op: any): boolean {
+  if (!op || typeof op !== 'object') return true;
+  const prod = String(op.producto || '').toLowerCase().trim();
+  if (
+    prod.includes('pedido filamento pla azul (esun)') &&
+    !String(op.id || '').startsWith('op-v7-')
+  ) {
+    return true;
+  }
+  return false;
+}
+
 function normalizePayload(parsed: any): PersistedPayload | null {
   if (!parsed || !Array.isArray(parsed.operations)) return null;
   const revision =
@@ -66,13 +78,17 @@ function normalizePayload(parsed: any): PersistedPayload | null {
   const deletedOperationIds = Array.isArray(parsed.deletedOperationIds)
     ? parsed.deletedOperationIds.filter((id: any) => typeof id === 'string')
     : [];
+  const deletedSet = new Set(deletedOperationIds);
+  const cleanOps = parsed.operations.filter(
+    (op: any) => op && op.id && !deletedSet.has(op.id) && !isLegacyGhostOperation(op)
+  );
   return {
     version: 6,
     revision,
     updatedAt,
     syncId: parsed.syncId || `${revision}-${updatedAt}-${clientId}`,
     clientId,
-    operations: parsed.operations,
+    operations: cleanOps,
     filamentAdjustments:
       parsed.filamentAdjustments && typeof parsed.filamentAdjustments === 'object'
         ? parsed.filamentAdjustments
@@ -91,8 +107,7 @@ export function isUserEditedPayload(payload: PersistedPayload | null | undefined
 
 /**
  * Non-destructively merge local and remote payloads so that a redeploy or cold-start
- * never overwrites or loses user-created or user-edited operations.
- * Always keeps the most recently updated version of each operation and respects explicit deletions.
+ * never overwrites or loses user-created or user-edited operations, and deleted items never resurrect.
  */
 export function mergePersistedPayloads(
   local: PersistedPayload,
@@ -108,7 +123,7 @@ export function mergePersistedPayloads(
     const localDeleted = Array.from(new Set(local.deletedOperationIds || []));
     const localDeletedSet = new Set(localDeleted);
     const cleanLocalOps = (local.operations || []).filter(
-      (op) => op && op.id && !localDeletedSet.has(op.id)
+      (op) => op && op.id && !localDeletedSet.has(op.id) && !isLegacyGhostOperation(op)
     );
     const nextRev = Math.max(local.revision || 1, remote.revision || 1);
     const nextUpd = Math.max(local.updatedAt || Date.now(), 2);
@@ -133,7 +148,7 @@ export function mergePersistedPayloads(
     const remoteDeleted = Array.from(new Set(remote.deletedOperationIds || []));
     const remoteDeletedSet = new Set(remoteDeleted);
     const cleanRemoteOps = (remote.operations || []).filter(
-      (op) => op && op.id && !remoteDeletedSet.has(op.id)
+      (op) => op && op.id && !remoteDeletedSet.has(op.id) && !isLegacyGhostOperation(op)
     );
     return {
       merged: {
@@ -160,14 +175,14 @@ export function mergePersistedPayloads(
 
   const localMap = new Map<string, Operation>();
   for (const op of local.operations || []) {
-    if (op && op.id && !deletedSet.has(op.id)) {
+    if (op && op.id && !deletedSet.has(op.id) && !isLegacyGhostOperation(op)) {
       localMap.set(op.id, op);
     }
   }
 
   const remoteMap = new Map<string, Operation>();
   for (const op of remote.operations || []) {
-    if (op && op.id && !deletedSet.has(op.id)) {
+    if (op && op.id && !deletedSet.has(op.id) && !isLegacyGhostOperation(op)) {
       remoteMap.set(op.id, op);
     }
   }
@@ -176,20 +191,37 @@ export function mergePersistedPayloads(
   const mergedOps: Operation[] = [];
   let localContributedNewer = false;
 
+  const localPayloadTime = local.updatedAt || 1;
+  const remotePayloadTime = remote.updatedAt || 1;
+  const localIsNewerOverall = localPayloadTime >= remotePayloadTime;
+
   for (const id of allIds) {
     if (deletedSet.has(id)) continue;
     const lOp = localMap.get(id);
     const rOp = remoteMap.get(id);
 
     if (lOp && !rOp) {
-      mergedOps.push(lOp);
-      localContributedNewer = true;
+      const lOpTime = lOp.updatedAt || 0;
+      // Keep lOp if local snapshot is newer overall OR lOp was explicitly updated after remote snapshot
+      if (localIsNewerOverall || lOpTime > remotePayloadTime) {
+        mergedOps.push(lOp);
+        localContributedNewer = true;
+      } else {
+        deletedSet.add(id);
+      }
     } else if (!lOp && rOp) {
-      mergedOps.push(rOp);
+      const rOpTime = rOp.updatedAt || 0;
+      // Keep rOp only if remote snapshot is newer overall OR rOp was explicitly updated after local snapshot
+      if (!localIsNewerOverall || rOpTime > localPayloadTime) {
+        mergedOps.push(rOp);
+      } else {
+        deletedSet.add(id);
+        localContributedNewer = true;
+      }
     } else if (lOp && rOp) {
-      const lTime = lOp.updatedAt || lOp.createdAt || local.updatedAt || 0;
-      const rTime = rOp.updatedAt || rOp.createdAt || remote.updatedAt || 0;
-      if (lTime > rTime || (lTime === rTime && local.updatedAt >= remote.updatedAt)) {
+      const lTime = lOp.updatedAt || lOp.createdAt || localPayloadTime;
+      const rTime = rOp.updatedAt || rOp.createdAt || remotePayloadTime;
+      if (lTime > rTime || (lTime === rTime && localIsNewerOverall)) {
         mergedOps.push(lOp);
         if (lTime > rTime) localContributedNewer = true;
       } else {
@@ -198,20 +230,18 @@ export function mergePersistedPayloads(
     }
   }
 
-  const localIsNewerOverall = local.updatedAt >= remote.updatedAt;
-
   const mergedAdjustments: Record<string, number> = localIsNewerOverall
     ? { ...(remote.filamentAdjustments || {}), ...(local.filamentAdjustments || {}) }
     : { ...(local.filamentAdjustments || {}), ...(remote.filamentAdjustments || {}) };
 
   const nextRevision = Math.max(local.revision || 1, remote.revision || 1);
-  const nextUpdatedAt = Math.max(local.updatedAt || 1, remote.updatedAt || 1);
+  const nextUpdatedAt = Math.max(localPayloadTime, remotePayloadTime);
   const winningClientId = localIsNewerOverall
     ? local.clientId || CLIENT_INSTANCE_ID
     : remote.clientId || local.clientId || CLIENT_INSTANCE_ID;
 
   const needsServerPush =
-    local.updatedAt > remote.updatedAt ||
+    localPayloadTime > remotePayloadTime ||
     localContributedNewer ||
     (local.deletedOperationIds || []).some(
       (id) => !(remote.deletedOperationIds || []).includes(id)
@@ -257,7 +287,8 @@ export async function saveToIndexedDB(payload: PersistedPayload): Promise<void> 
       const tx = db.transaction(IDB_STORE, 'readwrite');
       const store = tx.objectStore(IDB_STORE);
       store.put(payload, IDB_KEY);
-      store.put(payload, PREV_IDB_KEY_V5);
+      store.delete(PREV_IDB_KEY_V5);
+      store.delete(PREV_IDB_KEY);
       tx.oncomplete = () => resolve();
       tx.onerror = () => reject(tx.error);
     });
@@ -274,20 +305,11 @@ export async function loadFromIndexedDB(): Promise<PersistedPayload | null> {
       const tx = db.transaction(IDB_STORE, 'readonly');
       const store = tx.objectStore(IDB_STORE);
       const tryKeys = [IDB_KEY, PREV_IDB_KEY_V5, PREV_IDB_KEY];
-      const foundPayloads: PersistedPayload[] = [];
       let idx = 0;
 
       const next = () => {
         if (idx >= tryKeys.length) {
-          if (foundPayloads.length === 0) {
-            resolve(null);
-            return;
-          }
-          let combined = foundPayloads[0];
-          for (let i = 1; i < foundPayloads.length; i++) {
-            combined = mergePersistedPayloads(combined, foundPayloads[i]).merged;
-          }
-          resolve(combined);
+          resolve(null);
           return;
         }
         const key = tryKeys[idx++];
@@ -295,7 +317,8 @@ export async function loadFromIndexedDB(): Promise<PersistedPayload | null> {
         req.onsuccess = () => {
           const norm = normalizePayload(req.result);
           if (norm) {
-            foundPayloads.push(norm);
+            resolve(norm);
+            return;
           }
           next();
         };
@@ -313,7 +336,6 @@ export async function loadFromIndexedDB(): Promise<PersistedPayload | null> {
 
 export function loadFromLocalStorageSync(): PersistedPayload | null {
   try {
-    const foundPayloads: PersistedPayload[] = [];
     for (const key of [LOCAL_STORAGE_KEY, PREV_STORAGE_KEY_V5, PREV_STORAGE_KEY_V3]) {
       const raw = localStorage.getItem(key);
       if (raw) {
@@ -321,27 +343,19 @@ export function loadFromLocalStorageSync(): PersistedPayload | null {
           const parsed = JSON.parse(raw);
           const norm = normalizePayload(parsed);
           if (norm) {
-            foundPayloads.push(norm);
+            return norm;
           }
         } catch {
-          // Continue checking other keys
+          // Continue checking fallback keys
         }
       }
-    }
-
-    if (foundPayloads.length > 0) {
-      let combined = foundPayloads[0];
-      for (let i = 1; i < foundPayloads.length; i++) {
-        combined = mergePersistedPayloads(combined, foundPayloads[i]).merged;
-      }
-      return combined;
     }
 
     const legacyRaw = localStorage.getItem(LEGACY_STORAGE_KEY);
     if (legacyRaw) {
       const parsedLegacy = JSON.parse(legacyRaw);
       if (Array.isArray(parsedLegacy) && parsedLegacy.length > 0) {
-        return {
+        return normalizePayload({
           version: 6,
           revision: 2,
           updatedAt: 2,
@@ -350,7 +364,7 @@ export function loadFromLocalStorageSync(): PersistedPayload | null {
           operations: parsedLegacy,
           filamentAdjustments: {},
           deletedOperationIds: [],
-        };
+        });
       }
     }
   } catch (err) {
@@ -363,7 +377,9 @@ export function saveToLocalStorageSync(payload: PersistedPayload): void {
   try {
     const serialized = JSON.stringify(payload);
     localStorage.setItem(LOCAL_STORAGE_KEY, serialized);
-    localStorage.setItem(PREV_STORAGE_KEY_V5, serialized);
+    localStorage.removeItem(PREV_STORAGE_KEY_V5);
+    localStorage.removeItem(PREV_STORAGE_KEY_V3);
+    localStorage.removeItem(LEGACY_STORAGE_KEY);
   } catch {
     try {
       const lightweightPayload: PersistedPayload = {
@@ -375,7 +391,9 @@ export function saveToLocalStorageSync(payload: PersistedPayload): void {
       };
       const serializedLight = JSON.stringify(lightweightPayload);
       localStorage.setItem(LOCAL_STORAGE_KEY, serializedLight);
-      localStorage.setItem(PREV_STORAGE_KEY_V5, serializedLight);
+      localStorage.removeItem(PREV_STORAGE_KEY_V5);
+      localStorage.removeItem(PREV_STORAGE_KEY_V3);
+      localStorage.removeItem(LEGACY_STORAGE_KEY);
     } catch (innerErr) {
       console.warn('localStorage quota exceeded, relying on IndexedDB & Server:', innerErr);
     }
