@@ -7,6 +7,7 @@ interface FilamentStockViewProps {
   spools: FilamentSpool[];
   onAddFilamentOrder: (opData: Omit<Operation, 'id' | 'createdAt' | 'beneficio'>) => void;
   onUpdateFilamentRemaining: (spoolName: string, newRemainingGrams: number) => void;
+  onUpdateFilamentInitial?: (spoolName: string, newInitialGrams: number) => void;
   onDeleteFilamentSpool?: (spoolName: string) => void;
 }
 
@@ -14,6 +15,7 @@ export const FilamentStockView: React.FC<FilamentStockViewProps> = ({
   spools,
   onAddFilamentOrder,
   onUpdateFilamentRemaining,
+  onUpdateFilamentInitial,
   onDeleteFilamentSpool,
 }) => {
   const [newSpoolName, setNewSpoolName] = useState('');
@@ -25,6 +27,11 @@ export const FilamentStockView: React.FC<FilamentStockViewProps> = ({
   // State for editing remaining grams on a specific filament spool
   const [editingSpoolName, setEditingSpoolName] = useState<string | null>(null);
   const [editRemainingValue, setEditRemainingValue] = useState<string>('');
+
+  // State for editing initial grams on a specific filament spool
+  const [editingInitialSpoolName, setEditingInitialSpoolName] = useState<string | null>(null);
+  const [editInitialValue, setEditInitialValue] = useState<string>('');
+
   const [confirmingDeleteSpool, setConfirmingDeleteSpool] = useState<string | null>(null);
 
   // Quick Rule of Three Tester
@@ -36,6 +43,7 @@ export const FilamentStockView: React.FC<FilamentStockViewProps> = ({
   const totalRemainingGrams = spools.reduce((acc, s) => acc + s.gramosRestantes, 0);
 
   const handleStartEditRemaining = (spool: FilamentSpool) => {
+    setEditingInitialSpoolName(null);
     setEditingSpoolName(spool.nombre);
     setEditRemainingValue(String(spool.gramosRestantes));
   };
@@ -53,6 +61,26 @@ export const FilamentStockView: React.FC<FilamentStockViewProps> = ({
     const nextVal = Math.max(0, Math.round(current + delta));
     setEditRemainingValue(String(nextVal));
     onUpdateFilamentRemaining(spoolName, nextVal);
+  };
+
+  const handleStartEditInitial = (spool: FilamentSpool) => {
+    setEditingSpoolName(null);
+    setEditingInitialSpoolName(spool.nombre);
+    setEditInitialValue(String(spool.gramosIniciales));
+  };
+
+  const handleSaveInitial = (spoolName: string) => {
+    const parsed = parseFloat(editInitialValue.replace(',', '.'));
+    if (!isNaN(parsed) && parsed >= 0) {
+      onUpdateFilamentInitial?.(spoolName, Math.round(parsed));
+    }
+    setEditingInitialSpoolName(null);
+  };
+
+  const handleSetInitialQuickAndSave = (spoolName: string, targetVal: number) => {
+    const valid = Math.max(0, Math.round(targetVal));
+    setEditInitialValue(String(valid));
+    onUpdateFilamentInitial?.(spoolName, valid);
   };
 
   const handleCreateSpoolPurchase = (e: React.FormEvent) => {
@@ -261,6 +289,7 @@ export const FilamentStockView: React.FC<FilamentStockViewProps> = ({
               : 0;
           const isLow = spool.gramosRestantes < 250;
           const isEditingThis = editingSpoolName === spool.nombre;
+          const isEditingInitialThis = editingInitialSpoolName === spool.nombre;
           const isConfirmingDelete = confirmingDeleteSpool === spool.nombre;
           const hasManualAdjust = Boolean(spool.ajusteManualGramos && spool.ajusteManualGramos !== 0);
 
@@ -310,7 +339,15 @@ export const FilamentStockView: React.FC<FilamentStockViewProps> = ({
                 <div className="grid grid-cols-3 text-[11px] pt-1">
                   <div>
                     <span className="text-zinc-500 block">Inicial ({spool.bobinasCompradas} bob.)</span>
-                    <span className="font-mono font-semibold text-zinc-300">{spool.gramosIniciales} g</span>
+                    <button
+                      type="button"
+                      onClick={() => handleStartEditInitial(spool)}
+                      className="inline-flex items-center gap-1 font-mono font-bold text-sm text-zinc-200 hover:text-sky-300 cursor-pointer hover:underline"
+                      title="Editar gramos iniciales"
+                    >
+                      <span>{spool.gramosIniciales} g</span>
+                      <Edit3 className="w-3 h-3 opacity-75 text-sky-400" />
+                    </button>
                   </div>
                   <div className="text-center">
                     <span className="text-zinc-500 block">Gastado ventas</span>
@@ -343,6 +380,67 @@ export const FilamentStockView: React.FC<FilamentStockViewProps> = ({
                   </div>
                 )}
               </div>
+
+              {/* Inline Editor for Initial Filament Grams */}
+              {isEditingInitialThis && (
+                <div className="p-3 rounded-xl bg-zinc-900/95 border border-sky-500/40 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[11px] font-semibold text-sky-300">
+                      Actualizar gramos iniciales (g)
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setEditingInitialSpoolName(null)}
+                      className="text-zinc-400 hover:text-white p-0.5 cursor-pointer"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+
+                  <div className="flex items-center gap-1.5">
+                    <input
+                      type="number"
+                      min="0"
+                      step="1"
+                      value={editInitialValue}
+                      onChange={(e) => setEditInitialValue(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleSaveInitial(spool.nombre);
+                        }
+                      }}
+                      className="flex-1 min-w-0 bg-black border border-white/15 rounded-lg px-2.5 py-1.5 text-xs text-white font-mono font-bold focus:outline-none focus:border-sky-500"
+                      autoFocus
+                    />
+                    <span className="text-xs font-mono text-zinc-400">g</span>
+                    <button
+                      type="button"
+                      onClick={() => handleSaveInitial(spool.nombre)}
+                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-sky-500 hover:bg-sky-400 text-black font-bold text-xs cursor-pointer"
+                    >
+                      <Check className="w-3.5 h-3.5 stroke-[2.5]" />
+                      <span>Guardar</span>
+                    </button>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-1 text-[10px]">
+                    <span className="text-zinc-400">Valores rápidos:</span>
+                    <div className="flex items-center gap-1">
+                      {[1000, 2000, 3000, 5000].map((preset) => (
+                        <button
+                          key={preset}
+                          type="button"
+                          onClick={() => handleSetInitialQuickAndSave(spool.nombre, preset)}
+                          className="px-1.5 py-0.5 rounded bg-white/5 hover:bg-white/15 text-zinc-300 font-mono cursor-pointer border border-white/10"
+                        >
+                          {preset}g
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Inline Editor for Remaining Filament */}
               {isEditingThis && (
@@ -434,17 +532,31 @@ export const FilamentStockView: React.FC<FilamentStockViewProps> = ({
                 </div>
               )}
 
-              <div className="pt-2 border-t border-white/5 flex items-center justify-between gap-2">
+              <div className="pt-2 border-t border-white/5 flex flex-wrap items-center justify-between gap-2">
                 <span className="text-[10px] text-zinc-500 font-mono">
                   1g = {formatEuro(spool.precioBobina / 1000)}
                 </span>
-                <div className="flex items-center gap-1.5">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      isEditingInitialThis
+                        ? setEditingInitialSpoolName(null)
+                        : handleStartEditInitial(spool)
+                    }
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/15 text-zinc-200 border border-white/10 text-[11px] font-medium cursor-pointer transition-colors"
+                    title="Editar gramos iniciales"
+                  >
+                    <Edit3 className="w-3 h-3 text-sky-400" />
+                    <span>Editar inicial</span>
+                  </button>
                   <button
                     type="button"
                     onClick={() =>
                       isEditingThis ? setEditingSpoolName(null) : handleStartEditRemaining(spool)
                     }
                     className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/15 text-zinc-200 border border-white/10 text-[11px] font-medium cursor-pointer transition-colors"
+                    title="Editar gramos restantes"
                   >
                     <Edit3 className="w-3 h-3 text-emerald-400" />
                     <span>Editar restante</span>

@@ -233,15 +233,18 @@ function computeSpoolsList(
     .filter((item) => filamentAdjustments[`__deleted__:${item.nombre}`] !== 1)
     .map((item, idx) => {
       const consumidosRedondeados = Math.round(item.gramosConsumidos);
-      const baseRestantes = Math.round(item.gramosIniciales - consumidosRedondeados);
+      const initAjuste = filamentAdjustments[`__init_adj__:${item.nombre}`] ?? 0;
+      const effectiveGramosIniciales = Math.max(0, Math.round(item.gramosIniciales + initAjuste));
+      const effectiveBobinas = Number((effectiveGramosIniciales / 1000).toFixed(1));
+      const baseRestantes = Math.round(effectiveGramosIniciales - consumidosRedondeados);
       const ajuste = filamentAdjustments[item.nombre] ?? 0;
       const gramosRestantes = Math.max(0, baseRestantes + ajuste);
       return {
         id: `spool-${idx}`,
         nombre: item.nombre,
-        gramosIniciales: item.gramosIniciales,
+        gramosIniciales: effectiveGramosIniciales,
         precioBobina: item.precioBobina,
-        bobinasCompradas: item.bobinasCompradas,
+        bobinasCompradas: effectiveBobinas,
         gramosConsumidos: consumidosRedondeados,
         gramosRestantes,
         ajusteManualGramos: ajuste,
@@ -812,6 +815,40 @@ export function useOperations() {
     [commitStateChange]
   );
 
+  const updateFilamentInitial = useCallback(
+    (spoolName: string, targetInitialGrams: number) => {
+      const currentSpools = computeSpoolsList(
+        operationsRef.current,
+        filamentAdjustmentsRef.current
+      );
+      const targetSpool = currentSpools.find((s) => s.nombre === spoolName);
+      if (!targetSpool) return;
+
+      const currentInitAdj = filamentAdjustmentsRef.current[`__init_adj__:${spoolName}`] ?? 0;
+      const rawBaseInitial = targetSpool.gramosIniciales - currentInitAdj;
+      const validInitial = Math.max(0, Math.round(targetInitialGrams));
+      const newInitAdjustment = validInitial - rawBaseInitial;
+
+      const nextAdj: Record<string, number> = {
+        ...filamentAdjustmentsRef.current,
+        [`__init_adj__:${spoolName}`]: newInitAdjustment,
+      };
+
+      // If user previously set a manual remaining grams value, keep that visible remaining value stable
+      if (filamentAdjustmentsRef.current[spoolName] !== undefined) {
+        const newBaseRestantes = validInitial - targetSpool.gramosConsumidos;
+        nextAdj[spoolName] = targetSpool.gramosRestantes - newBaseRestantes;
+      }
+
+      commitStateChange(
+        operationsRef.current,
+        nextAdj,
+        `Gramos iniciales de ${spoolName} actualizados a ${validInitial}g y guardado`
+      );
+    },
+    [commitStateChange]
+  );
+
   const deleteFilamentSpool = useCallback(
     (spoolName: string) => {
       const nextAdj = {
@@ -986,7 +1023,8 @@ export function useOperations() {
   // Financial Dashboard Statistics
   const stats = useMemo(() => {
     let totalIngresos = 0;
-    let totalCostes = 0;
+    let gastosProduccion = 0;
+    let gastosGenerales = 0;
     let totalBeneficio = 0;
     let pendienteCobro = 0;
 
@@ -998,7 +1036,12 @@ export function useOperations() {
       }
 
       const costTotal = Math.abs(op.costes || 0);
-      totalCostes += costTotal;
+      if (op.tipo === 'venta') {
+        gastosProduccion += costTotal;
+      } else if (op.tipo === 'compra' || op.tipo === 'inversion') {
+        gastosGenerales += costTotal;
+      }
+
       totalBeneficio += op.beneficio;
 
       if (
@@ -1016,7 +1059,9 @@ export function useOperations() {
 
     return {
       totalIngresos,
-      totalCostes,
+      gastosProduccion,
+      gastosGenerales,
+      totalCostes: gastosProduccion + gastosGenerales,
       totalBeneficio,
       pendienteCobro,
       count: filteredOperations.length,
@@ -1051,6 +1096,7 @@ export function useOperations() {
     addOperation,
     updateOperation,
     updateFilamentRemaining,
+    updateFilamentInitial,
     deleteFilamentSpool,
     attachQrToOperation,
     deleteOperation,

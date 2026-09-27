@@ -209,26 +209,23 @@ export function generateMonthlySalesPdf(
       accent: [30, 41, 59] as [number, number, number],
     },
     {
-      title: 'COSTES FILAMENTO',
+      title: 'GASTOS PRODUCCIÓN',
       value: formatEuro(costesVentas),
-      sub: `~${gramosConsumidos} g consumidos`,
-      color: [71, 85, 105] as [number, number, number],
-      accent: [100, 116, 139] as [number, number, number],
+      sub: `Solo filamento (~${gramosConsumidos} g)`,
+      color: [3, 105, 161] as [number, number, number],
+      accent: [14, 165, 233] as [number, number, number],
     },
     {
-      title: 'BENEFICIO VENTAS',
-      value: `${beneficioVentas >= 0 ? '+' : ''}${formatEuro(beneficioVentas)}`,
-      sub:
-        ingresosBrutos > 0
-          ? `Margen: ${Math.round((beneficioVentas / ingresosBrutos) * 100)}%`
-          : 'Margen: 0%',
-      color: [5, 150, 105] as [number, number, number],
-      accent: [16, 185, 129] as [number, number, number],
+      title: 'GASTOS EN GENERAL',
+      value: formatEuro(gastosCompras),
+      sub: `Bobinas y compras (${purchaseOps.length})`,
+      color: [225, 29, 72] as [number, number, number],
+      accent: [244, 63, 94] as [number, number, number],
     },
     {
       title: 'BALANCE NETO MES',
       value: `${balanceNetoTotal >= 0 ? '+' : ''}${formatEuro(balanceNetoTotal)}`,
-      sub: `Compras: ${formatEuro(gastosCompras)} (${purchaseOps.length})`,
+      sub: `Benef. ventas: +${formatEuro(beneficioVentas)}`,
       color:
         balanceNetoTotal >= 0
           ? ([5, 150, 105] as [number, number, number])

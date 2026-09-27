@@ -4,6 +4,8 @@ import { formatEuro } from '../utils/calculations';
 interface DashboardSummaryProps {
   stats: {
     totalIngresos: number;
+    gastosProduccion: number;
+    gastosGenerales: number;
     totalCostes: number;
     totalBeneficio: number;
     pendienteCobro: number;
@@ -15,8 +17,8 @@ export const DashboardSummary: React.FC<DashboardSummaryProps> = ({ stats }) => 
   return (
     <section className="px-3 sm:px-4 lg:px-6 pt-3 pb-1">
       <div className="max-w-[1600px] mx-auto">
-        {/* Responsive grid: 2 cols on mobile (Pendiente + Operaciones side by side), 5 cols on desktop */}
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-2.5 sm:gap-3">
+        {/* Responsive grid: 2 cols on mobile, 3 on tablet, 6 on desktop */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 sm:gap-3">
           
           {/* Ingresos / Ventas */}
           <div className="glass-card rounded-2xl p-3 sm:p-4 flex flex-col justify-between transition-all">
@@ -28,22 +30,43 @@ export const DashboardSummary: React.FC<DashboardSummaryProps> = ({ stats }) => 
                 {formatEuro(stats.totalIngresos)}
               </span>
             </div>
+            <span className="text-[10px] text-zinc-500 mt-0.5 truncate">
+              Facturación bruta
+            </span>
           </div>
 
-          {/* Costes */}
+          {/* Gastos de Producción (Solo Filamento de Ventas) */}
           <div className="glass-card rounded-2xl p-3 sm:p-4 flex flex-col justify-between transition-all">
-            <span className="text-[11px] sm:text-xs font-medium text-zinc-400">
-              Costes Totales
+            <span className="text-[11px] sm:text-xs font-medium text-sky-400/90">
+              Gastos de Producción
             </span>
             <div className="mt-1 flex items-baseline justify-between">
-              <span className="text-lg sm:text-2xl font-bold tracking-tight text-zinc-300 font-mono">
-                {formatEuro(stats.totalCostes)}
+              <span className="text-lg sm:text-2xl font-bold tracking-tight text-sky-300 font-mono">
+                {formatEuro(stats.gastosProduccion)}
               </span>
             </div>
+            <span className="text-[10px] text-zinc-500 mt-0.5 truncate">
+              Solo gasto de filamento
+            </span>
+          </div>
+
+          {/* Gastos en General / Total (Bobinas y Compras aparte) */}
+          <div className="glass-card rounded-2xl p-3 sm:p-4 flex flex-col justify-between transition-all">
+            <span className="text-[11px] sm:text-xs font-medium text-rose-400/90">
+              Gastos en General
+            </span>
+            <div className="mt-1 flex items-baseline justify-between">
+              <span className="text-lg sm:text-2xl font-bold tracking-tight text-rose-300 font-mono">
+                {formatEuro(stats.gastosGenerales)}
+              </span>
+            </div>
+            <span className="text-[10px] text-zinc-500 mt-0.5 truncate">
+              Bobinas y compras aparte
+            </span>
           </div>
 
           {/* Beneficio Neto */}
-          <div className="glass-card rounded-2xl p-3 sm:p-4 flex flex-col justify-between border-emerald-500/30 bg-emerald-950/20 col-span-2 lg:col-span-1 transition-all">
+          <div className="glass-card rounded-2xl p-3 sm:p-4 flex flex-col justify-between border-emerald-500/30 bg-emerald-950/20 transition-all">
             <span className="text-[11px] sm:text-xs font-medium text-emerald-400 flex items-center justify-between">
               <span>Beneficio Neto</span>
               <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
@@ -55,10 +78,13 @@ export const DashboardSummary: React.FC<DashboardSummaryProps> = ({ stats }) => 
                 {formatEuro(stats.totalBeneficio)}
               </span>
             </div>
+            <span className="text-[10px] text-emerald-300/70 mt-0.5 truncate">
+              Balance limpio
+            </span>
           </div>
 
           {/* Pendiente de cobro */}
-          <div className="glass-card rounded-2xl p-3 sm:p-4 flex flex-col justify-between col-span-1 transition-all">
+          <div className="glass-card rounded-2xl p-3 sm:p-4 flex flex-col justify-between transition-all">
             <span className="text-[11px] sm:text-xs font-medium text-amber-400/90">
               Pendiente
             </span>
@@ -67,10 +93,13 @@ export const DashboardSummary: React.FC<DashboardSummaryProps> = ({ stats }) => 
                 {formatEuro(stats.pendienteCobro)}
               </span>
             </div>
+            <span className="text-[10px] text-zinc-500 mt-0.5 truncate">
+              Por cobrar / envío
+            </span>
           </div>
 
-          {/* Operaciones Count - sits right next to Pendiente on mobile */}
-          <div className="glass-card rounded-2xl p-3 sm:p-4 flex flex-col justify-between col-span-1 transition-all">
+          {/* Operaciones Count */}
+          <div className="glass-card rounded-2xl p-3 sm:p-4 flex flex-col justify-between transition-all">
             <span className="text-[11px] sm:text-xs font-medium text-zinc-400">
               Operaciones
             </span>
@@ -80,6 +109,9 @@ export const DashboardSummary: React.FC<DashboardSummaryProps> = ({ stats }) => 
               </span>
               <span className="text-[10px] text-zinc-500 font-normal truncate">registros</span>
             </div>
+            <span className="text-[10px] text-zinc-500 mt-0.5 truncate">
+              En vista actual
+            </span>
           </div>
 
         </div>

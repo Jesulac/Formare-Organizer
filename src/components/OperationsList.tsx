@@ -319,7 +319,7 @@ export const OperationsList: React.FC<OperationsListProps> = ({
                       )}
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 border-t border-emerald-500/20 text-[11px]">
+                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 pt-1 border-t border-emerald-500/20 text-[11px]">
                     <div>
                       <span className="text-zinc-400 block">Bruto generado</span>
                       <span className="font-mono font-semibold text-white">
@@ -327,7 +327,13 @@ export const OperationsList: React.FC<OperationsListProps> = ({
                       </span>
                     </div>
                     <div>
-                      <span className="text-zinc-400 block">Gastado compras</span>
+                      <span className="text-zinc-400 block">Gastos producción</span>
+                      <span className="font-mono font-semibold text-sky-300">
+                        {formatEuro(monthSummary.costesVentas)}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-zinc-400 block">Gastos en general</span>
                       <span className="font-mono font-semibold text-rose-300">
                         {formatEuro(monthSummary.dineroGastadoCompras)}
                       </span>
@@ -636,16 +642,20 @@ export const OperationsList: React.FC<OperationsListProps> = ({
                             <span>Cierre Mensual: {monthSummary.monthLabel}</span>
                           </div>
                         </td>
-                        <td colSpan={2} className="py-2 px-2 text-zinc-300 font-mono whitespace-nowrap">
+                        <td className="py-2 px-2 text-zinc-300 font-mono whitespace-nowrap">
                           <span className="text-emerald-300 font-semibold">{monthSummary.numVentas}</span> ventas ·{' '}
                           <span className="text-rose-300 font-semibold">{monthSummary.numPedidos}</span> pedidos
+                        </td>
+                        <td className="py-2 px-2 text-right font-mono font-semibold text-sky-300 whitespace-nowrap">
+                          <span className="text-[9px] text-zinc-400 block uppercase">Gastos Producción</span>
+                          {formatEuro(monthSummary.costesVentas)}
                         </td>
                         <td className="py-2 px-2 text-right font-mono font-bold text-white whitespace-nowrap">
                           <span className="text-[9px] text-zinc-400 block uppercase">Bruto</span>
                           {formatEuro(monthSummary.dineroBruto)}
                         </td>
                         <td className="py-2 px-2 text-right font-mono font-semibold text-rose-300 whitespace-nowrap">
-                          <span className="text-[9px] text-zinc-400 block uppercase">Gasto Compras</span>
+                          <span className="text-[9px] text-zinc-400 block uppercase">Gastos en General</span>
                           {formatEuro(monthSummary.dineroGastadoCompras)}
                         </td>
                         <td className="py-2 px-2 text-right font-mono font-extrabold whitespace-nowrap">
