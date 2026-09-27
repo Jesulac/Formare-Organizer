@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { Operation, Status, MonthlySummary, ShippingCompany } from '../types/operation';
-import { formatEuro, formatDateDisplay, parseDate, compressImageFile } from '../utils/calculations';
+import { formatEuro, formatDateDisplay, parseDate, compressImageFile, calculateSandraCommission } from '../utils/calculations';
 import { StatusPill } from './StatusPill';
 import { 
   Edit3, 
@@ -125,6 +125,7 @@ export const OperationsList: React.FC<OperationsListProps> = ({
           const currentMonthKey = getMonthKey(op.fecha);
           const isLastOfMonth = lastIndexByMonth.get(currentMonthKey) === index;
           const monthSummary = isLastOfMonth ? monthlySummaries[currentMonthKey] : null;
+          const comisionSandra = calculateSandraCommission(op.precio, op.vendedor, op.tipo);
 
           return (
             <React.Fragment key={op.id}>
@@ -192,7 +193,7 @@ export const OperationsList: React.FC<OperationsListProps> = ({
                 )}
 
                 {/* Card Bottom Row: Financial Values & Units Stepper */}
-                <div className="grid grid-cols-4 items-center gap-2 pt-2 border-t border-white/5 text-xs">
+                <div className={`grid ${comisionSandra > 0 ? 'grid-cols-5' : 'grid-cols-4'} items-center gap-2 pt-2 border-t border-white/5 text-xs`}>
                   <div>
                     <span className="text-[10px] text-zinc-500 uppercase tracking-wider block">
                       Precio
@@ -210,6 +211,17 @@ export const OperationsList: React.FC<OperationsListProps> = ({
                       {formatEuro(op.costes)}
                     </span>
                   </div>
+
+                  {comisionSandra > 0 && (
+                    <div>
+                      <span className="text-[10px] text-rose-400/90 uppercase tracking-wider block">
+                        × 0,15
+                      </span>
+                      <span className="font-mono font-semibold text-rose-300">
+                        {formatEuro(comisionSandra)}
+                      </span>
+                    </div>
+                  )}
 
                   <div onClick={(e) => e.stopPropagation()}>
                     <span className="text-[10px] text-zinc-500 uppercase tracking-wider block">
@@ -393,7 +405,7 @@ export const OperationsList: React.FC<OperationsListProps> = ({
           ref={tableScrollRef}
           className="w-full max-w-full overflow-x-auto overscroll-x-contain scroll-smooth custom-table-scroll"
         >
-          <table className="w-full min-w-[980px] text-left text-[11px] border-collapse table-auto">
+          <table className="w-full min-w-[1040px] text-left text-[11px] border-collapse table-auto">
             <thead>
               <tr className="border-b border-white/10 bg-zinc-950/95 text-zinc-300 text-[10px] font-bold uppercase tracking-wider">
                 <th className="py-2.5 px-2 whitespace-nowrap">Fecha</th>
@@ -402,6 +414,9 @@ export const OperationsList: React.FC<OperationsListProps> = ({
                 <th className="py-2.5 px-2 text-center whitespace-nowrap">Unidades</th>
                 <th className="py-2.5 px-2 min-w-[110px]">Material</th>
                 <th className="py-2.5 px-2 text-right whitespace-nowrap">Precio</th>
+                <th className="py-2.5 px-2 text-right whitespace-nowrap" title="Precio × 0,15 cuando el vendedor es Sandra o Jorge, Sandra (se suma a Gastos en General)">
+                  Precio × 0,15
+                </th>
                 <th className="py-2.5 px-2 text-right whitespace-nowrap">Costes</th>
                 <th className="py-2.5 px-2 text-right whitespace-nowrap">Beneficio</th>
                 <th className="py-2.5 px-2 whitespace-nowrap">Lugar</th>
@@ -418,6 +433,7 @@ export const OperationsList: React.FC<OperationsListProps> = ({
                 const isCompra = op.tipo === 'compra' || op.tipo === 'inversion';
                 const isConfirmingDelete = confirmDeleteId === op.id;
                 const isHighlighted = lastModifiedId === op.id;
+                const comisionSandra = calculateSandraCommission(op.precio, op.vendedor, op.tipo);
 
                 const currentMonthKey = getMonthKey(op.fecha);
                 const isLastOfMonth = lastIndexByMonth.get(currentMonthKey) === index;
@@ -496,6 +512,17 @@ export const OperationsList: React.FC<OperationsListProps> = ({
                       {/* Precio */}
                       <td className="py-2 px-2 text-right font-mono font-medium text-zinc-100 whitespace-nowrap align-middle">
                         {op.precio !== null ? formatEuro(op.precio) : '—'}
+                      </td>
+
+                      {/* Precio × 0,15 (Solo para Sandra o Jorge, Sandra -> se suma a Gastos en General) */}
+                      <td className="py-2 px-2 text-right font-mono whitespace-nowrap align-middle">
+                        {comisionSandra > 0 ? (
+                          <span className="inline-block px-1.5 py-0.5 rounded bg-rose-500/15 text-rose-300 border border-rose-500/25 font-semibold text-[10px]">
+                            {formatEuro(comisionSandra)}
+                          </span>
+                        ) : (
+                          <span className="text-zinc-600">—</span>
+                        )}
                       </td>
 
                       {/* Costes */}
@@ -664,7 +691,7 @@ export const OperationsList: React.FC<OperationsListProps> = ({
                             {formatEuro(monthSummary.dineroNeto)}
                           </span>
                         </td>
-                        <td colSpan={7} className="py-2 px-2 text-zinc-300 font-mono whitespace-nowrap">
+                        <td colSpan={8} className="py-2 px-2 text-zinc-300 font-mono whitespace-nowrap">
                           <div className="flex items-center justify-between gap-2">
                             <span>
                               Filamento consumido en {monthSummary.monthLabel}:{' '}

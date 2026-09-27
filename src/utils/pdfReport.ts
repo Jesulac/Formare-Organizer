@@ -1,6 +1,7 @@
 import { jsPDF } from 'jspdf';
 import { Operation } from '../types/operation';
 import {
+  calculateSandraCommission,
   formatDateDisplay,
   formatEuro,
   getOperationConsumedGrams,
@@ -91,10 +92,13 @@ export function generateMonthlySalesPdf(
     0
   );
   const beneficioVentas = ingresosBrutos - costesVentas;
-  const gastosCompras = purchaseOps.reduce(
-    (acc, op) => acc + Math.abs(op.costes || 0),
+  const comisionesSandraMes = salesOps.reduce(
+    (acc, op) => acc + calculateSandraCommission(op.precio, op.vendedor, op.tipo),
     0
   );
+  const gastosCompras =
+    purchaseOps.reduce((acc, op) => acc + Math.abs(op.costes || 0), 0) +
+    comisionesSandraMes;
   const balanceNetoTotal = beneficioVentas;
   const gramosConsumidos = salesOps.reduce(
     (acc, op) => acc + getOperationConsumedGrams(op, 15.99),
@@ -215,7 +219,10 @@ export function generateMonthlySalesPdf(
     {
       title: 'GASTOS EN GENERAL',
       value: formatEuro(gastosCompras),
-      sub: `Bobinas y compras (${purchaseOps.length})`,
+      sub:
+        comisionesSandraMes > 0
+          ? `Compras (${purchaseOps.length}) + 15% Sandra`
+          : `Bobinas y compras (${purchaseOps.length})`,
       color: [225, 29, 72] as [number, number, number],
       accent: [244, 63, 94] as [number, number, number],
     },

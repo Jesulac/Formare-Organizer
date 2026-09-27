@@ -18,9 +18,10 @@ interface ServerPersistedState {
   clientId?: string;
   operations: any[] | null;
   filamentAdjustments: Record<string, number>;
+  deletedOperationIds?: string[];
 }
 
-const TMP_DB_FILE = path.join(os.tmpdir(), 'formare3d-operations-db.json');
+const TMP_DB_FILE = path.join(os.tmpdir(), 'formare3d-operations-runtime-v6.json');
 const REPO_DB_FILE = path.join(process.cwd(), 'data', 'operations-db.json');
 
 function loadServerlessState(): ServerPersistedState {
@@ -44,16 +45,20 @@ function loadServerlessState(): ServerPersistedState {
             isTmp && typeof parsed.updatedAt === 'number' ? parsed.updatedAt : 1;
           const clientId = isTmp && parsed.clientId ? parsed.clientId : 'server-init';
           const state: ServerPersistedState = {
-            version: 5,
+            version: 6,
             revision: rev,
             updatedAt,
-            syncId: parsed.syncId || `${rev}-${updatedAt}-${clientId}`,
+            syncId: isTmp && parsed.syncId ? parsed.syncId : `${rev}-${updatedAt}-${clientId}`,
             clientId,
             operations: parsed.operations,
             filamentAdjustments:
               parsed.filamentAdjustments && typeof parsed.filamentAdjustments === 'object'
                 ? parsed.filamentAdjustments
                 : {},
+            deletedOperationIds:
+              isTmp && Array.isArray(parsed.deletedOperationIds)
+                ? parsed.deletedOperationIds
+                : [],
           };
           g.__FORMARE3D_STATE__ = state;
           return state;
@@ -65,13 +70,14 @@ function loadServerlessState(): ServerPersistedState {
   }
 
   const fallback: ServerPersistedState = {
-    version: 5,
+    version: 6,
     revision: 1,
     updatedAt: 1,
     syncId: '1-1-server-init',
     clientId: 'server-init',
     operations: null,
     filamentAdjustments: {},
+    deletedOperationIds: [],
   };
   g.__FORMARE3D_STATE__ = fallback;
   return fallback;
@@ -124,6 +130,7 @@ export default function handler(req: any, res: any) {
       const {
         operations,
         filamentAdjustments = {},
+        deletedOperationIds = [],
         revision: incomingRevision = 1,
         clientId = 'unknown',
       } = body;
@@ -140,8 +147,15 @@ export default function handler(req: any, res: any) {
       const updatedAt = Math.max(Date.now(), (current.updatedAt || 1) + 1);
       const syncId = `${nextRevision}-${updatedAt}-${clientId}`;
 
+      const mergedDeleted = Array.from(
+        new Set([
+          ...(Array.isArray(current.deletedOperationIds) ? current.deletedOperationIds : []),
+          ...(Array.isArray(deletedOperationIds) ? deletedOperationIds : []),
+        ])
+      );
+
       const nextState: ServerPersistedState = {
-        version: 5,
+        version: 6,
         revision: nextRevision,
         updatedAt,
         syncId,
@@ -151,6 +165,7 @@ export default function handler(req: any, res: any) {
           filamentAdjustments && typeof filamentAdjustments === 'object'
             ? filamentAdjustments
             : {},
+        deletedOperationIds: mergedDeleted,
       };
 
       saveServerlessState(nextState);

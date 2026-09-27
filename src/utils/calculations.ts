@@ -86,6 +86,42 @@ export function calculateBeneficio(
 }
 
 /**
+ * Calculate the 15% general expense for sales where the seller is "Sandra" or "Jorge, Sandra" (precio * 0.15)
+ */
+export function calculateSandraExpense(
+  op: Pick<Operation, 'tipo' | 'precio' | 'vendedor'>
+): number {
+  if (op.tipo !== 'venta') return 0;
+  const vendedorNorm = (op.vendedor || '').toLowerCase();
+  if (!vendedorNorm.includes('sandra')) return 0;
+  const precio = op.precio && op.precio > 0 ? op.precio : 0;
+  if (precio <= 0) return 0;
+  return Number((precio * 0.15).toFixed(2));
+}
+
+/**
+ * Check if seller includes Sandra ("Sandra" or "Jorge, Sandra")
+ */
+export function hasSandraSeller(vendedor?: string): boolean {
+  if (!vendedor) return false;
+  return vendedor.toLowerCase().includes('sandra');
+}
+
+/**
+ * Calculate 15% (precio * 0.15) general expense when seller is "Sandra" or "Jorge, Sandra"
+ */
+export function calculateSandraCommission(
+  precio: number | null | undefined,
+  vendedor?: string,
+  tipo: OperationType = 'venta'
+): number {
+  if (tipo !== 'venta') return 0;
+  if (!hasSandraSeller(vendedor)) return 0;
+  const p = precio && precio > 0 ? precio : 0;
+  return Number((p * 0.15).toFixed(2));
+}
+
+/**
  * Add calendar days to a Date
  */
 function addCalendarDays(date: Date, days: number): Date {

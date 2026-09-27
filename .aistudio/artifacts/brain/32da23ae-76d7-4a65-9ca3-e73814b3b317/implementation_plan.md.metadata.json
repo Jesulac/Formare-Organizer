@@ -1,0 +1,6 @@
+{
+  "summary":  "Plan de implementación para blindar los datos locales y de servidor frente a despliegues (fusión inteligente sin pérdida de registros) y añadir la columna de comisión 15% (precio × 0,15) para ventas de Sandra o Jorge, Sandra sumándose automáticamente a Gastos en General.",
+  "updatedAt":  "2026-09-27T20:44:45.319019116Z",
+  "requestFeedback":  true,
+  "userFacing":  true
+}

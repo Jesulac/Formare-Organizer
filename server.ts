@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import express, { Response } from 'express';
 import fs from 'fs';
+import os from 'os';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { processVoiceOperationRequest } from './src/server/voiceAiService';
@@ -9,8 +10,9 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const DATA_DIR = path.join(__dirname, 'data');
-const DB_FILE = path.join(DATA_DIR, 'operations-db.json');
-const DB_TMP_FILE = path.join(DATA_DIR, 'operations-db.json.tmp');
+const SEED_DB_FILE = path.join(DATA_DIR, 'operations-db.json');
+const RUNTIME_DB_FILE = path.join(os.tmpdir(), 'formare3d-operations-runtime-v6.json');
+const RUNTIME_TMP_FILE = path.join(os.tmpdir(), 'formare3d-operations-runtime-v6.json.tmp');
 
 interface ServerPersistedState {
   version: number;
@@ -20,26 +22,21 @@ interface ServerPersistedState {
   clientId?: string;
   operations: any[] | null;
   filamentAdjustments: Record<string, number>;
-}
-
-function ensureDataDir() {
-  if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
-  }
+  deletedOperationIds?: string[];
 }
 
 function loadStateFromDisk(): ServerPersistedState {
+  // 1. Check runtime file in tmpdir (live session edits outside git-tracked repo)
   try {
-    ensureDataDir();
-    if (fs.existsSync(DB_FILE)) {
-      const content = fs.readFileSync(DB_FILE, 'utf-8');
+    if (fs.existsSync(RUNTIME_DB_FILE)) {
+      const content = fs.readFileSync(RUNTIME_DB_FILE, 'utf-8');
       const parsed = JSON.parse(content);
       if (parsed && Array.isArray(parsed.operations)) {
         const revision =
-          typeof parsed.revision === 'number' && parsed.revision >= 1 ? parsed.revision : 2;
+          typeof parsed.revision === 'number' && parsed.revision >= 1 ? parsed.revision : 1;
         const updatedAt =
-          typeof parsed.updatedAt === 'number' ? parsed.updatedAt : Date.now();
-        const clientId = parsed.clientId || 'server-persisted';
+          typeof parsed.updatedAt === 'number' ? parsed.updatedAt : 1;
+        const clientId = parsed.clientId || 'server-init';
         return {
           version: 6,
           revision,
@@ -51,12 +48,41 @@ function loadStateFromDisk(): ServerPersistedState {
             parsed.filamentAdjustments && typeof parsed.filamentAdjustments === 'object'
               ? parsed.filamentAdjustments
               : {},
+          deletedOperationIds: Array.isArray(parsed.deletedOperationIds)
+            ? parsed.deletedOperationIds
+            : [],
         };
       }
     }
   } catch (err) {
-    console.error('Error reading operations DB from disk:', err);
+    console.error('Error reading runtime operations DB:', err);
   }
+
+  // 2. Fallback to read-only repository seed (always marked as server-init so browser data takes precedence)
+  try {
+    if (fs.existsSync(SEED_DB_FILE)) {
+      const content = fs.readFileSync(SEED_DB_FILE, 'utf-8');
+      const parsed = JSON.parse(content);
+      if (parsed && Array.isArray(parsed.operations)) {
+        return {
+          version: 6,
+          revision: 1,
+          updatedAt: 1,
+          syncId: '1-1-server-init',
+          clientId: 'server-init',
+          operations: parsed.operations,
+          filamentAdjustments:
+            parsed.filamentAdjustments && typeof parsed.filamentAdjustments === 'object'
+              ? parsed.filamentAdjustments
+              : {},
+          deletedOperationIds: [],
+        };
+      }
+    }
+  } catch (err) {
+    console.error('Error reading seed operations DB:', err);
+  }
+
   return {
     version: 6,
     revision: 1,
@@ -65,6 +91,7 @@ function loadStateFromDisk(): ServerPersistedState {
     clientId: 'server-init',
     operations: null,
     filamentAdjustments: {},
+    deletedOperationIds: [],
   };
 }
 
@@ -73,16 +100,15 @@ const sseClients = new Set<Response>();
 
 function saveStateToDisk(state: ServerPersistedState) {
   try {
-    ensureDataDir();
     const serialized = JSON.stringify(state, null, 2);
-    fs.writeFileSync(DB_TMP_FILE, serialized, 'utf-8');
-    fs.renameSync(DB_TMP_FILE, DB_FILE);
+    fs.writeFileSync(RUNTIME_TMP_FILE, serialized, 'utf-8');
+    fs.renameSync(RUNTIME_TMP_FILE, RUNTIME_DB_FILE);
   } catch (err) {
-    console.error('Error writing operations DB to disk:', err);
+    console.error('Error writing runtime operations DB:', err);
     try {
-      fs.writeFileSync(DB_FILE, JSON.stringify(state, null, 2), 'utf-8');
+      fs.writeFileSync(RUNTIME_DB_FILE, JSON.stringify(state, null, 2), 'utf-8');
     } catch (fallbackErr) {
-      console.error('Fallback write error:', fallbackErr);
+      console.error('Fallback runtime write error:', fallbackErr);
     }
   }
 }
@@ -160,6 +186,7 @@ async function startServer() {
       const {
         operations,
         filamentAdjustments = {},
+        deletedOperationIds = [],
         revision: incomingRevision = 1,
         clientId = 'unknown',
       } = req.body || {};
@@ -175,6 +202,15 @@ async function startServer() {
       const updatedAt = Math.max(Date.now(), (currentServerState.updatedAt || 1) + 1);
       const syncId = `${nextRevision}-${updatedAt}-${clientId}`;
 
+      const mergedDeleted = Array.from(
+        new Set([
+          ...(Array.isArray(currentServerState.deletedOperationIds)
+            ? currentServerState.deletedOperationIds
+            : []),
+          ...(Array.isArray(deletedOperationIds) ? deletedOperationIds : []),
+        ])
+      );
+
       currentServerState = {
         version: 6,
         revision: nextRevision,
@@ -186,6 +222,7 @@ async function startServer() {
           filamentAdjustments && typeof filamentAdjustments === 'object'
             ? filamentAdjustments
             : {},
+        deletedOperationIds: mergedDeleted,
       };
 
       saveStateToDisk(currentServerState);

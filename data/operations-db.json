@@ -1,7 +1,9 @@
 {
-  "version": 5,
+  "version": 6,
   "revision": 1,
   "updatedAt": 1,
+  "syncId": "1-1-server-init",
+  "clientId": "server-init",
   "operations": [
     {
       "id": "op-1",
@@ -2635,5 +2637,8 @@
       "esPedidoFilamento": false
     }
   ],
-  "filamentAdjustments": {}
+  "filamentAdjustments": {
+    "PETG Negro CF (Bambu / Elegoo)": 119,
+    "PETG Negro (Elegoo)": -4559
+  }
 }

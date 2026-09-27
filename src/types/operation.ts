@@ -51,6 +51,7 @@ export interface Operation {
   fechaSubidaQr?: number; // Timestamp in ms when QR was uploaded (auto-deletes after 10 days)
   esPedidoFilamento?: boolean; // True if purchase is a 1000g filament spool order
   createdAt: number;
+  updatedAt?: number;
 }
 
 export interface ProductCatalogItem {

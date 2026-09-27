@@ -32,6 +32,7 @@ import {
 import { 
   calculateBeneficio, 
   calculateDeadlineDate,
+  calculateSandraCommission,
   compressImageFile,
   formatDateDisplay,
   formatDateInput, 
@@ -265,6 +266,13 @@ export const OperationModal: React.FC<OperationModalProps> = ({
   const autoFechaLimite = calculateDeadlineDate(fecha, lugarVenta, tipo);
   const effectiveFechaLimite = tipo === 'venta' ? (fechaLimiteCustom || autoFechaLimite) : '';
   const previewBeneficio = calculateBeneficio(precioNum, costesNum, 0, tipo);
+  const effectiveVendedorPreview =
+    vendedorSelect === 'Otro' ? vendedorCustom.trim() || 'Otro' : vendedorSelect;
+  const previewSandraCommission = calculateSandraCommission(
+    precioNum,
+    effectiveVendedorPreview,
+    tipo
+  );
 
   // Apply extracted AI data into all form fields
   const applyExtractedAiData = (data: any) => {
@@ -1304,6 +1312,17 @@ export const OperationModal: React.FC<OperationModalProps> = ({
                 placeholder="Escribe el nombre del vendedor..."
                 className="w-full bg-zinc-900/90 border border-white/10 rounded-xl px-3 py-2 text-xs text-white"
               />
+            </div>
+          )}
+
+          {previewSandraCommission > 0 && (
+            <div className="p-2.5 rounded-xl bg-rose-950/30 border border-rose-500/30 flex items-center justify-between text-xs">
+              <span className="text-rose-200/90">
+                Precio × 0,15 ({effectiveVendedorPreview}) → <strong className="text-rose-300">Gastos en General</strong>:
+              </span>
+              <span className="font-mono font-bold text-rose-300">
+                {formatEuro(previewSandraCommission)}
+              </span>
             </div>
           )}
 

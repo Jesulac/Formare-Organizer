@@ -21,6 +21,7 @@ export interface PersistedPayload {
   clientId?: string;
   operations: Operation[];
   filamentAdjustments?: Record<string, number>;
+  deletedOperationIds?: string[];
 }
 
 let broadcastChannel: BroadcastChannel | null = null;
@@ -34,19 +35,21 @@ if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
 
 export function computeStateFingerprint(
   operations: Operation[],
-  filamentAdjustments?: Record<string, number>
+  filamentAdjustments?: Record<string, number>,
+  deletedOperationIds?: string[]
 ): string {
   const opsPart = operations
     .map(
       (op) =>
-        `${op.id}:${op.producto}:${op.unidades ?? 1}:${op.precio ?? 0}:${op.costes ?? 0}:${op.estado}:${op.lugarVenta}:${op.fecha}:${op.fechaLimite ?? ''}:${op.vendedor ?? ''}:${op.material ?? ''}:${op.comentarios ?? ''}:${op.fotoQr ? op.fotoQr.length : 0}:${op.empresaEnvio ?? ''}`
+        `${op.id}:${op.producto}:${op.unidades ?? 1}:${op.precio ?? 0}:${op.costes ?? 0}:${op.costesOperativos ?? 0}:${op.estado}:${op.lugarVenta}:${op.fecha}:${op.fechaLimite ?? ''}:${op.vendedor ?? ''}:${op.material ?? ''}:${op.comentarios ?? ''}:${op.fotoQr ? op.fotoQr.length : 0}:${op.empresaEnvio ?? ''}`
     )
     .join('|');
   const adjEntries = Object.entries(filamentAdjustments || {}).sort(([a], [b]) =>
     a.localeCompare(b)
   );
   const adjPart = adjEntries.map(([k, v]) => `${k}=${v}`).join(',');
-  return `${operations.length}#${opsPart}#${adjPart}`;
+  const delPart = (deletedOperationIds || []).slice().sort().join(',');
+  return `${operations.length}#${opsPart}#${adjPart}#${delPart}`;
 }
 
 function normalizePayload(parsed: any): PersistedPayload | null {
@@ -54,7 +57,15 @@ function normalizePayload(parsed: any): PersistedPayload | null {
   const revision =
     typeof parsed.revision === 'number' && parsed.revision >= 1 ? parsed.revision : 1;
   const updatedAt = typeof parsed.updatedAt === 'number' ? parsed.updatedAt : 1;
-  const clientId = parsed.clientId || 'local-init';
+  const hasUserTimestampOrRev =
+    (typeof parsed.updatedAt === 'number' && parsed.updatedAt > 1) ||
+    (typeof parsed.revision === 'number' && parsed.revision > 1);
+  const clientId =
+    parsed.clientId ||
+    (hasUserTimestampOrRev ? 'user-local-persisted' : 'local-init');
+  const deletedOperationIds = Array.isArray(parsed.deletedOperationIds)
+    ? parsed.deletedOperationIds.filter((id: any) => typeof id === 'string')
+    : [];
   return {
     version: 6,
     revision,
@@ -66,6 +77,158 @@ function normalizePayload(parsed: any): PersistedPayload | null {
       parsed.filamentAdjustments && typeof parsed.filamentAdjustments === 'object'
         ? parsed.filamentAdjustments
         : {},
+    deletedOperationIds,
+  };
+}
+
+export function isUserEditedPayload(payload: PersistedPayload | null | undefined): boolean {
+  if (!payload) return false;
+  if (payload.clientId === 'server-init' || payload.clientId === 'local-init') {
+    return false;
+  }
+  return Boolean(payload.clientId) || (payload.updatedAt || 0) > 1 || (payload.revision || 0) > 1;
+}
+
+/**
+ * Non-destructively merge local and remote payloads so that a redeploy or cold-start
+ * never overwrites or loses user-created or user-edited operations.
+ * Always keeps the most recently updated version of each operation and respects explicit deletions.
+ */
+export function mergePersistedPayloads(
+  local: PersistedPayload,
+  remote: PersistedPayload
+): { merged: PersistedPayload; needsServerPush: boolean } {
+  const remoteIsInit =
+    !remote.clientId || remote.clientId === 'server-init' || remote.updatedAt <= 1;
+  const localHasEdits = isUserEditedPayload(local);
+
+  // Case 1: Server is on fresh deploy/cold-start seed (server-init) and browser has user data.
+  // Keep browser state 100% intact and push it to the server immediately.
+  if (remoteIsInit && localHasEdits) {
+    const localDeleted = Array.from(new Set(local.deletedOperationIds || []));
+    const localDeletedSet = new Set(localDeleted);
+    const cleanLocalOps = (local.operations || []).filter(
+      (op) => op && op.id && !localDeletedSet.has(op.id)
+    );
+    const nextRev = Math.max(local.revision || 1, remote.revision || 1);
+    const nextUpd = Math.max(local.updatedAt || Date.now(), 2);
+    const winClient = local.clientId || CLIENT_INSTANCE_ID;
+    return {
+      merged: {
+        version: 6,
+        revision: nextRev,
+        updatedAt: nextUpd,
+        syncId: `${nextRev}-${nextUpd}-${winClient}`,
+        clientId: winClient,
+        operations: cleanLocalOps,
+        filamentAdjustments: { ...(local.filamentAdjustments || {}) },
+        deletedOperationIds: localDeleted,
+      },
+      needsServerPush: true,
+    };
+  }
+
+  // Case 2: Browser has only initial seed (no user edits) and server has real user data.
+  if (!localHasEdits && !remoteIsInit) {
+    const remoteDeleted = Array.from(new Set(remote.deletedOperationIds || []));
+    const remoteDeletedSet = new Set(remoteDeleted);
+    const cleanRemoteOps = (remote.operations || []).filter(
+      (op) => op && op.id && !remoteDeletedSet.has(op.id)
+    );
+    return {
+      merged: {
+        version: 6,
+        revision: remote.revision || 1,
+        updatedAt: remote.updatedAt || Date.now(),
+        syncId:
+          remote.syncId ||
+          `${remote.revision || 1}-${remote.updatedAt || 1}-${remote.clientId || 'remote'}`,
+        clientId: remote.clientId || CLIENT_INSTANCE_ID,
+        operations: cleanRemoteOps,
+        filamentAdjustments: { ...(remote.filamentAdjustments || {}) },
+        deletedOperationIds: remoteDeleted,
+      },
+      needsServerPush: false,
+    };
+  }
+
+  // Case 3: Both local and remote have user edits (or both are init). Merge per operation ID.
+  const deletedSet = new Set<string>([
+    ...(local.deletedOperationIds || []),
+    ...(remote.deletedOperationIds || []),
+  ]);
+
+  const localMap = new Map<string, Operation>();
+  for (const op of local.operations || []) {
+    if (op && op.id && !deletedSet.has(op.id)) {
+      localMap.set(op.id, op);
+    }
+  }
+
+  const remoteMap = new Map<string, Operation>();
+  for (const op of remote.operations || []) {
+    if (op && op.id && !deletedSet.has(op.id)) {
+      remoteMap.set(op.id, op);
+    }
+  }
+
+  const allIds = new Set<string>([...localMap.keys(), ...remoteMap.keys()]);
+  const mergedOps: Operation[] = [];
+  let localContributedNewer = false;
+
+  for (const id of allIds) {
+    if (deletedSet.has(id)) continue;
+    const lOp = localMap.get(id);
+    const rOp = remoteMap.get(id);
+
+    if (lOp && !rOp) {
+      mergedOps.push(lOp);
+      localContributedNewer = true;
+    } else if (!lOp && rOp) {
+      mergedOps.push(rOp);
+    } else if (lOp && rOp) {
+      const lTime = lOp.updatedAt || lOp.createdAt || local.updatedAt || 0;
+      const rTime = rOp.updatedAt || rOp.createdAt || remote.updatedAt || 0;
+      if (lTime > rTime || (lTime === rTime && local.updatedAt >= remote.updatedAt)) {
+        mergedOps.push(lOp);
+        if (lTime > rTime) localContributedNewer = true;
+      } else {
+        mergedOps.push(rOp);
+      }
+    }
+  }
+
+  const localIsNewerOverall = local.updatedAt >= remote.updatedAt;
+
+  const mergedAdjustments: Record<string, number> = localIsNewerOverall
+    ? { ...(remote.filamentAdjustments || {}), ...(local.filamentAdjustments || {}) }
+    : { ...(local.filamentAdjustments || {}), ...(remote.filamentAdjustments || {}) };
+
+  const nextRevision = Math.max(local.revision || 1, remote.revision || 1);
+  const nextUpdatedAt = Math.max(local.updatedAt || 1, remote.updatedAt || 1);
+  const winningClientId = localIsNewerOverall
+    ? local.clientId || CLIENT_INSTANCE_ID
+    : remote.clientId || local.clientId || CLIENT_INSTANCE_ID;
+
+  const needsServerPush =
+    local.updatedAt > remote.updatedAt ||
+    localContributedNewer ||
+    (local.deletedOperationIds || []).some(
+      (id) => !(remote.deletedOperationIds || []).includes(id)
+    );
+
+  return {
+    merged: {
+      version: 6,
+      revision: nextRevision,
+      updatedAt: nextUpdatedAt,
+      syncId: `${nextRevision}-${nextUpdatedAt}-${winningClientId}`,
+      clientId: winningClientId,
+      operations: mergedOps,
+      filamentAdjustments: mergedAdjustments,
+      deletedOperationIds: Array.from(deletedSet),
+    },
+    needsServerPush,
   };
 }
 
@@ -94,6 +257,7 @@ export async function saveToIndexedDB(payload: PersistedPayload): Promise<void> 
       const tx = db.transaction(IDB_STORE, 'readwrite');
       const store = tx.objectStore(IDB_STORE);
       store.put(payload, IDB_KEY);
+      store.put(payload, PREV_IDB_KEY_V5);
       tx.oncomplete = () => resolve();
       tx.onerror = () => reject(tx.error);
     });
@@ -110,11 +274,20 @@ export async function loadFromIndexedDB(): Promise<PersistedPayload | null> {
       const tx = db.transaction(IDB_STORE, 'readonly');
       const store = tx.objectStore(IDB_STORE);
       const tryKeys = [IDB_KEY, PREV_IDB_KEY_V5, PREV_IDB_KEY];
+      const foundPayloads: PersistedPayload[] = [];
       let idx = 0;
 
       const next = () => {
         if (idx >= tryKeys.length) {
-          resolve(null);
+          if (foundPayloads.length === 0) {
+            resolve(null);
+            return;
+          }
+          let combined = foundPayloads[0];
+          for (let i = 1; i < foundPayloads.length; i++) {
+            combined = mergePersistedPayloads(combined, foundPayloads[i]).merged;
+          }
+          resolve(combined);
           return;
         }
         const key = tryKeys[idx++];
@@ -122,10 +295,9 @@ export async function loadFromIndexedDB(): Promise<PersistedPayload | null> {
         req.onsuccess = () => {
           const norm = normalizePayload(req.result);
           if (norm) {
-            resolve(norm);
-          } else {
-            next();
+            foundPayloads.push(norm);
           }
+          next();
         };
         req.onerror = () => next();
       };
@@ -141,13 +313,28 @@ export async function loadFromIndexedDB(): Promise<PersistedPayload | null> {
 
 export function loadFromLocalStorageSync(): PersistedPayload | null {
   try {
+    const foundPayloads: PersistedPayload[] = [];
     for (const key of [LOCAL_STORAGE_KEY, PREV_STORAGE_KEY_V5, PREV_STORAGE_KEY_V3]) {
       const raw = localStorage.getItem(key);
       if (raw) {
-        const parsed = JSON.parse(raw);
-        const norm = normalizePayload(parsed);
-        if (norm) return norm;
+        try {
+          const parsed = JSON.parse(raw);
+          const norm = normalizePayload(parsed);
+          if (norm) {
+            foundPayloads.push(norm);
+          }
+        } catch {
+          // Continue checking other keys
+        }
       }
+    }
+
+    if (foundPayloads.length > 0) {
+      let combined = foundPayloads[0];
+      for (let i = 1; i < foundPayloads.length; i++) {
+        combined = mergePersistedPayloads(combined, foundPayloads[i]).merged;
+      }
+      return combined;
     }
 
     const legacyRaw = localStorage.getItem(LEGACY_STORAGE_KEY);
@@ -156,12 +343,13 @@ export function loadFromLocalStorageSync(): PersistedPayload | null {
       if (Array.isArray(parsedLegacy) && parsedLegacy.length > 0) {
         return {
           version: 6,
-          revision: 1,
-          updatedAt: 1,
-          syncId: '1-1-legacy',
+          revision: 2,
+          updatedAt: 2,
+          syncId: '2-2-legacy',
           clientId: 'legacy',
           operations: parsedLegacy,
           filamentAdjustments: {},
+          deletedOperationIds: [],
         };
       }
     }
@@ -175,6 +363,7 @@ export function saveToLocalStorageSync(payload: PersistedPayload): void {
   try {
     const serialized = JSON.stringify(payload);
     localStorage.setItem(LOCAL_STORAGE_KEY, serialized);
+    localStorage.setItem(PREV_STORAGE_KEY_V5, serialized);
   } catch {
     try {
       const lightweightPayload: PersistedPayload = {
@@ -184,7 +373,9 @@ export function saveToLocalStorageSync(payload: PersistedPayload): void {
           fotoQr: op.fotoQr && op.fotoQr.length > 40000 ? undefined : op.fotoQr,
         })),
       };
-      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(lightweightPayload));
+      const serializedLight = JSON.stringify(lightweightPayload);
+      localStorage.setItem(LOCAL_STORAGE_KEY, serializedLight);
+      localStorage.setItem(PREV_STORAGE_KEY_V5, serializedLight);
     } catch (innerErr) {
       console.warn('localStorage quota exceeded, relying on IndexedDB & Server:', innerErr);
     }
@@ -238,7 +429,8 @@ export async function cachePayloadLocally(payload: PersistedPayload): Promise<vo
 export async function persistOperationsAllLayers(
   operations: Operation[],
   filamentAdjustments: Record<string, number>,
-  nextRevision: number
+  nextRevision: number,
+  deletedOperationIds: string[] = []
 ): Promise<{ revision: number; syncId: string }> {
   const updatedAt = Date.now();
   const localSyncId = `${nextRevision}-${updatedAt}-${CLIENT_INSTANCE_ID}`;
@@ -250,6 +442,7 @@ export async function persistOperationsAllLayers(
     clientId: CLIENT_INSTANCE_ID,
     operations,
     filamentAdjustments: filamentAdjustments || {},
+    deletedOperationIds,
   };
 
   // 1. Save synchronously to localStorage

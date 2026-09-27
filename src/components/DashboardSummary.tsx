@@ -61,7 +61,7 @@ export const DashboardSummary: React.FC<DashboardSummaryProps> = ({ stats }) => 
               </span>
             </div>
             <span className="text-[10px] text-zinc-500 mt-0.5 truncate">
-              Bobinas y compras aparte
+              Bobinas, compras y 15% Sandra
             </span>
           </div>
 
