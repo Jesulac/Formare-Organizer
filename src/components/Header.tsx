@@ -12,7 +12,8 @@ import {
   Monitor,
   Disc,
   QrCode,
-  Table2
+  Table2,
+  FileText
 } from 'lucide-react';
 
 export type ViewMode = 'iphone' | 'desktop' | 'auto';
@@ -25,6 +26,7 @@ interface HeaderProps {
   onOpenPricingCalculator: () => void;
   onOpenRevenueSplit: () => void;
   onExportJSON: () => void;
+  onExportMonthlyPDF?: () => void;
   onImportJSON: (fileContent: string) => void;
   onResetData: () => void;
   onClearAllData: () => void;
@@ -40,6 +42,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenPricingCalculator,
   onOpenRevenueSplit,
   onExportJSON,
+  onExportMonthlyPDF,
   onImportJSON,
   onResetData,
   onClearAllData,
@@ -181,6 +184,19 @@ export const Header: React.FC<HeaderProps> = ({
               <span className="hidden md:inline">Reparto</span>
             </button>
 
+            {/* Quick Tool: Monthly PDF Report */}
+            {onExportMonthlyPDF && (
+              <button
+                type="button"
+                onClick={onExportMonthlyPDF}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium text-emerald-200 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 transition-all active:scale-95 cursor-pointer"
+                title="Descargar resumen de ventas y beneficios del mes actual en PDF"
+              >
+                <FileText className="w-3.5 h-3.5 text-emerald-400" />
+                <span className="hidden sm:inline">Resumen PDF</span>
+              </button>
+            )}
+
             {/* Extra Options Dropdown */}
             <div className="relative">
               <button
@@ -263,6 +279,20 @@ export const Header: React.FC<HeaderProps> = ({
                     </button>
 
                     <div className="my-1 border-t border-white/10" />
+
+                    {onExportMonthlyPDF && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onExportMonthlyPDF();
+                          setShowMenu(false);
+                        }}
+                        className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-emerald-300 hover:bg-emerald-500/10 transition-colors text-left cursor-pointer font-medium"
+                      >
+                        <FileText className="w-4 h-4 text-emerald-400" />
+                        Descargar Resumen Mes (PDF)
+                      </button>
+                    )}
 
                     <button
                       type="button"

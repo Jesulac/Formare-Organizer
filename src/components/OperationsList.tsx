@@ -19,7 +19,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Minus,
-  Plus
+  Plus,
+  FileText
 } from 'lucide-react';
 import { ViewMode } from './Header';
 
@@ -32,6 +33,7 @@ interface OperationsListProps {
   onStatusChange: (id: string, newStatus: Status) => void;
   onUnitsChange?: (id: string, newUnits: number) => void;
   onAttachQr: (id: string, fotoQr: string | undefined, empresaEnvio?: ShippingCompany) => void;
+  onExportMonthPDF?: (monthKey: string) => void;
   viewMode: ViewMode;
   lastModifiedId?: string | null;
 }
@@ -52,6 +54,7 @@ export const OperationsList: React.FC<OperationsListProps> = ({
   onStatusChange,
   onUnitsChange,
   onAttachQr,
+  onExportMonthPDF,
   viewMode,
   lastModifiedId,
 }) => {
@@ -294,14 +297,27 @@ export const OperationsList: React.FC<OperationsListProps> = ({
               {/* Monthly Summary Card at end of each month */}
               {monthSummary && (
                 <div className="rounded-2xl p-3.5 bg-emerald-950/25 border border-emerald-500/30 space-y-2">
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-1.5 text-emerald-300 font-bold text-xs uppercase tracking-wider">
                       <BarChart3 className="w-4 h-4" />
                       <span>Resumen {monthSummary.monthLabel}</span>
                     </div>
-                    <span className="text-[11px] font-mono text-zinc-300">
-                      {monthSummary.numVentas} ventas · {monthSummary.numPedidos} pedidos
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[11px] font-mono text-zinc-300">
+                        {monthSummary.numVentas} ventas · {monthSummary.numPedidos} pedidos
+                      </span>
+                      {onExportMonthPDF && (
+                        <button
+                          type="button"
+                          onClick={() => onExportMonthPDF(monthSummary.monthKey)}
+                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 text-[10px] font-semibold cursor-pointer transition-colors"
+                          title={`Descargar resumen de ${monthSummary.monthLabel} en PDF`}
+                        >
+                          <FileText className="w-3 h-3" />
+                          <span>PDF</span>
+                        </button>
+                      )}
+                    </div>
                   </div>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 border-t border-emerald-500/20 text-[11px]">
                     <div>
@@ -639,8 +655,23 @@ export const OperationsList: React.FC<OperationsListProps> = ({
                           </span>
                         </td>
                         <td colSpan={7} className="py-2 px-2 text-zinc-300 font-mono whitespace-nowrap">
-                          Filamento consumido en {monthSummary.monthLabel}:{' '}
-                          <strong className="text-sky-300">{monthSummary.gramosConsumidos} g</strong>
+                          <div className="flex items-center justify-between gap-2">
+                            <span>
+                              Filamento consumido en {monthSummary.monthLabel}:{' '}
+                              <strong className="text-sky-300">{monthSummary.gramosConsumidos} g</strong>
+                            </span>
+                            {onExportMonthPDF && (
+                              <button
+                                type="button"
+                                onClick={() => onExportMonthPDF(monthSummary.monthKey)}
+                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 text-[10px] font-sans font-semibold cursor-pointer transition-colors"
+                                title={`Descargar resumen de ${monthSummary.monthLabel} en PDF`}
+                              >
+                                <FileText className="w-3 h-3" />
+                                <span>Descargar PDF</span>
+                              </button>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     )}

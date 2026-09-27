@@ -40,6 +40,7 @@ export default function App() {
     resetToDefaultData,
     clearAllData,
     exportJSON,
+    exportMonthlyPDF,
     importJSON,
   } = useOperations();
 
@@ -192,6 +193,7 @@ export default function App() {
         onOpenPricingCalculator={() => setIsPricingModalOpen(true)}
         onOpenRevenueSplit={() => setIsRevenueModalOpen(true)}
         onExportJSON={exportJSON}
+        onExportMonthlyPDF={() => exportMonthlyPDF()}
         onImportJSON={importJSON}
         onResetData={resetToDefaultData}
         onClearAllData={clearAllData}
@@ -236,6 +238,7 @@ export default function App() {
                   onStatusChange={handleQuickStatusChange}
                   onUnitsChange={handleQuickUnitsChange}
                   onAttachQr={attachQrToOperation}
+                  onExportMonthPDF={exportMonthlyPDF}
                   viewMode={viewMode}
                   lastModifiedId={lastModifiedId}
                 />

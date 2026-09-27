@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { FilamentSpool, Operation } from '../types/operation';
 import { formatEuro, formatDateDisplay, formatDateInput, calculateFilamentGrams } from '../utils/calculations';
-import { Disc, Plus, AlertTriangle, CheckCircle2, Scale, Calculator, Edit3, Check, X, Trash2 } from 'lucide-react';
+import { Disc, Plus, AlertTriangle, CheckCircle2, Scale, Calculator, Edit3, Check, X, Trash2, RotateCcw } from 'lucide-react';
 
 interface FilamentStockViewProps {
   spools: FilamentSpool[];
@@ -84,24 +84,12 @@ export const FilamentStockView: React.FC<FilamentStockViewProps> = ({
     setShowAddForm(false);
   };
 
-  const handleQuickAdd1000g = (spool: FilamentSpool) => {
-    onAddFilamentOrder({
-      tipo: 'compra',
-      producto: `Pedido filamento ${spool.nombre}`,
-      material: spool.nombre,
-      unidades: 1,
-      costeUnitario: spool.precioBobina,
-      precio: null,
-      costes: spool.precioBobina,
-      costesOperativos: 0,
-      lugarVenta: 'Internet',
-      estado: 'Pagado',
-      vendedor: 'Jorge',
-      fecha: formatDateInput(new Date().toISOString()),
-      fechaLimite: '',
-      esPedidoFilamento: true,
-      comentarios: 'Reposición +1000g filamento',
-    });
+  const handleResetTo1000g = (spool: FilamentSpool) => {
+    onUpdateFilamentRemaining(spool.nombre, 1000);
+    if (editingSpoolName === spool.nombre) {
+      setEditRemainingValue('1000');
+      setEditingSpoolName(null);
+    }
   };
 
   const sampleGrams = calculateFilamentGrams(
@@ -463,11 +451,12 @@ export const FilamentStockView: React.FC<FilamentStockViewProps> = ({
                   </button>
                   <button
                     type="button"
-                    onClick={() => handleQuickAdd1000g(spool)}
+                    onClick={() => handleResetTo1000g(spool)}
                     className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 text-[11px] font-medium cursor-pointer transition-colors"
+                    title="Restablecer filamento restante directamente a 1000g"
                   >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>+1000g</span>
+                    <RotateCcw className="w-3 h-3" />
+                    <span>1000g</span>
                   </button>
                   {onDeleteFilamentSpool && (
                     <button

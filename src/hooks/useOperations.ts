@@ -26,6 +26,7 @@ import {
   computeStateFingerprint,
   PersistedPayload,
 } from '../utils/storage';
+import { generateMonthlySalesPdf } from '../utils/pdfReport';
 
 const TEN_DAYS_MS = 10 * 24 * 60 * 60 * 1000;
 
@@ -710,6 +711,21 @@ export function useOperations() {
     triggerNotification('Archivo JSON exportado');
   }, [triggerNotification]);
 
+  const exportMonthlyPDF = useCallback(
+    (monthKey?: string) => {
+      try {
+        const { monthLabel } = generateMonthlySalesPdf(
+          operationsRef.current,
+          monthKey
+        );
+        triggerNotification(`Resumen PDF de ${monthLabel} descargado`);
+      } catch (err) {
+        console.error('Error generating PDF:', err);
+      }
+    },
+    [triggerNotification]
+  );
+
   const importJSON = useCallback(
     (jsonString: string): boolean => {
       try {
@@ -1042,6 +1058,7 @@ export function useOperations() {
     resetToDefaultData,
     clearAllData,
     exportJSON,
+    exportMonthlyPDF,
     importJSON,
   };
 }
