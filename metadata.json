@@ -1,0 +1,6 @@
+{
+  "name": "Wallapop & Vinted Organizer",
+  "description": "Gestor financiero OLED + iOS 26 para ventas, compras, costes y beneficios en Wallapop, Vinted, Etsy y más.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

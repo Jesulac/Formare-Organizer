@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="es" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <title>Wallapop & Vinted Organizer</title>
+    <meta name="description" content="Gestor financiero OLED + iOS 26 para ventas, compras, costes y beneficios." />
+    
+    <!-- iOS / PWA specific -->
+    <meta name="theme-color" content="#000000" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Ventas" />
+    <link rel="manifest" href="/manifest.json" />
+    
+    <!-- Open Graph -->
+    <meta property="og:title" content="Wallapop & Vinted Organizer" />
+    <meta property="og:description" content="Gestor financiero personal para ventas, compras, costes y beneficios." />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+
+    <!-- Google Fonts Inter for clean iOS SF Pro look -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  </head>
+  <body class="bg-black text-zinc-100 antialiased min-h-screen selection:bg-emerald-500/30 selection:text-emerald-200">
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+
