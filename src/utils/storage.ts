@@ -41,7 +41,7 @@ export function computeStateFingerprint(
   const opsPart = operations
     .map(
       (op) =>
-        `${op.id}:${op.producto}:${op.unidades ?? 1}:${op.precio ?? 0}:${op.costes ?? 0}:${op.costesOperativos ?? 0}:${op.estado}:${op.lugarVenta}:${op.fecha}:${op.fechaLimite ?? ''}:${op.vendedor ?? ''}:${op.material ?? ''}:${op.comentarios ?? ''}:${op.fotoQr ? op.fotoQr.length : 0}:${op.empresaEnvio ?? ''}`
+        `${op.id}:${op.editCount ?? 0}:${op.updatedAt ?? 0}:${op.producto}:${op.unidades ?? 1}:${op.precio ?? 0}:${op.costes ?? 0}:${op.costesOperativos ?? 0}:${op.estado}:${op.lugarVenta}:${op.fecha}:${op.fechaLimite ?? ''}:${op.vendedor ?? ''}:${op.material ?? ''}:${op.comentarios ?? ''}:${op.fotoQr ? op.fotoQr.length : 0}:${op.empresaEnvio ?? ''}`
     )
     .join('|');
   const adjEntries = Object.entries(filamentAdjustments || {}).sort(([a], [b]) =>
@@ -50,6 +50,29 @@ export function computeStateFingerprint(
   const adjPart = adjEntries.map(([k, v]) => `${k}=${v}`).join(',');
   const delPart = (deletedOperationIds || []).slice().sort().join(',');
   return `${operations.length}#${opsPart}#${adjPart}#${delPart}`;
+}
+
+const SYNTHETIC_CREATED_AT_THRESHOLD = 1799900000000;
+
+export function getValidUpdatedAt(ts?: number): number {
+  if (typeof ts !== 'number' || isNaN(ts) || ts <= 1) return 0;
+  if (ts >= SYNTHETIC_CREATED_AT_THRESHOLD) return 0;
+  return ts;
+}
+
+let highestKnownTimestamp = Date.now();
+let latestSaveSequence = 0;
+
+export function getLatestSaveSequence(): number {
+  return latestSaveSequence;
+}
+
+export function nextMonotonicTimestamp(minTimestamp: number = 0): number {
+  const now = Date.now();
+  const validMin = getValidUpdatedAt(minTimestamp);
+  const candidate = Math.max(now, highestKnownTimestamp + 1, validMin + 1);
+  highestKnownTimestamp = candidate;
+  return candidate;
 }
 
 function isLegacyGhostOperation(op: any): boolean {
@@ -68,10 +91,12 @@ function normalizePayload(parsed: any): PersistedPayload | null {
   if (!parsed || !Array.isArray(parsed.operations)) return null;
   const revision =
     typeof parsed.revision === 'number' && parsed.revision >= 1 ? parsed.revision : 1;
-  const updatedAt = typeof parsed.updatedAt === 'number' ? parsed.updatedAt : 1;
-  const hasUserTimestampOrRev =
-    (typeof parsed.updatedAt === 'number' && parsed.updatedAt > 1) ||
-    (typeof parsed.revision === 'number' && parsed.revision > 1);
+  const rawUpdatedAt = typeof parsed.updatedAt === 'number' ? parsed.updatedAt : 1;
+  const updatedAt = getValidUpdatedAt(rawUpdatedAt) || (rawUpdatedAt > 1 ? Date.now() : 1);
+  if (updatedAt > highestKnownTimestamp) {
+    highestKnownTimestamp = updatedAt;
+  }
+  const hasUserTimestampOrRev = updatedAt > 1 || revision > 1;
   const clientId =
     parsed.clientId ||
     (hasUserTimestampOrRev ? 'user-local-persisted' : 'local-init');
@@ -79,9 +104,21 @@ function normalizePayload(parsed: any): PersistedPayload | null {
     ? parsed.deletedOperationIds.filter((id: any) => typeof id === 'string')
     : [];
   const deletedSet = new Set(deletedOperationIds);
-  const cleanOps = parsed.operations.filter(
-    (op: any) => op && op.id && !deletedSet.has(op.id) && !isLegacyGhostOperation(op)
-  );
+  const cleanOps = parsed.operations
+    .filter(
+      (op: any) => op && op.id && !deletedSet.has(op.id) && !isLegacyGhostOperation(op)
+    )
+    .map((op: any) => {
+      const validOpUpd = getValidUpdatedAt(op.updatedAt);
+      if (validOpUpd > highestKnownTimestamp) {
+        highestKnownTimestamp = validOpUpd;
+      }
+      return {
+        ...op,
+        updatedAt: validOpUpd > 0 ? validOpUpd : undefined,
+        editCount: typeof op.editCount === 'number' && op.editCount > 0 ? op.editCount : 0,
+      };
+    });
   return {
     version: 6,
     revision,
@@ -106,15 +143,15 @@ export function isUserEditedPayload(payload: PersistedPayload | null | undefined
 }
 
 /**
- * Non-destructively merge local and remote payloads so that a redeploy or cold-start
- * never overwrites or loses user-created or user-edited operations, and deleted items never resurrect.
+ * Non-destructively merge local and remote payloads so that a redeploy, cold-start,
+ * or stale serverless instance never overwrites user-created or user-edited operations.
  */
 export function mergePersistedPayloads(
   local: PersistedPayload,
   remote: PersistedPayload
 ): { merged: PersistedPayload; needsServerPush: boolean } {
   const remoteIsInit =
-    !remote.clientId || remote.clientId === 'server-init' || remote.updatedAt <= 1;
+    !remote.clientId || remote.clientId === 'server-init' || (remote.updatedAt || 0) <= 1;
   const localHasEdits = isUserEditedPayload(local);
 
   // Case 1: Server is on fresh deploy/cold-start seed (server-init) and browser has user data.
@@ -126,7 +163,7 @@ export function mergePersistedPayloads(
       (op) => op && op.id && !localDeletedSet.has(op.id) && !isLegacyGhostOperation(op)
     );
     const nextRev = Math.max(local.revision || 1, remote.revision || 1);
-    const nextUpd = Math.max(local.updatedAt || Date.now(), 2);
+    const nextUpd = Math.max(getValidUpdatedAt(local.updatedAt) || Date.now(), 2);
     const winClient = local.clientId || CLIENT_INSTANCE_ID;
     return {
       merged: {
@@ -154,7 +191,7 @@ export function mergePersistedPayloads(
       merged: {
         version: 6,
         revision: remote.revision || 1,
-        updatedAt: remote.updatedAt || Date.now(),
+        updatedAt: getValidUpdatedAt(remote.updatedAt) || Date.now(),
         syncId:
           remote.syncId ||
           `${remote.revision || 1}-${remote.updatedAt || 1}-${remote.clientId || 'remote'}`,
@@ -191,9 +228,14 @@ export function mergePersistedPayloads(
   const mergedOps: Operation[] = [];
   let localContributedNewer = false;
 
-  const localPayloadTime = local.updatedAt || 1;
-  const remotePayloadTime = remote.updatedAt || 1;
-  const localIsNewerOverall = localPayloadTime >= remotePayloadTime;
+  const localRev = local.revision || 1;
+  const remoteRev = remote.revision || 1;
+  const localPayloadTime = getValidUpdatedAt(local.updatedAt) || 1;
+  const remotePayloadTime = getValidUpdatedAt(remote.updatedAt) || 1;
+  const localIsNewerOverall =
+    localRev !== remoteRev
+      ? localRev > remoteRev
+      : localPayloadTime >= remotePayloadTime;
 
   for (const id of allIds) {
     if (deletedSet.has(id)) continue;
@@ -201,31 +243,55 @@ export function mergePersistedPayloads(
     const rOp = remoteMap.get(id);
 
     if (lOp && !rOp) {
-      const lOpTime = lOp.updatedAt || 0;
-      // Keep lOp if local snapshot is newer overall OR lOp was explicitly updated after remote snapshot
-      if (localIsNewerOverall || lOpTime > remotePayloadTime) {
+      const lOpTime = getValidUpdatedAt(lOp.updatedAt);
+      const lEdit = typeof lOp.editCount === 'number' ? lOp.editCount : 0;
+      if (localIsNewerOverall || lEdit > 0 || lOpTime > remotePayloadTime) {
         mergedOps.push(lOp);
         localContributedNewer = true;
       } else {
         deletedSet.add(id);
       }
     } else if (!lOp && rOp) {
-      const rOpTime = rOp.updatedAt || 0;
-      // Keep rOp only if remote snapshot is newer overall OR rOp was explicitly updated after local snapshot
-      if (!localIsNewerOverall || rOpTime > localPayloadTime) {
+      const rOpTime = getValidUpdatedAt(rOp.updatedAt);
+      const rEdit = typeof rOp.editCount === 'number' ? rOp.editCount : 0;
+      if (!localIsNewerOverall || rEdit > 0 || rOpTime > localPayloadTime) {
         mergedOps.push(rOp);
       } else {
         deletedSet.add(id);
         localContributedNewer = true;
       }
     } else if (lOp && rOp) {
-      const lTime = lOp.updatedAt || lOp.createdAt || localPayloadTime;
-      const rTime = rOp.updatedAt || rOp.createdAt || remotePayloadTime;
-      if (lTime > rTime || (lTime === rTime && localIsNewerOverall)) {
-        mergedOps.push(lOp);
-        if (lTime > rTime) localContributedNewer = true;
+      // NEVER use op.createdAt here because createdAt uses synthetic 1800000000000+ sort keys!
+      const lEdit = typeof lOp.editCount === 'number' ? lOp.editCount : 0;
+      const rEdit = typeof rOp.editCount === 'number' ? rOp.editCount : 0;
+      const lTime = getValidUpdatedAt(lOp.updatedAt);
+      const rTime = getValidUpdatedAt(rOp.updatedAt);
+
+      let pickLocal: boolean;
+      if (lEdit !== rEdit) {
+        pickLocal = lEdit > rEdit;
+      } else if (lTime !== rTime) {
+        pickLocal = lTime > rTime;
       } else {
-        mergedOps.push(rOp);
+        pickLocal = localIsNewerOverall;
+      }
+
+      const winner = pickLocal ? lOp : rOp;
+      const loser = pickLocal ? rOp : lOp;
+
+      // If winner lost fotoQr due to localStorage quota stripping, restore fotoQr from loser
+      const restoredFotoQr =
+        winner.estado === 'Pendiente de cobro'
+          ? undefined
+          : winner.fotoQr || loser.fotoQr;
+
+      mergedOps.push({
+        ...winner,
+        fotoQr: restoredFotoQr,
+      });
+
+      if (pickLocal && (lEdit > rEdit || lTime > rTime || lOp.costes !== rOp.costes || lOp.precio !== rOp.precio || lOp.estado !== rOp.estado)) {
+        localContributedNewer = true;
       }
     }
   }
@@ -234,13 +300,14 @@ export function mergePersistedPayloads(
     ? { ...(remote.filamentAdjustments || {}), ...(local.filamentAdjustments || {}) }
     : { ...(local.filamentAdjustments || {}), ...(remote.filamentAdjustments || {}) };
 
-  const nextRevision = Math.max(local.revision || 1, remote.revision || 1);
+  const nextRevision = Math.max(localRev, remoteRev);
   const nextUpdatedAt = Math.max(localPayloadTime, remotePayloadTime);
   const winningClientId = localIsNewerOverall
     ? local.clientId || CLIENT_INSTANCE_ID
     : remote.clientId || local.clientId || CLIENT_INSTANCE_ID;
 
   const needsServerPush =
+    localRev > remoteRev ||
     localPayloadTime > remotePayloadTime ||
     localContributedNewer ||
     (local.deletedOperationIds || []).some(
@@ -374,26 +441,31 @@ export function loadFromLocalStorageSync(): PersistedPayload | null {
 }
 
 export function saveToLocalStorageSync(payload: PersistedPayload): void {
+  const buildTextOnlyPayload = (): PersistedPayload => ({
+    ...payload,
+    operations: payload.operations.map((op) => ({
+      ...op,
+      fotoQr: undefined,
+    })),
+  });
+
   try {
-    const serialized = JSON.stringify(payload);
-    localStorage.setItem(LOCAL_STORAGE_KEY, serialized);
     localStorage.removeItem(PREV_STORAGE_KEY_V5);
     localStorage.removeItem(PREV_STORAGE_KEY_V3);
     localStorage.removeItem(LEGACY_STORAGE_KEY);
+    const serialized = JSON.stringify(payload);
+    // Keep localStorage well below the 5MB UTF-16 browser limit (~2.5M chars)
+    // Full QR images remain stored in IndexedDB and Server
+    if (serialized.length > 1400000) {
+      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(buildTextOnlyPayload()));
+    } else {
+      localStorage.setItem(LOCAL_STORAGE_KEY, serialized);
+    }
   } catch {
     try {
-      const lightweightPayload: PersistedPayload = {
-        ...payload,
-        operations: payload.operations.map((op) => ({
-          ...op,
-          fotoQr: op.fotoQr && op.fotoQr.length > 40000 ? undefined : op.fotoQr,
-        })),
-      };
-      const serializedLight = JSON.stringify(lightweightPayload);
-      localStorage.setItem(LOCAL_STORAGE_KEY, serializedLight);
-      localStorage.removeItem(PREV_STORAGE_KEY_V5);
-      localStorage.removeItem(PREV_STORAGE_KEY_V3);
-      localStorage.removeItem(LEGACY_STORAGE_KEY);
+      // Remove existing key first to free quota before writing compact payload
+      localStorage.removeItem(LOCAL_STORAGE_KEY);
+      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(buildTextOnlyPayload()));
     } catch (innerErr) {
       console.warn('localStorage quota exceeded, relying on IndexedDB & Server:', innerErr);
     }
@@ -404,18 +476,24 @@ export async function saveToServer(
   payload: PersistedPayload
 ): Promise<{ revision: number; updatedAt: number; syncId: string } | null> {
   try {
+    const bodyStr = JSON.stringify(payload);
     const res = await fetch('/api/operations', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
+      body: bodyStr,
+      keepalive: bodyStr.length < 60000,
     });
     if (!res.ok) return null;
     const data = await res.json();
     if (data && typeof data.revision === 'number') {
+      const srvUpd = getValidUpdatedAt(data.updatedAt) || payload.updatedAt;
+      if (srvUpd > highestKnownTimestamp) {
+        highestKnownTimestamp = srvUpd;
+      }
       return {
-        revision: data.revision,
-        updatedAt: data.updatedAt || payload.updatedAt,
-        syncId: data.syncId || `${data.revision}-${data.updatedAt || payload.updatedAt}-${payload.clientId}`,
+        revision: Math.max(data.revision, payload.revision),
+        updatedAt: Math.max(srvUpd, payload.updatedAt),
+        syncId: data.syncId || `${data.revision}-${srvUpd}-${payload.clientId}`,
       };
     }
   } catch {
@@ -449,8 +527,9 @@ export async function persistOperationsAllLayers(
   filamentAdjustments: Record<string, number>,
   nextRevision: number,
   deletedOperationIds: string[] = []
-): Promise<{ revision: number; syncId: string }> {
-  const updatedAt = Date.now();
+): Promise<{ revision: number; updatedAt: number; syncId: string }> {
+  const mySaveSeq = ++latestSaveSequence;
+  const updatedAt = nextMonotonicTimestamp();
   const localSyncId = `${nextRevision}-${updatedAt}-${CLIENT_INSTANCE_ID}`;
   const payload: PersistedPayload = {
     version: 6,
@@ -463,7 +542,7 @@ export async function persistOperationsAllLayers(
     deletedOperationIds,
   };
 
-  // 1. Save synchronously to localStorage
+  // 1. Save synchronously to localStorage immediately
   saveToLocalStorageSync(payload);
 
   // 2. Broadcast immediately to other open tabs in same browser
@@ -481,13 +560,19 @@ export async function persistOperationsAllLayers(
     saveToServer(payload),
   ]);
 
-  const finalRevision = serverMeta ? serverMeta.revision : nextRevision;
+  // 4. CRITICAL: If a newer save started while we were awaiting network/IDB, do NOT overwrite with older state!
+  if (mySaveSeq !== latestSaveSequence) {
+    return { revision: nextRevision, updatedAt, syncId: localSyncId };
+  }
+
+  const finalRevision = serverMeta ? Math.max(serverMeta.revision, nextRevision) : nextRevision;
+  const finalUpdatedAt = serverMeta ? Math.max(serverMeta.updatedAt, updatedAt) : updatedAt;
   const finalSyncId = serverMeta ? serverMeta.syncId : localSyncId;
 
   const updatedPayload: PersistedPayload = {
     ...payload,
     revision: finalRevision,
-    updatedAt: serverMeta ? serverMeta.updatedAt : updatedAt,
+    updatedAt: finalUpdatedAt,
     syncId: finalSyncId,
   };
   saveToLocalStorageSync(updatedPayload);
@@ -496,12 +581,12 @@ export async function persistOperationsAllLayers(
   if (typeof window !== 'undefined') {
     window.dispatchEvent(
       new CustomEvent('formare3d-saved', {
-        detail: { revision: finalRevision, updatedAt: updatedPayload.updatedAt, syncId: finalSyncId },
+        detail: { revision: finalRevision, updatedAt: finalUpdatedAt, syncId: finalSyncId },
       })
     );
   }
 
-  return { revision: finalRevision, syncId: finalSyncId };
+  return { revision: finalRevision, updatedAt: finalUpdatedAt, syncId: finalSyncId };
 }
 
 export function subscribeToRealtimeUpdates(
@@ -567,10 +652,13 @@ export function subscribeToRealtimeUpdates(
   };
   connectSSE();
 
-  // 4. Fast periodic poll (every 1.5s) + visibility/focus check for Vercel & cross-device sync
+  // 4. Fast periodic poll (every 2s) + visibility/focus check for Vercel & cross-device sync
   const syncFromServer = async () => {
     if (isDisposed) return;
+    const seqBeforeFetch = latestSaveSequence;
     const serverPayload = await loadFromServer();
+    // If a local save started while this GET was in flight, discard the stale poll result
+    if (isDisposed || seqBeforeFetch !== latestSaveSequence) return;
     if (serverPayload) {
       handleIncoming(serverPayload);
     }
@@ -580,7 +668,7 @@ export function subscribeToRealtimeUpdates(
     if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
       void syncFromServer();
     }
-  }, 1500);
+  }, 2000);
 
   const onFocusOrVisible = () => {
     if (typeof document === 'undefined' || document.visibilityState === 'visible') {

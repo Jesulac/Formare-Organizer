@@ -91,14 +91,23 @@ export function generateMonthlySalesPdf(
     (acc, op) => acc + Math.abs(op.costes || 0),
     0
   );
-  const beneficioVentas = ingresosBrutos - costesVentas;
-  const comisionesSandraMes = salesOps.reduce(
-    (acc, op) => acc + calculateSandraCommission(op.precio, op.vendedor, op.tipo),
-    0
+  const comisionesSandraMes = Number(
+    salesOps
+      .reduce(
+        (acc, op) => acc + calculateSandraCommission(op.precio, op.vendedor, op.tipo),
+        0
+      )
+      .toFixed(2)
   );
-  const gastosCompras =
-    purchaseOps.reduce((acc, op) => acc + Math.abs(op.costes || 0), 0) +
-    comisionesSandraMes;
+  const beneficioVentas = Number(
+    (ingresosBrutos - costesVentas - comisionesSandraMes).toFixed(2)
+  );
+  const gastosCompras = Number(
+    (
+      purchaseOps.reduce((acc, op) => acc + Math.abs(op.costes || 0), 0) +
+      comisionesSandraMes
+    ).toFixed(2)
+  );
   const balanceNetoTotal = beneficioVentas;
   const gramosConsumidos = Number(
     salesOps

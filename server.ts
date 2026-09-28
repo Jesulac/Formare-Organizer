@@ -228,13 +228,49 @@ async function startServer() {
         ])
       );
 
+      const existingMap = new Map<string, any>();
+      if (Array.isArray(currentServerState.operations)) {
+        for (const op of currentServerState.operations) {
+          if (op && op.id) existingMap.set(op.id, op);
+        }
+      }
+
+      const incomingCleaned = filterOutGhostOps(operations, mergedDeleted);
+      const mergedOps = incomingCleaned.map((incOp) => {
+        const prevOp = existingMap.get(incOp.id);
+        if (!prevOp) return incOp;
+        const incEdit = typeof incOp.editCount === 'number' ? incOp.editCount : 0;
+        const prevEdit = typeof prevOp.editCount === 'number' ? prevOp.editCount : 0;
+        const incUpd =
+          typeof incOp.updatedAt === 'number' && incOp.updatedAt < 1799900000000
+            ? incOp.updatedAt
+            : 0;
+        const prevUpd =
+          typeof prevOp.updatedAt === 'number' && prevOp.updatedAt < 1799900000000
+            ? prevOp.updatedAt
+            : 0;
+
+        const pickIncoming =
+          incEdit !== prevEdit ? incEdit >= prevEdit : incUpd >= prevUpd;
+        const winner = pickIncoming ? incOp : prevOp;
+        const loser = pickIncoming ? prevOp : incOp;
+        const restoredQr =
+          winner.estado === 'Pendiente de cobro'
+            ? undefined
+            : winner.fotoQr || loser.fotoQr;
+        return {
+          ...winner,
+          fotoQr: restoredQr,
+        };
+      });
+
       currentServerState = {
         version: 6,
         revision: nextRevision,
         updatedAt,
         syncId,
         clientId,
-        operations: filterOutGhostOps(operations, mergedDeleted),
+        operations: mergedOps,
         filamentAdjustments:
           filamentAdjustments && typeof filamentAdjustments === 'object'
             ? filamentAdjustments

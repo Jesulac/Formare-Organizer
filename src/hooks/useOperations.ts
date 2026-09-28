@@ -28,6 +28,9 @@ import {
   subscribeToRealtimeUpdates,
   computeStateFingerprint,
   mergePersistedPayloads,
+  nextMonotonicTimestamp,
+  getValidUpdatedAt,
+  isUserEditedPayload,
   CLIENT_INSTANCE_ID,
   PersistedPayload,
 } from '../utils/storage';
@@ -62,14 +65,14 @@ export function sanitizeAndMigrateOperations(rawList: any[]): Operation[] {
         tipo === 'venta'
           ? op.fechaLimite || calculateDeadlineDate(op.fecha, op.lugarVenta || 'Wallapop', tipo)
           : '';
-      const costes = typeof op.costes === 'number' ? op.costes : 0;
+      const costes = typeof op.costes === 'number' && !isNaN(op.costes) ? op.costes : 0;
       const otrosCostes =
         typeof op.costesOperativos === 'number' && op.costesOperativos > 0
           ? op.costesOperativos
           : 0;
       const baseCostes = Math.max(0, Number((costes - otrosCostes).toFixed(2)));
       const costeUnitario =
-        typeof op.costeUnitario === 'number' && op.costeUnitario > 0
+        typeof op.costeUnitario === 'number' && !isNaN(op.costeUnitario) && op.costeUnitario >= 0
           ? op.costeUnitario
           : unidades > 0
           ? Number((baseCostes / unidades).toFixed(2))
@@ -100,8 +103,13 @@ export function sanitizeAndMigrateOperations(rawList: any[]): Operation[] {
         op.precio ?? null,
         costes,
         0,
-        tipo
+        tipo,
+        op.vendedor
       );
+
+      const validUpdatedAt = getValidUpdatedAt(op.updatedAt);
+      const editCount =
+        typeof op.editCount === 'number' && op.editCount > 0 ? op.editCount : 0;
 
       return {
         ...op,
@@ -117,6 +125,8 @@ export function sanitizeAndMigrateOperations(rawList: any[]): Operation[] {
         empresaEnvio,
         fechaSubidaQr,
         esPedidoFilamento: isFilamentoOrder,
+        updatedAt: validUpdatedAt > 0 ? validUpdatedAt : undefined,
+        editCount,
       } as Operation;
     });
 }
@@ -339,12 +349,9 @@ export function useOperations() {
     initialLocalPayload?.syncId || ''
   );
   const inFlightSavesRef = useRef<number>(0);
+  const lastLocalSaveAtRef = useRef<number>(0);
   const hasLocalEditsRef = useRef<boolean>(
-    Boolean(
-      initialLocalPayload?.clientId &&
-        initialLocalPayload.clientId !== 'server-init' &&
-        initialLocalPayload.clientId !== 'local-init'
-    )
+    isUserEditedPayload(initialLocalPayload)
   );
 
   const [lastSavedAt, setLastSavedAt] = useState<number | null>(null);
@@ -360,122 +367,133 @@ export function useOperations() {
   }, []);
 
   // Apply remote payload safely using non-destructive smart merge so deploys never wipe local changes
-  const applyRemotePayload = useCallback((remote: PersistedPayload) => {
-    if (!remote || !Array.isArray(remote.operations)) return;
-    if (inFlightSavesRef.current > 0) return;
+  const applyRemotePayload = useCallback(
+    (remote: PersistedPayload, options?: { isLocalHydration?: boolean }) => {
+      if (!remote || !Array.isArray(remote.operations)) return;
+      if (inFlightSavesRef.current > 0) return;
 
-    const remoteSyncId =
-      remote.syncId || `${remote.revision}-${remote.updatedAt}-${remote.clientId || 'remote'}`;
-    if (remoteSyncId && remoteSyncId === lastAppliedSyncIdRef.current) return;
+      // Cooldown protection: if the user just saved locally within the last 1.8s, ignore remote server polls
+      if (
+        !options?.isLocalHydration &&
+        Date.now() - lastLocalSaveAtRef.current < 1800
+      ) {
+        return;
+      }
 
-    const currentLocalSnapshot: PersistedPayload = {
-      version: 6,
-      revision: revisionRef.current,
-      updatedAt: localUpdatedAtRef.current,
-      clientId: hasLocalEditsRef.current ? CLIENT_INSTANCE_ID : 'local-init',
-      operations: operationsRef.current,
-      filamentAdjustments: filamentAdjustmentsRef.current,
-      deletedOperationIds: deletedIdsRef.current,
-    };
+      const remoteSyncId =
+        remote.syncId || `${remote.revision}-${remote.updatedAt}-${remote.clientId || 'remote'}`;
+      if (
+        !options?.isLocalHydration &&
+        remoteSyncId &&
+        remoteSyncId === lastAppliedSyncIdRef.current
+      ) {
+        return;
+      }
 
-    const { merged, needsServerPush } = mergePersistedPayloads(
-      currentLocalSnapshot,
-      remote
-    );
+      const currentLocalSnapshot: PersistedPayload = {
+        version: 6,
+        revision: revisionRef.current,
+        updatedAt: localUpdatedAtRef.current,
+        clientId: hasLocalEditsRef.current ? CLIENT_INSTANCE_ID : 'local-init',
+        operations: operationsRef.current,
+        filamentAdjustments: filamentAdjustmentsRef.current,
+        deletedOperationIds: deletedIdsRef.current,
+      };
 
-    const clean = sanitizeAndMigrateOperations(merged.operations);
-    const adj =
-      merged.filamentAdjustments && typeof merged.filamentAdjustments === 'object'
-        ? merged.filamentAdjustments
-        : {};
-    const delIds = Array.isArray(merged.deletedOperationIds)
-      ? merged.deletedOperationIds
-      : [];
+      const { merged, needsServerPush } = mergePersistedPayloads(
+        currentLocalSnapshot,
+        remote
+      );
 
-    const mergedFp = computeStateFingerprint(clean, adj);
-    const currentFp = computeStateFingerprint(
-      operationsRef.current,
-      filamentAdjustmentsRef.current
-    );
+      if (isUserEditedPayload(merged) || isUserEditedPayload(remote)) {
+        hasLocalEditsRef.current = true;
+      }
 
-    lastAppliedSyncIdRef.current = remoteSyncId;
-    revisionRef.current = Math.max(revisionRef.current, merged.revision || 1);
-    localUpdatedAtRef.current = Math.max(
-      localUpdatedAtRef.current,
-      merged.updatedAt || 1
-    );
-    deletedIdsRef.current = delIds;
+      const clean = sanitizeAndMigrateOperations(merged.operations);
+      const adj =
+        merged.filamentAdjustments && typeof merged.filamentAdjustments === 'object'
+          ? merged.filamentAdjustments
+          : {};
+      const delIds = Array.isArray(merged.deletedOperationIds)
+        ? merged.deletedOperationIds
+        : [];
 
-    if (mergedFp !== currentFp) {
-      operationsRef.current = clean;
-      filamentAdjustmentsRef.current = adj;
-      setOperations(clean);
-      setFilamentAdjustments(adj);
-      setLastSavedAt(Date.now());
-    }
+      const mergedFp = computeStateFingerprint(clean, adj, delIds);
+      const currentFp = computeStateFingerprint(
+        operationsRef.current,
+        filamentAdjustmentsRef.current,
+        deletedIdsRef.current
+      );
 
-    void cachePayloadLocally({
-      ...merged,
-      operations: clean,
-      filamentAdjustments: adj,
-      deletedOperationIds: delIds,
-    });
+      if (!options?.isLocalHydration) {
+        lastAppliedSyncIdRef.current = remoteSyncId;
+      }
+      revisionRef.current = Math.max(revisionRef.current, merged.revision || 1);
+      localUpdatedAtRef.current = Math.max(
+        localUpdatedAtRef.current,
+        getValidUpdatedAt(merged.updatedAt) || 1
+      );
+      deletedIdsRef.current = delIds;
 
-    // If local browser had newer edits than the server (e.g., after a new deploy), push merged state back to server
-    if (needsServerPush && hasLocalEditsRef.current) {
-      inFlightSavesRef.current += 1;
-      void persistOperationsAllLayers(
-        clean,
-        adj,
-        revisionRef.current + 1,
-        delIds
-      )
-        .then((confirmed) => {
-          revisionRef.current = Math.max(revisionRef.current, confirmed.revision);
-          lastAppliedSyncIdRef.current = confirmed.syncId;
-        })
-        .finally(() => {
-          inFlightSavesRef.current = Math.max(0, inFlightSavesRef.current - 1);
-        });
-    }
-  }, []);
+      if (mergedFp !== currentFp) {
+        operationsRef.current = clean;
+        filamentAdjustmentsRef.current = adj;
+        setOperations(clean);
+        setFilamentAdjustments(adj);
+        setLastSavedAt(Date.now());
+      }
+
+      void cachePayloadLocally({
+        ...merged,
+        operations: clean,
+        filamentAdjustments: adj,
+        deletedOperationIds: delIds,
+      });
+
+      // If local browser had newer edits than the server (e.g., after a new deploy or refresh), push merged state back to server
+      if (needsServerPush && hasLocalEditsRef.current && !options?.isLocalHydration) {
+        inFlightSavesRef.current += 1;
+        void persistOperationsAllLayers(
+          clean,
+          adj,
+          revisionRef.current + 1,
+          delIds
+        )
+          .then((confirmed) => {
+            revisionRef.current = Math.max(revisionRef.current, confirmed.revision);
+            localUpdatedAtRef.current = Math.max(
+              localUpdatedAtRef.current,
+              confirmed.updatedAt
+            );
+            lastAppliedSyncIdRef.current = confirmed.syncId;
+          })
+          .finally(() => {
+            inFlightSavesRef.current = Math.max(0, inFlightSavesRef.current - 1);
+          });
+      }
+    },
+    []
+  );
 
   // Hydrate from IndexedDB and Server on mount using non-destructive merge AND subscribe to real-time updates
   useEffect(() => {
     let cancelled = false;
 
     async function hydrateAsync() {
-      const [idbPayload, serverPayload] = await Promise.all([
-        loadFromIndexedDB(),
-        loadFromServer(),
-      ]);
+      // 1. Hydrate from IndexedDB first (restores any QR images stripped from localStorage and any latest local edits)
+      const idbPayload = await loadFromIndexedDB();
       if (cancelled) return;
 
-      // Combine localStorage and IndexedDB to get the most complete local state first
-      let bestLocal: PersistedPayload | null = initialLocalPayload;
       if (idbPayload && Array.isArray(idbPayload.operations)) {
-        if (!bestLocal) {
-          bestLocal = idbPayload;
-        } else {
-          bestLocal = mergePersistedPayloads(bestLocal, idbPayload).merged;
-        }
-      }
-
-      if (bestLocal && Array.isArray(bestLocal.operations)) {
-        const hasEdits =
-          Boolean(bestLocal.clientId) &&
-          bestLocal.clientId !== 'server-init' &&
-          bestLocal.clientId !== 'local-init';
-        if (hasEdits) {
+        if (isUserEditedPayload(idbPayload)) {
           hasLocalEditsRef.current = true;
         }
-        localUpdatedAtRef.current = Math.max(
-          localUpdatedAtRef.current,
-          bestLocal.updatedAt || 1
-        );
-        deletedIdsRef.current = bestLocal.deletedOperationIds || [];
-        applyRemotePayload(bestLocal);
+        applyRemotePayload(idbPayload, { isLocalHydration: true });
       }
+
+      // 2. Then fetch from Server and non-destructively merge with combined local (localStorage + IndexedDB) state
+      const serverPayload = await loadFromServer();
+      if (cancelled) return;
 
       if (serverPayload && Array.isArray(serverPayload.operations)) {
         applyRemotePayload(serverPayload);
@@ -483,13 +501,15 @@ export function useOperations() {
     }
 
     void hydrateAsync();
-    const unsubscribe = subscribeToRealtimeUpdates(applyRemotePayload);
+    const unsubscribe = subscribeToRealtimeUpdates((remote) => {
+      applyRemotePayload(remote);
+    });
 
     return () => {
       cancelled = true;
       unsubscribe();
     };
-  }, [applyRemotePayload, initialLocalPayload]);
+  }, [applyRemotePayload]);
 
   // Helper to update state AND persist across all layers immediately (outside React setState updater!)
   const commitStateChange = useCallback(
@@ -500,10 +520,11 @@ export function useOperations() {
       modifiedId?: string,
       nextDeletedIds: string[] = deletedIdsRef.current
     ) => {
-      const now = Date.now();
+      const now = nextMonotonicTimestamp(localUpdatedAtRef.current);
       const nextRevision = revisionRef.current + 1;
       revisionRef.current = nextRevision;
       localUpdatedAtRef.current = now;
+      lastLocalSaveAtRef.current = Date.now();
       hasLocalEditsRef.current = true;
       operationsRef.current = nextOps;
       filamentAdjustmentsRef.current = nextAdj;
@@ -522,6 +543,10 @@ export function useOperations() {
       )
         .then((confirmed) => {
           revisionRef.current = Math.max(revisionRef.current, confirmed.revision);
+          localUpdatedAtRef.current = Math.max(
+            localUpdatedAtRef.current,
+            confirmed.updatedAt
+          );
           lastAppliedSyncIdRef.current = confirmed.syncId;
         })
         .finally(() => {
@@ -557,10 +582,11 @@ export function useOperations() {
         opData.precio,
         opData.costes,
         0,
-        opData.tipo
+        opData.tipo,
+        opData.vendedor
       );
 
-      const now = Date.now();
+      const now = nextMonotonicTimestamp(localUpdatedAtRef.current);
       const nextRev = revisionRef.current + 1;
       const newId = `op-v7-${now}-${Math.random().toString(36).substring(2, 6)}`;
 
@@ -594,6 +620,7 @@ export function useOperations() {
         beneficio,
         createdAt: 1800000000000 + nextRev * 1000 + (now % 1000),
         updatedAt: now,
+        editCount: 1,
       };
 
       const nextOps = [newOp, ...operationsRef.current];
@@ -629,6 +656,7 @@ export function useOperations() {
 
   const updateOperation = useCallback(
     (id: string, opData: Partial<Operation>) => {
+      const mutationTs = nextMonotonicTimestamp(localUpdatedAtRef.current);
       const nextOps = operationsRef.current.map((op) => {
         if (op.id !== id) return op;
 
@@ -659,19 +687,28 @@ export function useOperations() {
           updated.fechaLimite = '';
         }
 
-        // If units changed and we have unit cost, recalculate total filament cost (+ otrosCostes) unless costes was explicitly passed
-        if (
+        const uds = updated.unidades && updated.unidades > 0 ? updated.unidades : 1;
+        const extraOtros =
+          typeof updated.costesOperativos === 'number' && updated.costesOperativos > 0
+            ? updated.costesOperativos
+            : 0;
+
+        // If costes was explicitly edited (e.g. in OperationModal), always honor opData.costes and sync costeUnitario
+        if (opData.costes !== undefined) {
+          updated.costes = Number(opData.costes.toFixed(2));
+          const baseCost = Math.max(0, Number((updated.costes - extraOtros).toFixed(2)));
+          updated.costeUnitario =
+            opData.costeUnitario !== undefined
+              ? opData.costeUnitario
+              : Number((baseCost / uds).toFixed(2));
+        } else if (
           opData.unidades !== undefined &&
-          opData.costes === undefined &&
-          updated.costeUnitario &&
-          updated.costeUnitario > 0
+          updated.costeUnitario !== undefined &&
+          updated.costeUnitario >= 0
         ) {
-          const extraOtros =
-            typeof updated.costesOperativos === 'number' && updated.costesOperativos > 0
-              ? updated.costesOperativos
-              : 0;
+          // If only units changed (e.g. via +/- table buttons), scale total cost from costeUnitario
           updated.costes = Number(
-            (updated.costeUnitario * updated.unidades + extraOtros).toFixed(2)
+            (updated.costeUnitario * uds + extraOtros).toFixed(2)
           );
         }
 
@@ -679,13 +716,20 @@ export function useOperations() {
           updated.precio,
           updated.costes,
           0,
-          updated.tipo
+          updated.tipo,
+          updated.vendedor
+        );
+
+        const nextEditCount = (typeof op.editCount === 'number' ? op.editCount : 0) + 1;
+        const nextOpUpdatedAt = nextMonotonicTimestamp(
+          Math.max(mutationTs, getValidUpdatedAt(op.updatedAt))
         );
 
         return {
           ...updated,
           beneficio,
-          updatedAt: Date.now(),
+          updatedAt: nextOpUpdatedAt,
+          editCount: nextEditCount,
         };
       });
 
@@ -702,6 +746,7 @@ export function useOperations() {
   const attachQrToOperation = useCallback(
     (id: string, fotoQr: string | undefined, empresaEnvio?: ShippingCompany) => {
       let isCarrierOnlyChange = false;
+      const mutationTs = nextMonotonicTimestamp(localUpdatedAtRef.current);
       const nextOps = operationsRef.current.map((op) => {
         if (op.id !== id) return op;
         const qrChanged = op.fotoQr !== fotoQr;
@@ -720,12 +765,18 @@ export function useOperations() {
             : op.fechaSubidaQr || Date.now()
           : undefined;
 
+        const nextEditCount = (typeof op.editCount === 'number' ? op.editCount : 0) + 1;
+        const nextOpUpdatedAt = nextMonotonicTimestamp(
+          Math.max(mutationTs, getValidUpdatedAt(op.updatedAt))
+        );
+
         return {
           ...op,
           fotoQr,
           empresaEnvio: nextEmpresaEnvio,
           fechaSubidaQr: nextFechaSubidaQr,
-          updatedAt: Date.now(),
+          updatedAt: nextOpUpdatedAt,
+          editCount: nextEditCount,
         };
       });
 
@@ -762,7 +813,7 @@ export function useOperations() {
     (id: string) => {
       const target = operationsRef.current.find((op) => op.id === id);
       if (!target) return;
-      const now = Date.now();
+      const now = nextMonotonicTimestamp(localUpdatedAtRef.current);
       const nextRev = revisionRef.current + 1;
       const newId = `op-v7-${now}-${Math.random().toString(36).substring(2, 6)}`;
       const dup: Operation = {
@@ -771,6 +822,7 @@ export function useOperations() {
         producto: `${target.producto}`,
         createdAt: 1800000000000 + nextRev * 1000 + (now % 1000),
         updatedAt: now,
+        editCount: 1,
       };
       const nextOps = [dup, ...operationsRef.current];
       commitStateChange(
@@ -1136,8 +1188,10 @@ export function useOperations() {
           (summary.dineroGastadoCompras + Math.abs(op.costes || 0)).toFixed(2)
         );
       }
-      // Beneficio neto del mes se calcula únicamente con los gastos de producción (costesVentas), sin restar compras generales
-      summary.dineroNeto = Number((summary.dineroBruto - summary.costesVentas).toFixed(2));
+      // Beneficio neto del mes: Bruto - Gastos de producción (costesVentas) - B. Sandra (beneficioSandra)
+      summary.dineroNeto = Number(
+        (summary.dineroBruto - summary.costesVentas - summary.beneficioSandra).toFixed(2)
+      );
     });
 
     return map;
@@ -1148,6 +1202,7 @@ export function useOperations() {
     let totalIngresos = 0;
     let gastosProduccion = 0;
     let gastosGenerales = 0;
+    let totalBeneficioSandra = 0;
     let pendienteCobro = 0;
 
     filteredOperations.forEach((op) => {
@@ -1159,12 +1214,14 @@ export function useOperations() {
           totalIngresos += op.precio;
         }
         gastosProduccion += costTotal;
-        // Si el vendedor es "Sandra" o "Jorge, Sandra", se suma precio * 0.15 a Gastos en General
-        gastosGenerales += calculateSandraCommission(
+        // Si el vendedor es "Sandra" o "Jorge, Sandra", se suma precio * 0.15 a Gastos en General y se resta del Beneficio Neto
+        const bSandra = calculateSandraCommission(
           op.precio,
           op.vendedor,
           op.tipo
         );
+        totalBeneficioSandra += bSandra;
+        gastosGenerales += bSandra;
       } else if (op.tipo === 'compra' || op.tipo === 'inversion') {
         gastosGenerales += costTotal;
       }
@@ -1182,8 +1239,10 @@ export function useOperations() {
       }
     });
 
-    // El beneficio neto se calcula exclusivamente con los gastos de producción (Ventas - Gastos de Producción), sin restar Gastos en General
-    const totalBeneficio = totalIngresos - gastosProduccion;
+    // El beneficio neto resta los gastos de producción y el beneficio de Sandra (Ventas - Gastos de Producción - B. Sandra)
+    const totalBeneficio = Number(
+      (totalIngresos - gastosProduccion - totalBeneficioSandra).toFixed(2)
+    );
 
     return {
       totalIngresos,

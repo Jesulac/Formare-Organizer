@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   X, 
   Trash2, 
@@ -148,7 +148,25 @@ export const OperationModal: React.FC<OperationModalProps> = ({
   const [voiceTranscript, setVoiceTranscript] = useState('');
   const [voiceStatusMsg, setVoiceStatusMsg] = useState<string | null>(null);
 
+  const initializedModalKeyRef = useRef<string | null>(null);
+
   useEffect(() => {
+    if (!isOpen) {
+      initializedModalKeyRef.current = null;
+      return;
+    }
+
+    const currentModalKey = operationToEdit
+      ? `edit:${operationToEdit.id}`
+      : initialData
+      ? `init:${initialData.producto || ''}:${initialData.costes || 0}`
+      : 'create-new';
+
+    if (initializedModalKeyRef.current === currentModalKey) {
+      return;
+    }
+    initializedModalKeyRef.current = currentModalKey;
+
     setConfirmingDelete(false);
     setErrorMsg(null);
     setVoiceStatusMsg(null);
@@ -172,10 +190,7 @@ export const OperationModal: React.FC<OperationModalProps> = ({
         0,
         Number(((operationToEdit.costes || 0) - savedOtros).toFixed(2))
       );
-      setCosteUnitario(
-        operationToEdit.costeUnitario ??
-          (baseCostTotal > 0 ? Number((baseCostTotal / uds).toFixed(2)) : undefined)
-      );
+      setCosteUnitario(Number((baseCostTotal / uds).toFixed(2)));
       setFecha(editFecha);
       setFechaLimiteCustom(
         editTipo === 'venta'
@@ -187,7 +202,11 @@ export const OperationModal: React.FC<OperationModalProps> = ({
         buildInitialMaterialRows(operationToEdit.material, operationToEdit.materialesDetalle)
       );
       setPrecioStr(operationToEdit.precio !== null ? String(operationToEdit.precio) : '');
-      setCostesStr(baseCostTotal > 0 ? String(baseCostTotal) : operationToEdit.costes && savedOtros === 0 ? String(operationToEdit.costes) : '');
+      setCostesStr(
+        operationToEdit.costes !== undefined && operationToEdit.costes !== null
+          ? String(baseCostTotal)
+          : ''
+      );
       setOtrosCostesStr(savedOtros > 0 ? String(savedOtros) : '');
       setLugarVenta(editLugar);
       setEstado(normalizeStatus(operationToEdit.estado));
@@ -266,9 +285,15 @@ export const OperationModal: React.FC<OperationModalProps> = ({
   const costesNum = Number((costesBaseNum + otrosCostesNum).toFixed(2));
   const autoFechaLimite = calculateDeadlineDate(fecha, lugarVenta, tipo);
   const effectiveFechaLimite = tipo === 'venta' ? (fechaLimiteCustom || autoFechaLimite) : '';
-  const previewBeneficio = calculateBeneficio(precioNum, costesNum, 0, tipo);
   const effectiveVendedorPreview =
     vendedorSelect === 'Otro' ? vendedorCustom.trim() || 'Otro' : vendedorSelect;
+  const previewBeneficio = calculateBeneficio(
+    precioNum,
+    costesNum,
+    0,
+    tipo,
+    effectiveVendedorPreview
+  );
   const previewSandraCommission = calculateSandraCommission(
     precioNum,
     effectiveVendedorPreview,
@@ -568,12 +593,8 @@ export const OperationModal: React.FC<OperationModalProps> = ({
     const finalVendedor =
       vendedorSelect === 'Otro' ? vendedorCustom.trim() || 'Otro' : vendedorSelect;
 
-    const unitCostFinal =
-      costeUnitario !== undefined
-        ? costeUnitario
-        : unidades > 0
-        ? Number((costesBaseNum / unidades).toFixed(2))
-        : costesBaseNum;
+    const udsFinal = unidades && unidades > 0 ? unidades : 1;
+    const unitCostFinal = Number((costesBaseNum / udsFinal).toFixed(2));
 
     const isMulti = materialRows.length > 1 || Boolean(materialRows[0]?.gramos?.trim());
     const validDetalle: MaterialItem[] = materialRows
@@ -1163,10 +1184,15 @@ export const OperationModal: React.FC<OperationModalProps> = ({
                 Precio (€)
               </label>
               <input
-                type="number"
-                step="0.01"
+                type="text"
+                inputMode="decimal"
                 value={precioStr}
-                onChange={(e) => setPrecioStr(e.target.value)}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val === '' || /^\d*[.,]?\d*$/.test(val)) {
+                    setPrecioStr(val);
+                  }
+                }}
                 placeholder="0.00"
                 disabled={tipo === 'compra' || tipo === 'inversion'}
                 className="w-full bg-zinc-900/90 border border-white/10 rounded-xl px-2.5 py-2 text-xs text-white font-mono placeholder-zinc-600 focus:outline-none focus:border-emerald-500/50 disabled:opacity-40"
@@ -1179,14 +1205,16 @@ export const OperationModal: React.FC<OperationModalProps> = ({
                 Costes (€)
               </label>
               <input
-                type="number"
-                step="0.01"
+                type="text"
+                inputMode="decimal"
                 value={costesStr}
                 onChange={(e) => {
-                  setCostesStr(e.target.value);
-                  const val = parseEuro(e.target.value);
-                  if (unidades > 0) {
-                    setCosteUnitario(Number((val / unidades).toFixed(2)));
+                  const val = e.target.value;
+                  if (val === '' || /^\d*[.,]?\d*$/.test(val)) {
+                    setCostesStr(val);
+                    const num = parseEuro(val);
+                    const uds = unidades > 0 ? unidades : 1;
+                    setCosteUnitario(Number((num / uds).toFixed(2)));
                   }
                 }}
                 placeholder="0.00"
@@ -1200,10 +1228,15 @@ export const OperationModal: React.FC<OperationModalProps> = ({
                 Otros costes (€)
               </label>
               <input
-                type="number"
-                step="0.01"
+                type="text"
+                inputMode="decimal"
                 value={otrosCostesStr}
-                onChange={(e) => setOtrosCostesStr(e.target.value)}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val === '' || /^\d*[.,]?\d*$/.test(val)) {
+                    setOtrosCostesStr(val);
+                  }
+                }}
                 placeholder="0.00"
                 className="w-full bg-zinc-900/90 border border-white/10 rounded-xl px-2.5 py-2 text-xs text-white font-mono placeholder-zinc-600 focus:outline-none focus:border-emerald-500/50"
               />

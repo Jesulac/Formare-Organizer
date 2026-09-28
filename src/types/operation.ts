@@ -52,6 +52,7 @@ export interface Operation {
   esPedidoFilamento?: boolean; // True if purchase is a 1000g filament spool order
   createdAt: number;
   updatedAt?: number;
+  editCount?: number;
 }
 
 export interface ProductCatalogItem {

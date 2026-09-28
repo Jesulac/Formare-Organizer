@@ -79,7 +79,7 @@ export const DashboardSummary: React.FC<DashboardSummaryProps> = ({ stats }) => 
               </span>
             </div>
             <span className="text-[10px] text-emerald-300/70 mt-0.5 truncate">
-              Ventas - Gastos producción
+              Ventas - Producción - B. Sandra
             </span>
           </div>
 

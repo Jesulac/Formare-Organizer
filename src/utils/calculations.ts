@@ -69,20 +69,22 @@ export function calculateBeneficio(
   precio: number | null,
   costes: number,
   costesOperativos: number = 0,
-  tipo: OperationType = 'venta'
+  tipo: OperationType = 'venta',
+  vendedor?: string
 ): number {
   const p = precio || 0;
   const c = Math.abs(costes || 0);
   const cop = Math.abs(costesOperativos || 0);
+  const bSandra = calculateSandraCommission(p, vendedor, tipo);
 
   if (tipo === 'venta') {
-    return p - c - cop;
+    return Number((p - c - cop - bSandra).toFixed(2));
   } else if (tipo === 'compra' || tipo === 'inversion') {
-    return -(p > 0 ? p : c + cop);
+    return -Number((p > 0 ? p : c + cop).toFixed(2));
   } else if (tipo === 'cierre') {
-    return p - c - cop;
+    return Number((p - c - cop).toFixed(2));
   }
-  return p - c - cop;
+  return Number((p - c - cop).toFixed(2));
 }
 
 /**
