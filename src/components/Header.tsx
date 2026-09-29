@@ -87,13 +87,9 @@ export const Header: React.FC<HeaderProps> = ({
         </button>
 
         <div className="min-w-0">
-          <div className="flex items-center gap-2 text-xs text-zinc-500">
-            <span className="hidden sm:inline font-medium text-zinc-400">Formare 3D</span>
-            <span className="hidden sm:inline" aria-hidden="true">/</span>
-            <h1 className="text-sm sm:text-base lg:text-lg font-bold tracking-tight text-white truncate">
-              {currentMeta.title}
-            </h1>
-          </div>
+          <h1 className="text-sm sm:text-base lg:text-lg font-bold tracking-tight text-white truncate">
+            {currentMeta.title}
+          </h1>
           <p className="text-[11px] text-zinc-400 truncate hidden sm:block">
             {currentMeta.subtitle}
           </p>

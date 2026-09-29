@@ -436,8 +436,8 @@ export default function App() {
   }, [rawOperations]);
 
   return (
-    <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-black text-zinc-100 flex font-sans selection:bg-emerald-500/30 selection:text-emerald-200 relative">
-      {/* Left Navigation Sidebar (Desktop Rail + Mobile Drawer) */}
+    <div className="min-h-screen w-full max-w-full bg-black text-zinc-100 flex font-sans selection:bg-emerald-500/30 selection:text-emerald-200 relative">
+      {/* Left Navigation Sidebar (Desktop Fixed Rail + Mobile Drawer) */}
       <Sidebar
         activeSection={activeSection}
         onSectionChange={handleSectionChange}
@@ -464,7 +464,11 @@ export default function App() {
       />
 
       {/* Right Workspace Column (Contextual Header + Main Content Viewport) */}
-      <div className="flex-1 flex flex-col min-w-0 pb-20 lg:pb-10">
+      <div
+        className={`flex-1 flex flex-col min-w-0 pb-20 lg:pb-10 transition-all duration-200 ${
+          isSidebarCollapsed ? 'lg:pl-[72px]' : 'lg:pl-64'
+        }`}
+      >
         {/* Contextual Top Header */}
         <Header
           activeSection={activeSection}

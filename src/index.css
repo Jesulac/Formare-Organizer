@@ -13,7 +13,7 @@
     -webkit-tap-highlight-color: transparent;
     -webkit-touch-callout: none;
     overscroll-behavior-y: none;
-    overflow-x: hidden;
+    overflow-x: clip;
   }
 }
 

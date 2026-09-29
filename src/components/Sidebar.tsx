@@ -18,7 +18,6 @@ import {
   ChevronUp,
   ChevronDown,
   X,
-  Box,
   AlertTriangle,
 } from 'lucide-react';
 import { ActiveSection } from './Header';
@@ -67,6 +66,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const [showDataTools, setShowDataTools] = useState(false);
   const [confirmAction, setConfirmAction] = useState<'reset' | 'clear' | null>(null);
+  const [isHovered, setIsHovered] = useState(false);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -163,71 +163,50 @@ export const Sidebar: React.FC<SidebarProps> = ({
     },
   ];
 
+  const effectivelyCollapsed = isCollapsed && !isHovered;
+
   const renderSidebarContent = (mobileMode = false) => {
-    const collapsed = mobileMode ? false : isCollapsed;
+    const collapsed = mobileMode ? false : effectivelyCollapsed;
 
     return (
       <div className="flex flex-col h-full bg-[#09090b] text-zinc-100 select-none">
-        {/* Top Brand Zone */}
+        {/* Top Control Bar (Logo removed as requested) */}
         <div
-          className={`h-16 flex items-center justify-between border-b border-white/[0.08] shrink-0 ${
-            collapsed ? 'px-3 justify-center' : 'px-4'
+          className={`h-12 flex items-center border-b border-white/[0.08] shrink-0 ${
+            collapsed ? 'px-2 justify-center' : 'px-3 justify-end'
           }`}
         >
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="w-9 h-9 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center shrink-0 shadow-inner">
-              <Box className="w-4 h-4 text-emerald-400" />
-            </div>
-            {!collapsed && (
-              <div className="min-w-0">
-                <span className="text-base font-bold tracking-tight text-white block truncate">
-                  Formare 3D
-                </span>
-                <span className="text-[11px] text-zinc-400 block truncate">
-                  Gestión de Producción
-                </span>
-              </div>
-            )}
-          </div>
-
           {mobileMode ? (
             <button
               type="button"
               onClick={onCloseMobile}
-              className="p-2 rounded-lg text-zinc-400 hover:text-white hover:bg-white/5 transition-colors cursor-pointer"
+              className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-white/5 transition-colors cursor-pointer"
               aria-label="Cerrar menú"
             >
               <X className="w-5 h-5" />
             </button>
           ) : (
-            !collapsed && (
-              <button
-                type="button"
-                onClick={onToggleCollapse}
-                className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-white/5 transition-colors cursor-pointer"
-                title="Contraer menú lateral"
-                aria-label="Contraer menú lateral"
-              >
-                <PanelLeftClose className="w-4 h-4" />
-              </button>
-            )
-          )}
-        </div>
-
-        {/* Collapse expand button when in narrow rail mode */}
-        {!mobileMode && collapsed && (
-          <div className="px-2 pt-2.5 flex justify-center">
             <button
               type="button"
               onClick={onToggleCollapse}
-              className="p-2 rounded-xl text-zinc-400 hover:text-white hover:bg-white/5 transition-colors cursor-pointer"
-              title="Expandir menú lateral"
-              aria-label="Expandir menú lateral"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-zinc-400 hover:text-white hover:bg-white/5 transition-colors cursor-pointer"
+              title={isCollapsed ? 'Fijar menú desplegado' : 'Modo compacto dinámico'}
+              aria-label={isCollapsed ? 'Fijar menú desplegado' : 'Modo compacto dinámico'}
             >
-              <PanelLeftOpen className="w-4 h-4" />
+              {isCollapsed ? (
+                <>
+                  {!collapsed && <span>Fijar menú</span>}
+                  <PanelLeftOpen className="w-4 h-4 text-emerald-400" />
+                </>
+              ) : (
+                <>
+                  <span>Contraer menú</span>
+                  <PanelLeftClose className="w-4 h-4" />
+                </>
+              )}
             </button>
-          </div>
-        )}
+          )}
+        </div>
 
         {/* Primary Action Buttons */}
         <div className={`p-3 border-b border-white/[0.08] space-y-2 ${collapsed ? 'px-2' : ''}`}>
@@ -525,10 +504,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   return (
     <>
-      {/* Desktop Permanent Left Sidebar */}
+      {/* Desktop Permanent Left Sidebar (Fixed to viewport so it always accompanies scroll & dynamically expands on hover when collapsed) */}
       <aside
-        className={`hidden lg:flex flex-col shrink-0 border-r border-white/[0.08] bg-[#09090b] sticky top-0 h-screen z-30 transition-all duration-200 ${
-          isCollapsed ? 'w-[72px]' : 'w-64'
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+        className={`hidden lg:flex flex-col shrink-0 border-r border-white/[0.08] bg-[#09090b]/95 backdrop-blur-xl fixed inset-y-0 left-0 h-screen z-40 transition-all duration-200 shadow-2xl shadow-black/80 ${
+          effectivelyCollapsed ? 'w-[72px]' : 'w-64'
         }`}
       >
         {renderSidebarContent(false)}
