@@ -22,8 +22,7 @@ import {
   Disc,
   QrCode,
   Clock,
-  Truck,
-  AlertCircle,
+  Layers,
 } from 'lucide-react';
 
 const SECTION_STORAGE_KEY = 'formare3d_active_section';
@@ -106,10 +105,7 @@ export default function App() {
   // Mobile Sidebar Drawer State
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
-  // Sub-filters for dedicated sections ('produccion' and 'gastos')
-  const [prodSubFilter, setProdSubFilter] = useState<
-    'all_active' | 'En producción' | 'Enviado' | 'Pendiente de cobro'
-  >('all_active');
+  // Sub-filter for dedicated 'gastos' section
   const [gastosSubFilter, setGastosSubFilter] = useState<
     'all_gastos' | 'compras' | 'sandra15'
   >('all_gastos');
@@ -281,50 +277,26 @@ export default function App() {
     [filamentStock]
   );
 
-  // Operations for 'Cola de Producción y Envíos' section
+  // Operations for 'Cola de Producción' section: ONLY products in 'En producción'
   const productionOperations = useMemo(() => {
-    return rawOperations.filter((op) => {
-      if (op.tipo === 'cierre' || op.estado === 'Cancelado') return false;
-      if (prodSubFilter === 'En producción') return op.estado === 'En producción';
-      if (prodSubFilter === 'Enviado') return op.estado === 'Enviado';
-      if (prodSubFilter === 'Pendiente de cobro') {
-        return (
-          op.estado === 'Pendiente de cobro' || op.estado === 'Pendiente de pago'
-        );
-      }
-      return (
-        op.estado === 'En producción' ||
-        op.estado === 'Enviado' ||
-        op.estado === 'Pendiente de cobro' ||
-        op.estado === 'Pendiente de pago'
-      );
-    });
-  }, [rawOperations, prodSubFilter]);
+    return rawOperations.filter(
+      (op) => op.tipo !== 'cierre' && op.estado === 'En producción'
+    );
+  }, [rawOperations]);
 
   const prodStats = useMemo(() => {
     let enProd = 0;
-    let enviados = 0;
-    let pendientes = 0;
-    let importeActivo = 0;
+    let unidadesEnProd = 0;
+    let importeEnProd = 0;
 
     rawOperations.forEach((op) => {
-      if (op.tipo === 'cierre' || op.estado === 'Cancelado') return;
-      if (op.estado === 'En producción') {
-        enProd += 1;
-        importeActivo += op.precio || 0;
-      } else if (op.estado === 'Enviado') {
-        enviados += 1;
-        importeActivo += op.precio || 0;
-      } else if (
-        op.estado === 'Pendiente de cobro' ||
-        op.estado === 'Pendiente de pago'
-      ) {
-        pendientes += 1;
-        importeActivo += op.precio || 0;
-      }
+      if (op.tipo === 'cierre' || op.estado !== 'En producción') return;
+      enProd += 1;
+      unidadesEnProd += op.unidades && op.unidades > 0 ? op.unidades : 1;
+      importeEnProd += op.precio || 0;
     });
 
-    return { enProd, enviados, pendientes, importeActivo };
+    return { enProd, unidadesEnProd, importeEnProd };
   }, [rawOperations]);
 
   // Operations and breakdown for 'Gastos en General' section
@@ -502,99 +474,58 @@ export default function App() {
             </>
           )}
 
-          {/* 2. COLA DE PRODUCCIÓN Y ENVÍOS */}
+          {/* 2. COLA DE PRODUCCIÓN (Solo productos En producción) */}
           {activeSection === 'produccion' && (
             <div className="space-y-3 pt-3 w-full max-w-none">
               {/* Production Overview Cards */}
               <section className="px-2 sm:px-3 lg:px-4">
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-3">
                   <div className="glass-card rounded-2xl p-3.5 sm:p-4 border border-sky-500/25 bg-sky-950/15">
                     <span className="text-xs font-medium text-sky-300 flex items-center justify-between">
-                      <span>En Producción</span>
+                      <span>Pedidos en Producción</span>
                       <Printer className="w-4 h-4 text-sky-400" />
                     </span>
                     <span className="text-2xl font-bold font-mono tabular-nums text-white mt-1 block">
                       {prodStats.enProd}
                     </span>
                     <span className="text-[11px] text-zinc-400 mt-0.5 block">
-                      Piezas imprimiéndose o en cola
+                      Pedidos actualmente en cola de fabricación
                     </span>
                   </div>
 
                   <div className="glass-card rounded-2xl p-3.5 sm:p-4 border border-white/10">
-                    <span className="text-xs font-medium text-indigo-300 flex items-center justify-between">
-                      <span>Enviados en Tránsito</span>
-                      <Truck className="w-4 h-4 text-indigo-400" />
+                    <span className="text-xs font-medium text-zinc-300 flex items-center justify-between">
+                      <span>Unidades a Imprimir</span>
+                      <Layers className="w-4 h-4 text-sky-400" />
                     </span>
                     <span className="text-2xl font-bold font-mono tabular-nums text-white mt-1 block">
-                      {prodStats.enviados}
+                      {prodStats.unidadesEnProd}
                     </span>
                     <span className="text-[11px] text-zinc-400 mt-0.5 block">
-                      Pendientes de recepción final
-                    </span>
-                  </div>
-
-                  <div className="glass-card rounded-2xl p-3.5 sm:p-4 border border-white/10">
-                    <span className="text-xs font-medium text-amber-300 flex items-center justify-between">
-                      <span>Pendientes de Cobro</span>
-                      <AlertCircle className="w-4 h-4 text-amber-400" />
-                    </span>
-                    <span className="text-2xl font-bold font-mono tabular-nums text-amber-300 mt-1 block">
-                      {prodStats.pendientes}
-                    </span>
-                    <span className="text-[11px] text-zinc-400 mt-0.5 block">
-                      Reservados o por liquidar
+                      Total de piezas pendientes de imprimir
                     </span>
                   </div>
 
                   <div className="glass-card rounded-2xl p-3.5 sm:p-4 border border-white/10">
                     <span className="text-xs font-medium text-emerald-400 flex items-center justify-between">
-                      <span>Importe en Curso</span>
+                      <span>Importe en Producción</span>
                       <Clock className="w-4 h-4 text-emerald-400" />
                     </span>
                     <span className="text-2xl font-bold font-mono tabular-nums text-emerald-300 mt-1 block">
-                      {formatEuro(prodStats.importeActivo)}
+                      {formatEuro(prodStats.importeEnProd)}
                     </span>
                     <span className="text-[11px] text-zinc-400 mt-0.5 block">
-                      Facturación activa en curso
+                      Valor de los pedidos en fabricación
                     </span>
                   </div>
                 </div>
               </section>
 
-              {/* Segmented Filter Bar for Production Queue */}
+              {/* Action Bar for Production Queue */}
               <section className="px-2 sm:px-3 lg:px-4 flex flex-wrap items-center justify-between gap-2">
-                <div className="flex items-center p-1 bg-zinc-900/90 border border-white/10 rounded-xl overflow-x-auto no-scrollbar">
-                  {[
-                    { id: 'all_active', label: 'Todos los activos' },
-                    { id: 'En producción', label: `En producción (${prodStats.enProd})` },
-                    { id: 'Enviado', label: `Enviados (${prodStats.enviados})` },
-                    {
-                      id: 'Pendiente de cobro',
-                      label: `Pendientes (${prodStats.pendientes})`,
-                    },
-                  ].map((tab) => (
-                    <button
-                      key={tab.id}
-                      type="button"
-                      onClick={() =>
-                        setProdSubFilter(
-                          tab.id as
-                            | 'all_active'
-                            | 'En producción'
-                            | 'Enviado'
-                            | 'Pendiente de cobro'
-                        )
-                      }
-                      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap cursor-pointer ${
-                        prodSubFilter === tab.id
-                          ? 'bg-emerald-500 text-black font-semibold shadow-sm'
-                          : 'text-zinc-400 hover:text-white'
-                      }`}
-                    >
-                      {tab.label}
-                    </button>
-                  ))}
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-zinc-900/90 border border-sky-500/30 rounded-xl text-xs font-semibold text-sky-300">
+                  <Printer className="w-3.5 h-3.5 text-sky-400" />
+                  <span>Solo productos en producción ({prodStats.enProd})</span>
                 </div>
 
                 <button

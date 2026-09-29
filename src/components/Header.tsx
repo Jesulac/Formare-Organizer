@@ -37,8 +37,8 @@ const SECTION_META: Record<
     subtitle: 'Control completo de ventas, producción, compras y cierres mensuales',
   },
   produccion: {
-    title: 'Cola de Producción y Envíos',
-    subtitle: 'Pedidos actualmente en impresión, enviados o pendientes de cobro',
+    title: 'Cola de Producción',
+    subtitle: 'Pedidos actualmente en fabricación e impresión 3D',
   },
   gastos: {
     title: 'Gastos en General y Compras',

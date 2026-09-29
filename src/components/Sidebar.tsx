@@ -113,7 +113,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {
           id: 'produccion',
           label: 'Cola de Producción',
-          description: 'En impresión y pendientes',
+          description: 'Productos en fabricación',
           icon: Printer,
           badge: counts.inProduction > 0 ? String(counts.inProduction) : undefined,
           badgeTone: counts.inProduction > 0 ? 'sky' : 'neutral',
