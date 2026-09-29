@@ -1113,6 +1113,28 @@ export function useOperations() {
             : (b.createdAt || 0) - (a.createdAt || 0);
         }
 
+        if (filters.sortBy === 'fechaLimite') {
+          const aHasDeadline = Boolean(a.tipo === 'venta' && a.fechaLimite);
+          const bHasDeadline = Boolean(b.tipo === 'venta' && b.fechaLimite);
+          // Always keep operations with a deadline above operations without a deadline
+          if (aHasDeadline !== bHasDeadline) {
+            return aHasDeadline ? -1 : 1;
+          }
+          if (aHasDeadline && bHasDeadline) {
+            const valA = parseDate(a.fechaLimite!).getTime();
+            const valB = parseDate(b.fechaLimite!).getTime();
+            if (valA !== valB) {
+              return filters.sortOrder === 'asc' ? valA - valB : valB - valA;
+            }
+          }
+          const dateA = parseDate(a.fecha).getTime();
+          const dateB = parseDate(b.fecha).getTime();
+          if (dateA !== dateB) {
+            return filters.sortOrder === 'asc' ? dateA - dateB : dateB - dateA;
+          }
+          return (b.createdAt || 0) - (a.createdAt || 0);
+        }
+
         let valA: any;
         let valB: any;
 

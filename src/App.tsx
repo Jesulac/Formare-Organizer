@@ -11,7 +11,7 @@ import { PricingCalculatorModal } from './components/PricingCalculatorModal';
 import { PricingCalculatorView } from './components/PricingCalculatorView';
 import { FilamentStockView } from './components/FilamentStockView';
 import { QrStorageView } from './components/QrStorageView';
-import { Operation, Status } from './types/operation';
+import { Operation, Status, SortField, SortOrder } from './types/operation';
 import { calculateSandraCommission, formatEuro, parseDate } from './utils/calculations';
 import {
   Plus,
@@ -109,6 +109,15 @@ export default function App() {
   const [gastosSubFilter, setGastosSubFilter] = useState<
     'all_gastos' | 'compras' | 'sandra15'
   >('all_gastos');
+
+  // Sort state for 'Cola de Producción' section
+  const [prodSort, setProdSort] = useState<{
+    sortBy: SortField;
+    sortOrder: SortOrder;
+  }>({
+    sortBy: 'fechaLimite',
+    sortOrder: 'desc',
+  });
 
   const handleSectionChange = (section: ActiveSection) => {
     setActiveSection(section);
@@ -279,10 +288,59 @@ export default function App() {
 
   // Operations for 'Cola de Producción' section: ONLY products in 'En producción'
   const productionOperations = useMemo(() => {
-    return rawOperations.filter(
-      (op) => op.tipo !== 'cierre' && op.estado === 'En producción'
-    );
-  }, [rawOperations]);
+    return rawOperations
+      .filter((op) => op.tipo !== 'cierre' && op.estado === 'En producción')
+      .sort((a, b) => {
+        if (prodSort.sortBy === 'fechaLimite') {
+          const aHasDeadline = Boolean(a.tipo === 'venta' && a.fechaLimite);
+          const bHasDeadline = Boolean(b.tipo === 'venta' && b.fechaLimite);
+          if (aHasDeadline !== bHasDeadline) {
+            return aHasDeadline ? -1 : 1;
+          }
+          if (aHasDeadline && bHasDeadline) {
+            const valA = parseDate(a.fechaLimite!).getTime();
+            const valB = parseDate(b.fechaLimite!).getTime();
+            if (valA !== valB) {
+              return prodSort.sortOrder === 'asc' ? valA - valB : valB - valA;
+            }
+          }
+          const dateA = parseDate(a.fecha).getTime();
+          const dateB = parseDate(b.fecha).getTime();
+          if (dateA !== dateB) {
+            return prodSort.sortOrder === 'asc' ? dateA - dateB : dateB - dateA;
+          }
+          return (b.createdAt || 0) - (a.createdAt || 0);
+        }
+
+        if (prodSort.sortBy === 'fecha') {
+          const valA = parseDate(a.fecha).getTime();
+          const valB = parseDate(b.fecha).getTime();
+          if (valA !== valB) {
+            return prodSort.sortOrder === 'asc' ? valA - valB : valB - valA;
+          }
+          return (b.createdAt || 0) - (a.createdAt || 0);
+        }
+
+        let valA: any = 0;
+        let valB: any = 0;
+        if (prodSort.sortBy === 'precio') {
+          valA = a.precio || 0;
+          valB = b.precio || 0;
+        } else if (prodSort.sortBy === 'costes') {
+          valA = a.costes || 0;
+          valB = b.costes || 0;
+        } else if (prodSort.sortBy === 'beneficio') {
+          valA = a.beneficio || 0;
+          valB = b.beneficio || 0;
+        } else if (prodSort.sortBy === 'producto') {
+          valA = a.producto.toLowerCase();
+          valB = b.producto.toLowerCase();
+        }
+        if (valA < valB) return prodSort.sortOrder === 'asc' ? -1 : 1;
+        if (valA > valB) return prodSort.sortOrder === 'asc' ? 1 : -1;
+        return (b.createdAt || 0) - (a.createdAt || 0);
+      });
+  }, [rawOperations, prodSort]);
 
   const prodStats = useMemo(() => {
     let enProd = 0;
@@ -463,6 +521,11 @@ export default function App() {
                     onExportMonthPDF={exportMonthlyPDF}
                     viewMode={viewMode}
                     lastModifiedId={lastModifiedId}
+                    sortBy={filters.sortBy}
+                    sortOrder={filters.sortOrder}
+                    onSortChange={(field, order) =>
+                      setFilters({ ...filters, sortBy: field, sortOrder: order })
+                    }
                   />
                 ) : (
                   <EmptyState
@@ -523,9 +586,61 @@ export default function App() {
 
               {/* Action Bar for Production Queue */}
               <section className="px-2 sm:px-3 lg:px-4 flex flex-wrap items-center justify-between gap-2">
-                <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-zinc-900/90 border border-sky-500/30 rounded-xl text-xs font-semibold text-sky-300">
-                  <Printer className="w-3.5 h-3.5 text-sky-400" />
-                  <span>Solo productos en producción ({prodStats.enProd})</span>
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-zinc-900/90 border border-sky-500/30 rounded-xl text-xs font-semibold text-sky-300">
+                    <Printer className="w-3.5 h-3.5 text-sky-400" />
+                    <span>Solo productos en producción ({prodStats.enProd})</span>
+                  </div>
+
+                  {/* Quick sort toggle for Fecha límite */}
+                  <div className="inline-flex items-center p-1 bg-zinc-900/90 border border-white/10 rounded-xl text-xs">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setProdSort((prev) => ({
+                          sortBy: 'fechaLimite',
+                          sortOrder:
+                            prev.sortBy === 'fechaLimite' && prev.sortOrder === 'desc'
+                              ? 'asc'
+                              : 'desc',
+                        }))
+                      }
+                      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg font-medium transition-all cursor-pointer ${
+                        prodSort.sortBy === 'fechaLimite'
+                          ? 'bg-amber-500 text-black font-semibold shadow-sm'
+                          : 'text-zinc-400 hover:text-white'
+                      }`}
+                    >
+                      <Clock className="w-3.5 h-3.5 shrink-0" />
+                      <span>
+                        Fecha límite{' '}
+                        {prodSort.sortBy === 'fechaLimite'
+                          ? prodSort.sortOrder === 'desc'
+                            ? '↓ (Más reciente arriba)'
+                            : '↑ (Más antigua arriba)'
+                          : ''}
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setProdSort((prev) => ({
+                          sortBy: 'fecha',
+                          sortOrder:
+                            prev.sortBy === 'fecha' && prev.sortOrder === 'desc'
+                              ? 'asc'
+                              : 'desc',
+                        }))
+                      }
+                      className={`px-2.5 py-1 rounded-lg font-medium transition-all cursor-pointer ${
+                        prodSort.sortBy === 'fecha'
+                          ? 'bg-emerald-500 text-black font-semibold shadow-sm'
+                          : 'text-zinc-400 hover:text-white'
+                      }`}
+                    >
+                      Fecha venta {prodSort.sortBy === 'fecha' ? (prodSort.sortOrder === 'desc' ? '↓' : '↑') : ''}
+                    </button>
+                  </div>
                 </div>
 
                 <button
@@ -551,6 +666,11 @@ export default function App() {
                     onAttachQr={attachQrToOperation}
                     viewMode={viewMode}
                     lastModifiedId={lastModifiedId}
+                    sortBy={prodSort.sortBy}
+                    sortOrder={prodSort.sortOrder}
+                    onSortChange={(field, order) =>
+                      setProdSort({ sortBy: field, sortOrder: order })
+                    }
                   />
                 ) : (
                   <EmptyState

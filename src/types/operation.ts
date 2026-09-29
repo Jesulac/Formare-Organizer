@@ -89,7 +89,7 @@ export interface MonthlySummary {
 
 export type TimeFilter = 'todo' | 'hoy' | 'semana' | 'mes' | 'ano' | 'personalizado';
 
-export type SortField = 'fecha' | 'precio' | 'costes' | 'beneficio' | 'producto';
+export type SortField = 'fecha' | 'fechaLimite' | 'precio' | 'costes' | 'beneficio' | 'producto';
 export type SortOrder = 'asc' | 'desc';
 
 export interface FilterOptions {

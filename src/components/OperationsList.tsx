@@ -1,5 +1,12 @@
 import React, { useState, useRef } from 'react';
-import { Operation, Status, MonthlySummary, ShippingCompany } from '../types/operation';
+import {
+  Operation,
+  Status,
+  MonthlySummary,
+  ShippingCompany,
+  SortField,
+  SortOrder,
+} from '../types/operation';
 import {
   formatEuro,
   formatDateDisplay,
@@ -41,6 +48,9 @@ interface OperationsListProps {
   onExportMonthPDF?: (monthKey: string) => void;
   viewMode: ViewMode;
   lastModifiedId?: string | null;
+  sortBy?: SortField;
+  sortOrder?: SortOrder;
+  onSortChange?: (field: SortField, order: SortOrder) => void;
 }
 
 const SHIPPING_COMPANIES: ShippingCompany[] = ['Correos', 'InPost', 'Seur', 'Vinted Go', 'Otro'];
@@ -48,15 +58,6 @@ const SHIPPING_COMPANIES: ShippingCompany[] = ['Correos', 'InPost', 'Seur', 'Vin
 function getMonthKey(fechaStr: string): string {
   const d = parseDate(fechaStr);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-}
-
-function formatCompactDate(dateStr: string | undefined): string {
-  if (!dateStr) return '—';
-  const d = parseDate(dateStr);
-  const day = String(d.getDate()).padStart(2, '0');
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const year = String(d.getFullYear()).slice(-2);
-  return `${day}/${month}/${year}`;
 }
 
 function formatGramsMaxTwoDecimals(grams: number | undefined | null): string {
@@ -79,7 +80,19 @@ export const OperationsList: React.FC<OperationsListProps> = ({
   onExportMonthPDF,
   viewMode,
   lastModifiedId,
+  sortBy,
+  sortOrder = 'desc',
+  onSortChange,
 }) => {
+  const handleHeaderSort = (field: SortField) => {
+    if (!onSortChange) return;
+    if (sortBy === field) {
+      onSortChange(field, sortOrder === 'desc' ? 'asc' : 'desc');
+    } else {
+      // Default to 'desc' so the most recent date / highest value is at the top
+      onSortChange(field, 'desc');
+    }
+  };
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [previewQrOpId, setPreviewQrOpId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -409,25 +422,120 @@ export const OperationsList: React.FC<OperationsListProps> = ({
           <table className="w-full table-auto text-left text-xs border-collapse">
             <thead>
               <tr className="border-b border-white/10 bg-zinc-950/95 text-zinc-300 text-[11px] font-bold tracking-tight">
-                <th className="py-3 px-2.5 whitespace-nowrap">Fecha</th>
+                <th
+                  onClick={() => handleHeaderSort('fecha')}
+                  className={`py-3 px-2.5 whitespace-nowrap select-none ${
+                    onSortChange ? 'cursor-pointer hover:text-white transition-colors' : ''
+                  } ${sortBy === 'fecha' ? 'text-emerald-400' : ''}`}
+                  title="Ordenar por Fecha"
+                >
+                  <span className="inline-flex items-center gap-1">
+                    <span>Fecha</span>
+                    {sortBy === 'fecha' && (
+                      <span className="text-[10px] font-mono">
+                        {sortOrder === 'asc' ? '↑' : '↓'}
+                      </span>
+                    )}
+                  </span>
+                </th>
                 <th className="py-3 px-2 whitespace-nowrap">Tipo</th>
-                <th className="py-3 px-2.5 min-w-[150px]">Producto</th>
+                <th
+                  onClick={() => handleHeaderSort('producto')}
+                  className={`py-3 px-2.5 min-w-[150px] select-none ${
+                    onSortChange ? 'cursor-pointer hover:text-white transition-colors' : ''
+                  } ${sortBy === 'producto' ? 'text-emerald-400' : ''}`}
+                  title="Ordenar por Producto"
+                >
+                  <span className="inline-flex items-center gap-1">
+                    <span>Producto</span>
+                    {sortBy === 'producto' && (
+                      <span className="text-[10px] font-mono">
+                        {sortOrder === 'asc' ? '↑' : '↓'}
+                      </span>
+                    )}
+                  </span>
+                </th>
                 <th className="py-3 px-2 text-center whitespace-nowrap">Unidades</th>
                 <th className="py-3 px-2.5 min-w-[140px]">Material</th>
-                <th className="py-3 px-2 text-right whitespace-nowrap">Precio</th>
+                <th
+                  onClick={() => handleHeaderSort('precio')}
+                  className={`py-3 px-2 text-right whitespace-nowrap select-none ${
+                    onSortChange ? 'cursor-pointer hover:text-white transition-colors' : ''
+                  } ${sortBy === 'precio' ? 'text-emerald-400' : ''}`}
+                  title="Ordenar por Precio"
+                >
+                  <span className="inline-flex items-center justify-end gap-1">
+                    <span>Precio</span>
+                    {sortBy === 'precio' && (
+                      <span className="text-[10px] font-mono">
+                        {sortOrder === 'asc' ? '↑' : '↓'}
+                      </span>
+                    )}
+                  </span>
+                </th>
                 <th
                   className="py-3 px-2 text-right whitespace-nowrap text-purple-300"
                   title="Beneficio Sandra (Precio × 0,15) cuando el vendedor incluye a Sandra"
                 >
                   B. Sandra
                 </th>
-                <th className="py-3 px-2 text-right whitespace-nowrap">Costes</th>
-                <th className="py-3 px-2 text-right whitespace-nowrap">Beneficio</th>
+                <th
+                  onClick={() => handleHeaderSort('costes')}
+                  className={`py-3 px-2 text-right whitespace-nowrap select-none ${
+                    onSortChange ? 'cursor-pointer hover:text-white transition-colors' : ''
+                  } ${sortBy === 'costes' ? 'text-emerald-400' : ''}`}
+                  title="Ordenar por Costes"
+                >
+                  <span className="inline-flex items-center justify-end gap-1">
+                    <span>Costes</span>
+                    {sortBy === 'costes' && (
+                      <span className="text-[10px] font-mono">
+                        {sortOrder === 'asc' ? '↑' : '↓'}
+                      </span>
+                    )}
+                  </span>
+                </th>
+                <th
+                  onClick={() => handleHeaderSort('beneficio')}
+                  className={`py-3 px-2 text-right whitespace-nowrap select-none ${
+                    onSortChange ? 'cursor-pointer hover:text-white transition-colors' : ''
+                  } ${sortBy === 'beneficio' ? 'text-emerald-400' : ''}`}
+                  title="Ordenar por Beneficio"
+                >
+                  <span className="inline-flex items-center justify-end gap-1">
+                    <span>Beneficio</span>
+                    {sortBy === 'beneficio' && (
+                      <span className="text-[10px] font-mono">
+                        {sortOrder === 'asc' ? '↑' : '↓'}
+                      </span>
+                    )}
+                  </span>
+                </th>
                 <th className="py-3 px-2 whitespace-nowrap">Lugar</th>
                 <th className="py-3 px-2 whitespace-nowrap">Estado</th>
                 <th className="py-3 px-2 whitespace-nowrap">Vendedor</th>
                 <th className="py-3 px-2.5 min-w-[120px]">Comentarios</th>
-                <th className="py-3 px-2 whitespace-nowrap">Fecha límite</th>
+                <th
+                  onClick={() => handleHeaderSort('fechaLimite')}
+                  className={`py-3 px-2 whitespace-nowrap select-none ${
+                    onSortChange ? 'cursor-pointer hover:text-amber-300 transition-colors' : ''
+                  } ${sortBy === 'fechaLimite' ? 'text-amber-300' : ''}`}
+                  title="Ordenar por Fecha límite (la más reciente arriba)"
+                >
+                  <span className="inline-flex items-center gap-1">
+                    <Clock className="w-3 h-3 text-amber-400 shrink-0" />
+                    <span>Fecha límite</span>
+                    {sortBy === 'fechaLimite' ? (
+                      <span className="text-[10px] font-mono text-amber-300">
+                        {sortOrder === 'asc' ? '↑' : '↓'}
+                      </span>
+                    ) : (
+                      onSortChange && (
+                        <span className="text-[10px] font-mono text-zinc-500">↕</span>
+                      )
+                    )}
+                  </span>
+                </th>
                 <th className="py-3 px-1.5 text-center whitespace-nowrap">QR</th>
                 <th className="py-3 px-2 text-center whitespace-nowrap">Acciones</th>
               </tr>

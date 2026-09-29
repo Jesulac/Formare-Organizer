@@ -55,7 +55,8 @@ const statusesList: Status[] = [
 ];
 
 const sortOptions: { value: SortField; label: string }[] = [
-  { value: 'fecha', label: 'Recientes' },
+  { value: 'fecha', label: 'Recientes (Fecha)' },
+  { value: 'fechaLimite', label: 'Fecha límite' },
   { value: 'precio', label: 'Precio' },
   { value: 'costes', label: 'Costes' },
   { value: 'beneficio', label: 'Beneficio' },
@@ -190,10 +191,14 @@ export const FilterBar: React.FC<FilterBarProps> = ({
             <OledSelect
               value={filters.sortBy}
               onChange={(val) =>
-                onFilterChange({ ...filters, sortBy: val as SortField })
+                onFilterChange({
+                  ...filters,
+                  sortBy: val as SortField,
+                  sortOrder: 'desc',
+                })
               }
               options={sortOptions}
-              menuWidth={160}
+              menuWidth={180}
               buttonClassName="bg-transparent border-none px-1.5 py-0.5 text-xs text-zinc-200 hover:text-white"
             />
             <button
@@ -207,8 +212,8 @@ export const FilterBar: React.FC<FilterBarProps> = ({
               className="p-1 hover:text-white text-zinc-400 rounded-md cursor-pointer"
               title={
                 filters.sortOrder === 'asc'
-                  ? 'Orden ascendente'
-                  : 'Orden descendente'
+                  ? 'Orden ascendente (más antigua arriba)'
+                  : 'Orden descendente (más reciente arriba)'
               }
             >
               {filters.sortOrder === 'asc' ? '↑' : '↓'}
@@ -314,6 +319,41 @@ export const FilterBar: React.FC<FilterBarProps> = ({
                   onChange={(val) => onFilterChange({ ...filters, tipo: val })}
                   options={tipoSelectOptions}
                 />
+              </div>
+
+              {/* Ordenar por */}
+              <div>
+                <label className="block text-zinc-400 font-medium mb-1.5 flex items-center gap-1.5">
+                  <ArrowUpDown className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Ordenar por</span>
+                </label>
+                <div className="flex items-center gap-2">
+                  <div className="flex-1">
+                    <OledSelect
+                      value={filters.sortBy}
+                      onChange={(val) =>
+                        onFilterChange({
+                          ...filters,
+                          sortBy: val as SortField,
+                          sortOrder: 'desc',
+                        })
+                      }
+                      options={sortOptions}
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      onFilterChange({
+                        ...filters,
+                        sortOrder: filters.sortOrder === 'asc' ? 'desc' : 'asc',
+                      })
+                    }
+                    className="px-3 py-2 rounded-xl bg-zinc-900 border border-white/10 text-xs font-semibold text-zinc-200 hover:text-white cursor-pointer shrink-0"
+                  >
+                    {filters.sortOrder === 'desc' ? '↓ Más reciente' : '↑ Más antigua'}
+                  </button>
+                </div>
               </div>
             </div>
 
