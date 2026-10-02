@@ -176,7 +176,16 @@ async function startServer() {
     });
   });
 
-  // API: Get persisted operations (also supports ?stream=1)
+  app.head('/api/operations', (req, res) => {
+    const syncId =
+      currentServerState.syncId ||
+      `${currentServerState.revision || 1}-${currentServerState.updatedAt || 1}`;
+    res.setHeader('ETag', `"${syncId}"`);
+    res.setHeader('Content-Length', '0');
+    return res.status(200).end();
+  });
+
+  // API: Get persisted operations (also supports ?stream=1 and lightweight ?check=1)
   app.get('/api/operations', (req, res) => {
     if (req.query?.stream === '1') {
       res.setHeader('Content-Type', 'text/event-stream');
@@ -186,6 +195,31 @@ async function startServer() {
         res.write(`data: ${JSON.stringify(currentServerState)}\n\n`);
       }
       return res.end();
+    }
+
+    const syncId =
+      currentServerState.syncId ||
+      `${currentServerState.revision || 1}-${currentServerState.updatedAt || 1}`;
+    const etag = `"${syncId}"`;
+    res.setHeader('ETag', etag);
+
+    const clientEtag = req.headers['if-none-match'];
+    if (clientEtag && (clientEtag === etag || clientEtag === syncId)) {
+      return res.status(304).end();
+    }
+
+    if (req.query?.check === '1' || req.query?.version === '1') {
+      res.setHeader('Cache-Control', 'private, no-cache');
+      return res.json({
+        version: currentServerState.version || 6,
+        revision: currentServerState.revision || 1,
+        updatedAt: currentServerState.updatedAt || 1,
+        syncId,
+        clientId: currentServerState.clientId || 'server',
+        opCount: Array.isArray(currentServerState.operations)
+          ? currentServerState.operations.length
+          : 0,
+      });
     }
 
     try {

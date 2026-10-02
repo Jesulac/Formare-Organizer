@@ -1,4 +1,10 @@
 import { Operation } from '../types/operation';
+import {
+  saveToSupabase,
+  loadFromSupabase,
+  isSupabaseConfigured,
+  subscribeToSupabaseRealtime,
+} from './supabase';
 
 export const LOCAL_STORAGE_KEY = 'formare3d_ops_v6';
 const PREV_STORAGE_KEY_V5 = 'formare3d_ops_v5';
@@ -62,6 +68,7 @@ export function getValidUpdatedAt(ts?: number): number {
 
 let highestKnownTimestamp = Date.now();
 let latestSaveSequence = 0;
+let lastKnownSyncId = '';
 
 export function getLatestSaveSequence(): number {
   return latestSaveSequence;
@@ -441,6 +448,10 @@ export function loadFromLocalStorageSync(): PersistedPayload | null {
 }
 
 export function saveToLocalStorageSync(payload: PersistedPayload): void {
+  if (payload.syncId) {
+    lastKnownSyncId = payload.syncId;
+  }
+
   const buildTextOnlyPayload = (): PersistedPayload => ({
     ...payload,
     operations: payload.operations.map((op) => ({
@@ -502,16 +513,104 @@ export async function saveToServer(
   return null;
 }
 
-export async function loadFromServer(): Promise<PersistedPayload | null> {
+export interface ServerCheckResult {
+  hasChanges: boolean;
+  syncId?: string;
+  revision?: number;
+  updatedAt?: number;
+  clientId?: string;
+}
+
+export async function checkServerSync(knownSyncId?: string): Promise<ServerCheckResult | null> {
   try {
-    const res = await fetch(`/api/operations?t=${Date.now()}`, {
+    const syncToCompare = knownSyncId || lastKnownSyncId;
+    const headers: Record<string, string> = { Accept: 'application/json' };
+    if (syncToCompare) {
+      headers['If-None-Match'] = `"${syncToCompare}"`;
+    }
+
+    const res = await fetch('/api/operations?check=1', {
       method: 'GET',
-      headers: { Accept: 'application/json', 'Cache-Control': 'no-cache' },
-      cache: 'no-store',
+      headers,
     });
+
+    if (res.status === 304) {
+      // 304 Not Modified: 0 bytes transferred
+      return { hasChanges: false, syncId: syncToCompare };
+    }
+
+    if (!res.ok) return null;
+
+    const data = await res.json();
+    if (data && typeof data.revision === 'number') {
+      const serverSyncId = data.syncId || `${data.revision}-${data.updatedAt}-${data.clientId}`;
+      const isOurs = data.clientId && data.clientId === CLIENT_INSTANCE_ID;
+      const isSameSync = syncToCompare && serverSyncId === syncToCompare;
+
+      if (isOurs || isSameSync) {
+        return {
+          hasChanges: false,
+          syncId: serverSyncId,
+          revision: data.revision,
+          updatedAt: data.updatedAt,
+          clientId: data.clientId,
+        };
+      }
+
+      return {
+        hasChanges: true,
+        syncId: serverSyncId,
+        revision: data.revision,
+        updatedAt: data.updatedAt,
+        clientId: data.clientId,
+      };
+    }
+  } catch {
+    // Offline or static fallback
+  }
+  return null;
+}
+
+export async function loadFromServer(knownSyncId?: string): Promise<PersistedPayload | null> {
+  // If Supabase is configured, fetch directly from Supabase (works on GitHub Pages without any backend!)
+  if (isSupabaseConfigured()) {
+    try {
+      const supaPayload = await loadFromSupabase();
+      if (supaPayload) {
+        if (supaPayload.syncId) {
+          lastKnownSyncId = supaPayload.syncId;
+        }
+        return supaPayload;
+      }
+    } catch {
+      // Fallback to server/local
+    }
+  }
+
+  try {
+    const syncToCompare = knownSyncId || lastKnownSyncId;
+    const headers: Record<string, string> = { Accept: 'application/json' };
+    if (syncToCompare) {
+      headers['If-None-Match'] = `"${syncToCompare}"`;
+    }
+
+    const res = await fetch('/api/operations', {
+      method: 'GET',
+      headers,
+    });
+
+    if (res.status === 304) {
+      // HTTP 304: Nothing changed, 0 bytes body transferred!
+      return null;
+    }
+
     if (!res.ok) return null;
     const data = await res.json();
-    return normalizePayload(data);
+    const payload = normalizePayload(data);
+    if (payload?.syncId) {
+      lastKnownSyncId = payload.syncId;
+    }
+    return payload;
   } catch {
     return null;
   }
@@ -554,10 +653,11 @@ export async function persistOperationsAllLayers(
     }
   }
 
-  // 3. Persist to IndexedDB and Server in parallel
+  // 3. Persist to IndexedDB, Server and Supabase in parallel
   const [, serverMeta] = await Promise.all([
     saveToIndexedDB(payload),
     saveToServer(payload),
+    isSupabaseConfigured() ? saveToSupabase(payload) : Promise.resolve(false),
   ]);
 
   // 4. CRITICAL: If a newer save started while we were awaiting network/IDB, do NOT overwrite with older state!
@@ -586,6 +686,7 @@ export async function persistOperationsAllLayers(
     );
   }
 
+  lastKnownSyncId = finalSyncId;
   return { revision: finalRevision, updatedAt: finalUpdatedAt, syncId: finalSyncId };
 }
 
@@ -597,22 +698,28 @@ export function subscribeToRealtimeUpdates(
   let isDisposed = false;
   let eventSource: EventSource | null = null;
   let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  let focusDebounce: ReturnType<typeof setTimeout> | null = null;
+  let isChecking = false;
+  let sseFailures = 0;
 
   const handleIncoming = (raw: any) => {
     if (isDisposed) return;
     const norm = normalizePayload(raw);
     if (!norm) return;
     if (norm.clientId && norm.clientId === CLIENT_INSTANCE_ID) return;
+    if (norm.syncId) {
+      lastKnownSyncId = norm.syncId;
+    }
     onRemotePayload(norm);
   };
 
-  // 1. BroadcastChannel listener (0ms same-browser cross-tab sync)
+  // 1. BroadcastChannel listener (0ms, 0 bytes network bandwidth across tabs in same browser)
   const onBroadcastMessage = (event: MessageEvent) => {
     handleIncoming(event.data);
   };
   broadcastChannel?.addEventListener('message', onBroadcastMessage);
 
-  // 2. window 'storage' event listener (cross-tab localStorage sync)
+  // 2. window 'storage' event listener (cross-tab localStorage sync, 0 bytes network)
   const onStorageEvent = (event: StorageEvent) => {
     if (event.key === LOCAL_STORAGE_KEY && event.newValue) {
       try {
@@ -625,13 +732,14 @@ export function subscribeToRealtimeUpdates(
   };
   window.addEventListener('storage', onStorageEvent);
 
-  // 3. Server-Sent Events (SSE) stream for instant cross-device / multi-tab push
+  // 3. Server-Sent Events (SSE) stream for instant push (with loop prevention for Serverless)
   const connectSSE = () => {
     if (isDisposed || typeof EventSource === 'undefined') return;
     try {
       eventSource = new EventSource('/api/operations/stream');
       eventSource.onmessage = (e) => {
         if (!e.data) return;
+        sseFailures = 0;
         try {
           const parsed = JSON.parse(e.data);
           handleIncoming(parsed);
@@ -642,41 +750,71 @@ export function subscribeToRealtimeUpdates(
       eventSource.onerror = () => {
         eventSource?.close();
         eventSource = null;
-        if (!isDisposed) {
-          reconnectTimer = setTimeout(connectSSE, 4000);
+        sseFailures++;
+        // If SSE fails or closes (typical for Vercel serverless functions),
+        // do NOT loop reconnect every 4s, which wastes bandwidth.
+        if (!isDisposed && sseFailures <= 2) {
+          reconnectTimer = setTimeout(connectSSE, 25000);
         }
       };
     } catch {
-      // Fallback to polling if SSE not available
+      // Fallback
     }
   };
   connectSSE();
 
-  // 4. Fast periodic poll (every 2s) + visibility/focus check for Vercel & cross-device sync
+  // 4. Ultra-lightweight check: ONLY downloads the full database if revision/syncId changed
   const syncFromServer = async () => {
-    if (isDisposed) return;
-    const seqBeforeFetch = latestSaveSequence;
-    const serverPayload = await loadFromServer();
-    // If a local save started while this GET was in flight, discard the stale poll result
-    if (isDisposed || seqBeforeFetch !== latestSaveSequence) return;
-    if (serverPayload) {
-      handleIncoming(serverPayload);
+    if (isDisposed || isChecking) return;
+    isChecking = true;
+    try {
+      const seqBeforeFetch = latestSaveSequence;
+      // Step A: Fast ~70 bytes metadata check (or HTTP 304 with 0 bytes)
+      const checkRes = await checkServerSync(lastKnownSyncId);
+      if (isDisposed || seqBeforeFetch !== latestSaveSequence) return;
+
+      // If nothing changed on the server, DO NOT download the full operations list!
+      if (!checkRes || !checkRes.hasChanges) {
+        return;
+      }
+
+      // Step B: Only when a real change was detected from another device, fetch the full payload
+      const serverPayload = await loadFromServer(lastKnownSyncId);
+      if (isDisposed || seqBeforeFetch !== latestSaveSequence) return;
+      if (serverPayload) {
+        handleIncoming(serverPayload);
+      }
+    } finally {
+      isChecking = false;
     }
   };
 
+  // Poll only every 30 seconds when the tab is active/visible (costs ~70 bytes per check instead of 1.5MB every 2s)
   const pollInterval = setInterval(() => {
     if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
       void syncFromServer();
     }
-  }, 2000);
+  }, 30000);
 
+  // When user returns to tab (focus / visible), trigger lightweight check
   const onFocusOrVisible = () => {
     if (typeof document === 'undefined' || document.visibilityState === 'visible') {
-      void syncFromServer();
+      if (focusDebounce) clearTimeout(focusDebounce);
+      focusDebounce = setTimeout(() => {
+        void syncFromServer();
+      }, 300);
     }
   };
   window.addEventListener('focus', onFocusOrVisible);
   document.addEventListener('visibilitychange', onFocusOrVisible);
+
+  // 5. Supabase Realtime channel (instant live push across devices without backend)
+  let unsubscribeSupabase: (() => void) | null = null;
+  if (isSupabaseConfigured()) {
+    unsubscribeSupabase = subscribeToSupabaseRealtime((supaPayload) => {
+      handleIncoming(supaPayload);
+    });
+  }
 
   return () => {
     isDisposed = true;
@@ -685,7 +823,9 @@ export function subscribeToRealtimeUpdates(
     window.removeEventListener('focus', onFocusOrVisible);
     document.removeEventListener('visibilitychange', onFocusOrVisible);
     clearInterval(pollInterval);
+    if (focusDebounce) clearTimeout(focusDebounce);
     if (reconnectTimer) clearTimeout(reconnectTimer);
     eventSource?.close();
+    unsubscribeSupabase?.();
   };
 }

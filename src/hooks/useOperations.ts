@@ -34,6 +34,7 @@ import {
   CLIENT_INSTANCE_ID,
   PersistedPayload,
 } from '../utils/storage';
+import { saveToSupabase } from '../utils/supabase';
 import { generateMonthlySalesPdf } from '../utils/pdfReport';
 
 const TEN_DAYS_MS = 10 * 24 * 60 * 60 * 1000;
@@ -491,12 +492,18 @@ export function useOperations() {
         applyRemotePayload(idbPayload, { isLocalHydration: true });
       }
 
-      // 2. Then fetch from Server and non-destructively merge with combined local (localStorage + IndexedDB) state
+      // 2. Then fetch from Supabase/Server and non-destructively merge
       const serverPayload = await loadFromServer();
       if (cancelled) return;
 
-      if (serverPayload && Array.isArray(serverPayload.operations)) {
+      if (serverPayload && Array.isArray(serverPayload.operations) && serverPayload.operations.length > 0) {
         applyRemotePayload(serverPayload);
+      } else {
+        // If Supabase table was just created and is currently empty, seed it with current operations
+        const localCurrent = loadFromLocalStorageSync();
+        if (localCurrent && Array.isArray(localCurrent.operations) && localCurrent.operations.length > 0) {
+          void saveToSupabase(localCurrent);
+        }
       }
     }
 

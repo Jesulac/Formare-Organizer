@@ -121,23 +121,46 @@ export default function handler(req: any, res: any) {
     (typeof req.url === 'string' && req.url.includes('/stream'));
 
   if (req.method === 'GET' && isStream) {
+    // Vercel Serverless Functions do not support persistent streaming sockets.
+    // Close cleanly without looping to protect Vercel Origin Transfer quota:
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache, no-transform');
-    res.setHeader('Connection', 'keep-alive');
-
-    const state = loadServerlessState();
-    if (state && Array.isArray(state.operations)) {
-      res.write(`data: ${JSON.stringify(state)}\n\n`);
-    } else {
-      res.write(`: connected\n\n`);
-    }
+    res.setHeader('Connection', 'close');
+    res.write(`: serverless-mode\n\n`);
     return res.end();
+  }
+
+  const state = loadServerlessState();
+  const syncId = state.syncId || `${state.revision || 1}-${state.updatedAt || 1}`;
+  const etag = `"${syncId}"`;
+  res.setHeader('ETag', etag);
+
+  const clientEtag = req.headers['if-none-match'];
+  if (clientEtag && (clientEtag === etag || clientEtag === syncId)) {
+    return res.status(304).end();
+  }
+
+  if (req.method === 'HEAD') {
+    res.setHeader('Content-Length', '0');
+    return res.status(200).end();
+  }
+
+  // Ultra-lightweight version check (~80 bytes) so clients don't download the whole DB
+  if (req.query?.check === '1' || req.query?.version === '1') {
+    res.setHeader('Cache-Control', 'private, no-cache');
+    return res.status(200).json({
+      version: state.version || 6,
+      revision: state.revision || 1,
+      updatedAt: state.updatedAt || 1,
+      syncId,
+      clientId: state.clientId || 'server',
+      opCount: Array.isArray(state.operations) ? state.operations.length : 0,
+    });
   }
 
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
 
   if (req.method === 'GET') {
-    const state = loadServerlessState();
     return res.status(200).json(state);
   }
 
