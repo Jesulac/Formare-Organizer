@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useOperations } from './hooks/useOperations';
 import { Header, ViewMode, ActiveSection } from './components/Header';
 import { Sidebar } from './components/Sidebar';
+import { SectionTransition } from './components/SectionTransition';
 import { DashboardSummary } from './components/DashboardSummary';
 import { FilterBar } from './components/FilterBar';
 import { OperationsList } from './components/OperationsList';
@@ -465,9 +466,12 @@ export default function App() {
 
       {/* Right Workspace Column (Contextual Header + Main Content Viewport) */}
       <div
-        className={`flex-1 flex flex-col min-w-0 pb-20 lg:pb-10 transition-all duration-200 ${
-          isSidebarCollapsed ? 'lg:pl-[72px]' : 'lg:pl-64'
+        className={`flex-1 flex flex-col min-w-0 pb-20 lg:pb-10 ${
+          isSidebarCollapsed ? 'lg:pl-[72px]' : 'lg:pl-72'
         }`}
+        style={{
+          transition: 'padding-left 450ms cubic-bezier(0.4, 0, 0.2, 1)',
+        }}
       >
         {/* Contextual Top Header */}
         <Header
@@ -491,7 +495,8 @@ export default function App() {
 
         {/* Main Content Viewport */}
         <main
-          className={`flex-1 w-full min-w-0 transition-all duration-300 ${
+          key={activeSection}
+          className={`flex-1 w-full min-w-0 animate-fade-in ${
             viewMode === 'iphone' &&
             (activeSection === 'ventas' ||
               activeSection === 'produccion' ||
@@ -499,6 +504,9 @@ export default function App() {
               ? 'max-w-md mx-auto'
               : 'max-w-none'
           }`}
+          style={{
+            animation: 'fadeSlideIn 350ms cubic-bezier(0.4, 0, 0.2, 1)',
+          }}
         >
           {/* 1. PANEL GENERAL (VENTAS Y COMPRAS) */}
           {activeSection === 'ventas' && (
