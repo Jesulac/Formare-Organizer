@@ -12,6 +12,8 @@ import { PricingCalculatorModal } from './components/PricingCalculatorModal';
 import { PricingCalculatorView } from './components/PricingCalculatorView';
 import { FilamentStockView } from './components/FilamentStockView';
 import { QrStorageView } from './components/QrStorageView';
+import { AccessCodeGate } from './components/AccessCodeGate';
+import { isDeviceAuthorized } from './utils/deviceAuth';
 import { Operation, Status, SortField, SortOrder } from './types/operation';
 import { calculateSandraCommission, formatEuro, parseDate } from './utils/calculations';
 import {
@@ -39,7 +41,7 @@ const VALID_SECTIONS: ActiveSection[] = [
   'calculadora',
 ];
 
-export default function App() {
+function FormareApp() {
   const {
     operations,
     rawOperations,
@@ -922,3 +924,14 @@ export default function App() {
     </div>
   );
 }
+
+export default function App() {
+  const [isAuthorized, setIsAuthorized] = useState<boolean>(() => isDeviceAuthorized());
+
+  if (!isAuthorized) {
+    return <AccessCodeGate onAuthorized={() => setIsAuthorized(true)} />;
+  }
+
+  return <FormareApp />;
+}
+
