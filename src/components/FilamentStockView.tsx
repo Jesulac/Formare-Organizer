@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { FilamentSpool, Operation } from '../types/operation';
 import { formatEuro, formatDateDisplay, formatDateInput, calculateFilamentGrams } from '../utils/calculations';
-import { Disc, Plus, AlertTriangle, CheckCircle2, Scale, Calculator, Edit3, Check, X, Trash2, RotateCcw } from 'lucide-react';
+import { Disc, Plus, AlertTriangle, CheckCircle2, Scale, Calculator, Edit3, Check, X, Trash2, RotateCcw, Search, Sparkles } from 'lucide-react';
 
 interface FilamentStockViewProps {
   spools: FilamentSpool[];
@@ -22,7 +22,10 @@ export const FilamentStockView: React.FC<FilamentStockViewProps> = ({
   const [newSpoolPrice, setNewSpoolPrice] = useState('15.99');
   const [newSpoolUnits, setNewSpoolUnits] = useState('1');
   const [newSpoolSeller, setNewSpoolSeller] = useState('Jorge');
+  const [newSpoolGramsPerUnit, setNewSpoolGramsPerUnit] = useState('1000');
   const [showAddForm, setShowAddForm] = useState(false);
+  const [toastSuccess, setToastSuccess] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
   // State for editing remaining grams on a specific filament spool
   const [editingSpoolName, setEditingSpoolName] = useState<string | null>(null);
@@ -85,15 +88,18 @@ export const FilamentStockView: React.FC<FilamentStockViewProps> = ({
 
   const handleCreateSpoolPurchase = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newSpoolName.trim()) return;
+    const cleanName = newSpoolName.trim();
+    if (!cleanName) return;
     const pricePerUnit = parseFloat(newSpoolPrice.replace(',', '.')) || 15.99;
     const units = Math.max(1, parseInt(newSpoolUnits, 10) || 1);
+    const gramsPerSpool = parseInt(newSpoolGramsPerUnit, 10) || 1000;
     const totalCost = Number((pricePerUnit * units).toFixed(2));
+    const totalGrams = units * gramsPerSpool;
 
     onAddFilamentOrder({
       tipo: 'compra',
-      producto: `Pedido filamento ${newSpoolName.trim()}`,
-      material: newSpoolName.trim(),
+      producto: `Pedido filamento ${cleanName}`,
+      material: cleanName,
       unidades: units,
       costeUnitario: pricePerUnit,
       precio: null,
@@ -105,8 +111,13 @@ export const FilamentStockView: React.FC<FilamentStockViewProps> = ({
       fecha: formatDateInput(new Date().toISOString()),
       fechaLimite: '',
       esPedidoFilamento: true,
-      comentarios: `${units} bobina(s) de 1000g (${units * 1000}g)`,
+      comentarios: `${units} bobina(s) de ${gramsPerSpool}g (${totalGrams}g)`,
     });
+
+    setToastSuccess(`✓ Filamento "${cleanName}" añadido correctamente al stock (+${totalGrams}g)`);
+    setTimeout(() => {
+      setToastSuccess(null);
+    }, 5000);
 
     setNewSpoolName('');
     setShowAddForm(false);
@@ -125,28 +136,61 @@ export const FilamentStockView: React.FC<FilamentStockViewProps> = ({
     parseFloat(testSpoolPrice.replace(',', '.')) || 15.99
   );
 
+  const filteredSpools = spools.filter((s) => {
+    if (!searchQuery.trim()) return true;
+    return s.nombre.toLowerCase().includes(searchQuery.trim().toLowerCase());
+  });
+
+  const popularFilaments = [
+    'PLA Azul Cielo (Elegoo)',
+    'PLA Negro (Elegoo)',
+    'PLA Blanco (Elegoo)',
+    'PLA Rojo (Elegoo)',
+    'PETG Negro (Elegoo)',
+    'PETG Rojo (Winkle)',
+    'ASA Negro (Winkle)',
+    'TPU Negro',
+  ];
+
   return (
     <section className="px-2 sm:px-3 lg:px-4 py-4 space-y-5 w-full max-w-none">
+      {/* Toast notification */}
+      {toastSuccess && (
+        <div className="p-3.5 rounded-2xl bg-emerald-500/20 border border-emerald-500/50 text-emerald-200 text-xs flex items-center justify-between shadow-xl animate-fade-in">
+          <div className="flex items-center gap-2.5">
+            <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
+            <span className="font-semibold text-sm">{toastSuccess}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setToastSuccess(null)}
+            className="text-emerald-300 hover:text-white p-1 cursor-pointer transition-colors"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
       {/* Header Banner */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 glass-card rounded-2xl p-4 border border-white/10">
         <div>
           <h2 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
             <Disc className="w-5 h-5 text-emerald-400" />
-            <span>Control de Stock de Filamentos (1000g / bobina)</span>
+            <span>Control de Stock de Filamentos</span>
           </h2>
           <p className="text-xs text-zinc-400 mt-0.5">
-            Cada bobina nueva suma <strong className="text-zinc-200">1000 g</strong>. Cada venta resta automáticamente los gramos usados mediante regla de tres:{' '}
-            <span className="font-mono text-emerald-300">(Coste venta × 1000 g) / Precio bobina</span>. También puedes ajustar manualmente cuánto queda por desgaste o purgas.
+            Cada bobina nueva suma <strong className="text-zinc-200">1000 g</strong> al taller. Cada venta resta automáticamente los gramos usados mediante regla de tres:{' '}
+            <span className="font-mono text-emerald-300">(Coste venta × 1000 g) / Precio bobina</span>. También puedes ajustar manualmente gramos restantes en cualquier momento.
           </p>
         </div>
 
         <button
           type="button"
           onClick={() => setShowAddForm(!showAddForm)}
-          className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-bold text-xs shadow-lg shadow-emerald-500/20 cursor-pointer shrink-0"
+          className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-bold text-xs shadow-lg shadow-emerald-500/20 cursor-pointer shrink-0 transition-transform active:scale-95"
         >
           <Plus className="w-4 h-4 stroke-[2.5]" />
-          <span>Registrar Pedido Filamento (+1000g)</span>
+          <span>{showAddForm ? 'Cerrar formulario' : 'Añadir Filamento al Stock (+)'}</span>
         </button>
       </div>
 
@@ -154,61 +198,100 @@ export const FilamentStockView: React.FC<FilamentStockViewProps> = ({
       {showAddForm && (
         <form
           onSubmit={handleCreateSpoolPurchase}
-          className="glass-card rounded-2xl p-4 border border-emerald-500/30 bg-emerald-950/15 space-y-3 text-xs"
+          className="glass-card rounded-2xl p-4 sm:p-5 border border-emerald-500/40 bg-emerald-950/20 space-y-4 text-xs shadow-xl"
         >
           <div className="flex items-center justify-between">
-            <h3 className="font-bold text-emerald-300 text-sm">
-              Nuevo Pedido de Filamento (se añade también a la tabla de Compras)
-            </h3>
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-emerald-400" />
+              <h3 className="font-bold text-emerald-300 text-sm">
+                Añadir Filamento / Bobina al Stock
+              </h3>
+            </div>
             <button
               type="button"
               onClick={() => setShowAddForm(false)}
-              className="text-zinc-400 hover:text-white cursor-pointer"
+              className="text-zinc-400 hover:text-white p-1 cursor-pointer"
             >
-              Cerrar
+              <X className="w-4 h-4" />
             </button>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-            <div>
-              <label className="block text-zinc-300 mb-1">Material / Filamento *</label>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+            <div className="lg:col-span-2">
+              <label className="block text-zinc-200 font-medium mb-1">Nombre / Color / Marca del Filamento *</label>
               <input
                 type="text"
                 required
                 value={newSpoolName}
                 onChange={(e) => setNewSpoolName(e.target.value)}
-                placeholder="Ej: PETG Negro (Elegoo), ASA Negro..."
-                className="w-full bg-zinc-900 border border-white/10 rounded-xl px-3 py-2 text-white"
+                placeholder="Ej: PLA Azul Cielo (Elegoo), PETG Blanco, ASA Negro..."
+                className="w-full bg-zinc-900 border border-white/15 rounded-xl px-3 py-2 text-white placeholder-zinc-500 focus:outline-none focus:border-emerald-500"
+                autoFocus
               />
             </div>
             <div>
-              <label className="block text-zinc-300 mb-1">Precio por bobina 1000g (€)</label>
+              <label className="block text-zinc-300 mb-1">Precio por bobina (€)</label>
               <input
                 type="number"
                 step="0.01"
+                min="0"
                 value={newSpoolPrice}
                 onChange={(e) => setNewSpoolPrice(e.target.value)}
-                className="w-full bg-zinc-900 border border-white/10 rounded-xl px-3 py-2 text-white font-mono"
+                className="w-full bg-zinc-900 border border-white/15 rounded-xl px-3 py-2 text-white font-mono focus:outline-none focus:border-emerald-500"
               />
             </div>
             <div>
-              <label className="block text-zinc-300 mb-1">Nº de bobinas (×1000g)</label>
+              <label className="block text-zinc-300 mb-1">Nº de bobinas</label>
               <input
                 type="number"
                 min="1"
                 step="1"
                 value={newSpoolUnits}
                 onChange={(e) => setNewSpoolUnits(e.target.value)}
-                className="w-full bg-zinc-900 border border-white/10 rounded-xl px-3 py-2 text-white font-mono"
+                className="w-full bg-zinc-900 border border-white/15 rounded-xl px-3 py-2 text-white font-mono focus:outline-none focus:border-emerald-500"
               />
             </div>
-            <div className="flex items-end">
-              <button
-                type="submit"
-                className="w-full py-2 px-4 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-bold cursor-pointer"
+            <div>
+              <label className="block text-zinc-300 mb-1">Comprador</label>
+              <select
+                value={newSpoolSeller}
+                onChange={(e) => setNewSpoolSeller(e.target.value)}
+                className="w-full bg-zinc-900 border border-white/15 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-emerald-500 cursor-pointer"
               >
-                Guardar (+{(parseInt(newSpoolUnits, 10) || 1) * 1000}g)
-              </button>
+                <option value="Jorge">Jorge</option>
+                <option value="Sandra">Sandra</option>
+                <option value="Empresa">Empresa</option>
+              </select>
             </div>
+          </div>
+
+          {/* Quick presets */}
+          <div>
+            <span className="text-[11px] text-zinc-400 block mb-1.5">Sugerencias rápidas:</span>
+            <div className="flex flex-wrap gap-1.5">
+              {popularFilaments.map((preset) => (
+                <button
+                  key={preset}
+                  type="button"
+                  onClick={() => setNewSpoolName(preset)}
+                  className="px-2 py-1 rounded-lg bg-white/5 hover:bg-emerald-500/20 text-zinc-300 hover:text-emerald-300 border border-white/10 hover:border-emerald-500/30 text-[11px] transition-colors cursor-pointer"
+                >
+                  {preset}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between pt-2 border-t border-white/10">
+            <span className="text-[11px] text-zinc-400">
+              Se sumará <strong className="text-emerald-400">{(parseInt(newSpoolUnits, 10) || 1) * 1000}g</strong> al stock de filamentos y se registrará la compra.
+            </span>
+            <button
+              type="submit"
+              className="py-2.5 px-5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-bold text-xs shadow-lg shadow-emerald-500/20 cursor-pointer transition-transform active:scale-95"
+            >
+              Guardar y Añadir al Stock (+{(parseInt(newSpoolUnits, 10) || 1) * 1000}g)
+            </button>
           </div>
         </form>
       )}
@@ -280,15 +363,56 @@ export const FilamentStockView: React.FC<FilamentStockViewProps> = ({
         </div>
       </div>
 
+      {/* Spools Search & Counter Bar */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-1">
+        <div className="relative flex-1 max-w-md">
+          <Search className="w-4 h-4 text-zinc-400 absolute left-3 top-1/2 -translate-y-1/2" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Buscar filamento por nombre, material o color..."
+            className="w-full bg-zinc-900/90 border border-white/10 rounded-xl pl-9 pr-3 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-emerald-500"
+          />
+        </div>
+        <div className="text-xs text-zinc-400 flex items-center gap-1.5">
+          <span>{filteredSpools.length} filamentos {searchQuery ? 'encontrados' : 'en stock'}</span>
+        </div>
+      </div>
+
       {/* Filament Spools Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-        {spools.map((spool) => {
-          const pct =
-            spool.gramosIniciales > 0
-              ? Math.min(100, Math.max(0, Math.round((spool.gramosRestantes / spool.gramosIniciales) * 100)))
-              : 0;
-          const isLow = spool.gramosRestantes < 250;
-          const isEditingThis = editingSpoolName === spool.nombre;
+      {filteredSpools.length === 0 ? (
+        <div className="glass-card rounded-2xl p-8 border border-white/10 text-center space-y-3">
+          <Scale className="w-10 h-10 text-zinc-500 mx-auto" />
+          <h3 className="text-sm font-bold text-zinc-300">
+            {searchQuery ? `No hay filamentos que coincidan con "${searchQuery}"` : 'No hay filamentos registrados'}
+          </h3>
+          <p className="text-xs text-zinc-500 max-w-md mx-auto">
+            {searchQuery
+              ? 'Prueba a cambiar el texto de búsqueda o pulsa en añadir filamento para registrar uno nuevo.'
+              : 'Haz clic en el botón superior para añadir una nueva bobina o filamento a tu taller.'}
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              setSearchQuery('');
+              setShowAddForm(true);
+            }}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-bold text-xs cursor-pointer shadow-lg shadow-emerald-500/20"
+          >
+            <Plus className="w-4 h-4 stroke-[2.5]" />
+            <span>Añadir Filamento al Stock</span>
+          </button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+          {filteredSpools.map((spool) => {
+            const pct =
+              spool.gramosIniciales > 0
+                ? Math.min(100, Math.max(0, Math.round((spool.gramosRestantes / spool.gramosIniciales) * 100)))
+                : 0;
+            const isLow = spool.gramosRestantes < 250;
+            const isEditingThis = editingSpoolName === spool.nombre;
           const isEditingInitialThis = editingInitialSpoolName === spool.nombre;
           const isConfirmingDelete = confirmingDeleteSpool === spool.nombre;
           const hasManualAdjust = Boolean(spool.ajusteManualGramos && spool.ajusteManualGramos !== 0);
@@ -588,6 +712,7 @@ export const FilamentStockView: React.FC<FilamentStockViewProps> = ({
           );
         })}
       </div>
+      )}
     </section>
   );
 };

@@ -42,7 +42,7 @@ import {
   parseEuro,
   parseMaterialItems
 } from '../utils/calculations';
-import { normalizeFilamentKey } from '../hooks/useOperations';
+import { normalizeFilamentKey, isFilamentKeyword, cleanSpoolName } from '../hooks/useOperations';
 import { parseVoiceOperationSmartFallback } from '../utils/voiceParser';
 import { OledSelect } from './OledSelect';
 
@@ -611,13 +611,23 @@ export const OperationModal: React.FC<OperationModalProps> = ({
       ? formatMaterialItems(validDetalle, true)
       : (materialRows[0]?.material || material).trim();
 
+    const isFilamentCompra =
+      tipo === 'compra' &&
+      (esPedidoFilamento ||
+        isFilamentKeyword(producto) ||
+        isFilamentKeyword(finalMaterialStr));
+
+    const effectiveMaterial =
+      finalMaterialStr ||
+      (isFilamentCompra ? cleanSpoolName(producto) : undefined);
+
     const payload: Omit<Operation, 'id' | 'createdAt' | 'beneficio'> = {
       tipo,
       producto: producto.trim(),
       unidades: unidades || 1,
       costeUnitario: unitCostFinal,
       fecha,
-      material: finalMaterialStr || undefined,
+      material: effectiveMaterial,
       materialesDetalle: isMulti && validDetalle.length > 0 ? validDetalle : undefined,
       precio: tipo === 'compra' || tipo === 'inversion' ? null : precioNum,
       costes: costesNum,
@@ -630,11 +640,7 @@ export const OperationModal: React.FC<OperationModalProps> = ({
       fotoQr,
       empresaEnvio: fotoQr ? empresaEnvio : operationToEdit?.empresaEnvio,
       fechaSubidaQr: fotoQr ? operationToEdit?.fechaSubidaQr || Date.now() : undefined,
-      esPedidoFilamento:
-        tipo === 'compra' &&
-        (esPedidoFilamento ||
-          producto.toLowerCase().includes('filamento') ||
-          /(pla|petg|asa|tpu)/i.test(finalMaterialStr)),
+      esPedidoFilamento: isFilamentCompra,
     };
 
     if (isEditing && operationToEdit && onUpdate) {
@@ -886,8 +892,12 @@ export const OperationModal: React.FC<OperationModalProps> = ({
               required
               value={producto}
               onChange={(e) => {
-                setProducto(e.target.value);
+                const val = e.target.value;
+                setProducto(val);
                 if (errorMsg) setErrorMsg(null);
+                if (tipo === 'compra' && isFilamentKeyword(val) && !esPedidoFilamento) {
+                  setEsPedidoFilamento(true);
+                }
               }}
               placeholder={
                 tipo === 'compra'

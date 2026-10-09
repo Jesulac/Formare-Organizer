@@ -132,24 +132,56 @@ export function sanitizeAndMigrateOperations(rawList: any[]): Operation[] {
     });
 }
 
-export function normalizeFilamentKey(raw: string): string {
-  const s = raw.toLowerCase().trim();
-  if (!s) return 'PETG Negro (Elegoo)';
-  if (s.includes('petg') && s.includes('rojo')) return 'PETG Rojo (Winkle)';
-  if (s.includes('petg') && (s.includes('cf') || s.includes('fc') || s.includes('fcf'))) return 'PETG Negro CF (Bambu / Elegoo)';
-  if (s.includes('petg') && s.includes('bambu')) return 'PETG Negro (Bambulab)';
-  if (s.includes('petg') && s.includes('esun')) return 'PETG Negro (eSun)';
-  if (s.includes('petg') && s.includes('sunlu')) return 'PETG Negro (Sunlu)';
-  if (s.includes('petg') && (s.includes('negro') || s.includes('elegoo') || s === 'petg')) return 'PETG Negro (Elegoo)';
-  if (s.includes('asa') && (s.includes('negro') || s.includes('winkle') || s === 'asa')) return 'ASA Negro (Winkle)';
-  if (s.includes('tpu') && (s.includes('negro') || s === 'tpu')) return 'TPU Negro';
-  if (s.includes('pla') && s.includes('rojo')) return 'PLA Rojo (Elegoo)';
-  if (s.includes('pla') && s.includes('azul')) return 'PLA Azul (eSun)';
-  if (s.includes('pla') && s.includes('blanco')) return 'PLA Blanco (Elegoo)';
-  if (s.includes('pla') && (s.includes('negro') || s.includes('elegoo') || s.includes('i3d') || s === 'pla')) {
-    return 'PLA Negro (Elegoo / i3D)';
+export function cleanSpoolName(raw: string): string {
+  if (!raw) return '';
+  let s = raw.trim();
+  // Strip common purchase prefixes
+  s = s.replace(/^(pedido|compra|bobina)\s*(de)?\s*(filamento)?\s*/i, '').trim();
+  s = s.replace(/^filamento\s*/i, '').trim();
+  return s || raw.trim();
+}
+
+export function isFilamentKeyword(text?: string | null): boolean {
+  if (!text) return false;
+  return /(pla|petg|asa|tpu|abs|pc|nylon|resina|filamento|bobina|spool)/i.test(text);
+}
+
+export function resolveSpoolKeyForPurchase(raw: string): string {
+  const cleaned = cleanSpoolName(raw);
+  if (!cleaned) return 'PETG Negro (Elegoo)';
+  const s = cleaned.toLowerCase();
+
+  for (const def of DEFAULT_FILAMENTS) {
+    if (def.nombre.toLowerCase() === s) return def.nombre;
   }
-  return raw.trim();
+
+  // Exact matching for legacy entries:
+  if (s === 'pla negro (i3d)') return 'PLA Negro (Elegoo / i3D)';
+  if (s === 'pla azul (esun)') return 'PLA Azul (eSun)';
+  if (s === 'petg negro (sunlu)') return 'PETG Negro (Sunlu)';
+  if (s === 'petg negro (esun)') return 'PETG Negro (eSun)';
+  if (s === 'asa negro (winkle)') return 'ASA Negro (Winkle)';
+  if (s === 'petg negro (bambulab)') return 'PETG Negro (Bambulab)';
+  if (s === 'petg rojo (winkle)') return 'PETG Rojo (Winkle)';
+  if (s === 'petg negro (elegoo)') return 'PETG Negro (Elegoo)';
+
+  // Generic legacy single-word shortcuts:
+  if (s === 'petg negro' || s === 'petg') return 'PETG Negro (Elegoo)';
+  if (s === 'asa negro' || s === 'asa') return 'ASA Negro (Winkle)';
+  if (s === 'petg rojo') return 'PETG Rojo (Winkle)';
+  if (s === 'pla rojo') return 'PLA Rojo (Elegoo)';
+  if (s === 'pla azul') return 'PLA Azul (eSun)';
+  if (s === 'pla blanco') return 'PLA Blanco (Elegoo)';
+  if (s === 'pla negro' || s === 'pla') return 'PLA Negro (Elegoo / i3D)';
+  if (s === 'tpu negro' || s === 'tpu') return 'TPU Negro';
+
+  // For any distinct filament entered by user (e.g. 'PLA Azul Cielo (Elegoo)', 'PETG negro (Deeplee)', 'PLA Madera'):
+  // Keep the cleaned exact name!
+  return cleaned;
+}
+
+export function normalizeFilamentKey(raw: string): string {
+  return resolveSpoolKeyForPurchase(raw);
 }
 
 const DEFAULT_FILAMENTS: Array<{ nombre: string; precio: number; bobinasBase: number }> = [
@@ -166,6 +198,70 @@ const DEFAULT_FILAMENTS: Array<{ nombre: string; precio: number; bobinasBase: nu
   { nombre: 'PLA Blanco (Elegoo)', precio: 14.99, bobinasBase: 1 },
   { nombre: 'TPU Negro', precio: 18.99, bobinasBase: 1 },
 ];
+
+function resolveSpoolKeyForSale(rawMat: string, availableSpoolKeys: string[]): string {
+  const s = rawMat.toLowerCase().trim();
+  if (!s) return 'PETG Negro (Elegoo)';
+
+  // 1. Direct case-insensitive match against available spools
+  const direct = availableSpoolKeys.find((k) => k.toLowerCase() === s);
+  if (direct) return direct;
+
+  // 2. Specific matching for multi-word or distinctive traits:
+  if (s.includes('azul') && s.includes('cielo')) {
+    const cielo = availableSpoolKeys.find((k) => k.toLowerCase().includes('cielo'));
+    if (cielo) return cielo;
+  }
+  if (s.includes('deeplee')) {
+    const deeplee = availableSpoolKeys.find((k) => k.toLowerCase().includes('deeplee'));
+    if (deeplee) return deeplee;
+  }
+
+  // 3. Match against default spools or existing spools
+  const findMatch = (pattern: RegExp, fallback: string): string => {
+    const found = availableSpoolKeys.find((k) => pattern.test(k));
+    return found || fallback;
+  };
+
+  if (s.includes('petg') && s.includes('rojo')) {
+    return findMatch(/petg.*rojo/i, 'PETG Rojo (Winkle)');
+  }
+  if (s.includes('petg') && (s.includes('cf') || s.includes('fc') || s.includes('fcf'))) {
+    return findMatch(/petg.*cf/i, 'PETG Negro CF (Bambu / Elegoo)');
+  }
+  if (s.includes('petg') && s.includes('bambu')) {
+    return findMatch(/petg.*bambu/i, 'PETG Negro (Bambulab)');
+  }
+  if (s.includes('petg') && s.includes('esun')) {
+    return findMatch(/petg.*esun/i, 'PETG Negro (eSun)');
+  }
+  if (s.includes('petg') && s.includes('sunlu')) {
+    return findMatch(/petg.*sunlu/i, 'PETG Negro (Sunlu)');
+  }
+  if (s.includes('petg') && (s.includes('negro') || s.includes('elegoo') || s === 'petg')) {
+    return findMatch(/petg.*negro.*elegoo/i, 'PETG Negro (Elegoo)');
+  }
+  if (s.includes('asa')) {
+    return findMatch(/asa/i, 'ASA Negro (Winkle)');
+  }
+  if (s.includes('tpu')) {
+    return findMatch(/tpu/i, 'TPU Negro');
+  }
+  if (s.includes('pla') && s.includes('rojo')) {
+    return findMatch(/pla.*rojo/i, 'PLA Rojo (Elegoo)');
+  }
+  if (s.includes('pla') && s.includes('azul')) {
+    return findMatch(/pla.*azul/i, 'PLA Azul (eSun)');
+  }
+  if (s.includes('pla') && s.includes('blanco')) {
+    return findMatch(/pla.*blanco/i, 'PLA Blanco (Elegoo)');
+  }
+  if (s.includes('pla')) {
+    return findMatch(/pla.*negro/i, 'PLA Negro (Elegoo / i3D)');
+  }
+
+  return cleanSpoolName(rawMat);
+}
 
 function computeSpoolsList(
   operations: Operation[],
@@ -198,13 +294,13 @@ function computeSpoolsList(
   operations.forEach((op) => {
     const isFilamentoPurchase =
       op.tipo === 'compra' &&
-      (op.esPedidoFilamento ||
-        op.producto.toLowerCase().includes('filamento') ||
-        (op.material && /(pla|petg|asa|tpu)/i.test(op.material)));
+      (op.esPedidoFilamento === true ||
+        isFilamentKeyword(op.producto) ||
+        isFilamentKeyword(op.material));
 
     if (isFilamentoPurchase) {
       const rawMat = op.material || op.producto;
-      const key = normalizeFilamentKey(rawMat);
+      const key = resolveSpoolKeyForPurchase(rawMat);
       const units = op.unidades && op.unidades > 0 ? op.unidades : 1;
       const cost = Math.abs(op.costes || 0);
       const unitPrice = cost > 0 ? Number((cost / units).toFixed(2)) : 15.99;
@@ -251,8 +347,9 @@ function computeSpoolsList(
     const effectiveCost = pureFilamentCost > 0 ? pureFilamentCost : Math.abs(op.costes || 0);
     const costPerPart = effectiveCost / targetItems.length;
 
+    const availableKeys = Array.from(spoolsMap.keys());
     targetItems.forEach((item) => {
-      const key = normalizeFilamentKey(item.material);
+      const key = resolveSpoolKeyForSale(item.material, availableKeys);
       const spool = spoolsMap.get(key);
       const precioBobina = spool ? spool.precioBobina : 15.99;
       const gramos =
@@ -601,9 +698,9 @@ export function useOperations() {
       const isFilamentoOrder =
         opData.tipo === 'compra' &&
         Boolean(
-          opData.esPedidoFilamento ??
-            ((opData.producto && opData.producto.toLowerCase().includes('filamento')) ||
-              (opData.material && /(pla|petg|asa|tpu)/i.test(opData.material)))
+          opData.esPedidoFilamento === true ||
+            isFilamentKeyword(opData.producto) ||
+            isFilamentKeyword(opData.material)
         );
 
       const otrosCostes =
@@ -635,22 +732,31 @@ export function useOperations() {
 
       // If this is a filament purchase, un-delete if previously deleted and ensure +1000g * unidades visibly adds to remaining grams
       if (isFilamentoOrder) {
-        const key = normalizeFilamentKey(newOp.material || newOp.producto);
-        if (nextAdj[`__deleted__:${key}`]) {
-          delete nextAdj[`__deleted__:${key}`];
+        const key = resolveSpoolKeyForPurchase(newOp.material || newOp.producto);
+        const targetLower = key.toLowerCase().trim();
+
+        // Un-delete any matching deleted entries (case-insensitive & substring match)
+        for (const k of Object.keys(nextAdj)) {
+          if (k.startsWith('__deleted__:')) {
+            const delName = k.replace('__deleted__:', '').trim().toLowerCase();
+            if (delName === targetLower || targetLower.includes(delName) || delName.includes(targetLower)) {
+              delete nextAdj[k];
+            }
+          }
         }
+
         const prevSpools = computeSpoolsList(operationsRef.current, filamentAdjustmentsRef.current);
-        const prevSpool = prevSpools.find((s) => s.nombre === key);
+        const prevSpool = prevSpools.find((s) => s.nombre.toLowerCase() === targetLower);
         const prevVisibleRemaining = prevSpool ? prevSpool.gramosRestantes : 0;
         const expectedRemaining = prevVisibleRemaining + unidades * 1000;
 
         const nextSpoolsRaw = computeSpoolsList(nextOps, nextAdj);
-        const updatedSpool = nextSpoolsRaw.find((s) => s.nombre === key);
+        const updatedSpool = nextSpoolsRaw.find((s) => s.nombre.toLowerCase() === targetLower);
         if (updatedSpool && updatedSpool.gramosRestantes < expectedRemaining) {
           const baseRestantes = updatedSpool.gramosIniciales - updatedSpool.gramosConsumidos;
           nextAdj = {
             ...nextAdj,
-            [key]: expectedRemaining - baseRestantes,
+            [updatedSpool.nombre]: expectedRemaining - baseRestantes,
           };
         }
       }
@@ -740,9 +846,31 @@ export function useOperations() {
         };
       });
 
+      let nextAdj = { ...filamentAdjustmentsRef.current };
+      const modifiedOp = nextOps.find((o) => o.id === id);
+      if (modifiedOp && modifiedOp.tipo === 'compra') {
+        const isFil =
+          modifiedOp.esPedidoFilamento === true ||
+          isFilamentKeyword(modifiedOp.producto) ||
+          isFilamentKeyword(modifiedOp.material);
+        if (isFil) {
+          modifiedOp.esPedidoFilamento = true;
+          const key = resolveSpoolKeyForPurchase(modifiedOp.material || modifiedOp.producto);
+          const targetLower = key.toLowerCase().trim();
+          for (const k of Object.keys(nextAdj)) {
+            if (k.startsWith('__deleted__:')) {
+              const delName = k.replace('__deleted__:', '').trim().toLowerCase();
+              if (delName === targetLower || targetLower.includes(delName) || delName.includes(targetLower)) {
+                delete nextAdj[k];
+              }
+            }
+          }
+        }
+      }
+
       commitStateChange(
         nextOps,
-        filamentAdjustmentsRef.current,
+        nextAdj,
         'Cambios guardados en tiempo real',
         id
       );
