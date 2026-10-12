@@ -6,6 +6,7 @@ import {
   FileText,
   Menu,
   Calculator,
+  Camera,
 } from 'lucide-react';
 
 export type ViewMode = 'iphone' | 'desktop' | 'auto';
@@ -15,7 +16,8 @@ export type ActiveSection =
   | 'gastos'
   | 'filamentos'
   | 'qr'
-  | 'calculadora';
+  | 'calculadora'
+  | 'camara';
 
 interface HeaderProps {
   activeSection: ActiveSection;
@@ -55,6 +57,10 @@ const SECTION_META: Record<
   calculadora: {
     title: 'Calculadora de Precios 3D',
     subtitle: 'Cálculo de costes por gramos de filamento, tornillería y multiplicadores',
+  },
+  camara: {
+    title: 'Cámara de la Impresora 3D',
+    subtitle: 'Control y transmisión en directo a través de OctoEverywhere',
   },
 };
 
@@ -141,6 +147,18 @@ export const Header: React.FC<HeaderProps> = ({
             <span className="hidden xl:inline">Calcular precio</span>
           </button>
         )}
+
+        {/* Quick Camera Link (OctoEverywhere) */}
+        <a
+          href="https://formare3d.octoeverywhere.com/network-device-manager/network/control"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium text-sky-300 bg-sky-500/10 hover:bg-sky-500/20 border border-sky-500/30 transition-all active:scale-95 cursor-pointer whitespace-nowrap"
+          title="Ver cámara de la impresora (OctoEverywhere)"
+        >
+          <Camera className="w-3.5 h-3.5 text-sky-400 shrink-0" />
+          <span className="hidden md:inline">Ver cámara</span>
+        </a>
 
         {/* Monthly PDF Report */}
         {onExportMonthlyPDF && (

@@ -19,6 +19,8 @@ import {
   ChevronDown,
   X,
   AlertTriangle,
+  Camera,
+  ExternalLink,
 } from 'lucide-react';
 import { ActiveSection } from './Header';
 import { formatEuro } from '../utils/calculations';
@@ -96,6 +98,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       badge?: string;
       badgeTone?: 'neutral' | 'sky' | 'rose' | 'amber' | 'emerald';
       alertDot?: boolean;
+      externalUrl?: string;
     }[];
   }[] = [
     {
@@ -150,13 +153,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
       ],
     },
     {
-      label: 'Herramientas',
+      label: 'Herramientas y Dispositivos',
       items: [
         {
           id: 'calculadora',
           label: 'Calculadora 3D',
           description: 'Precios, márgenes y tornillería',
           icon: Calculator,
+        },
+        {
+          id: 'camara',
+          label: 'Ver cámara de la impresora',
+          description: 'Cámara en directo OctoEverywhere',
+          icon: Camera,
+          externalUrl: 'https://formare3d.octoeverywhere.com/network-device-manager/network/control',
         },
       ],
     },
@@ -272,20 +282,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       ? 'text-emerald-300'
                       : 'text-zinc-400';
 
-                  return (
-                    <button
-                      key={item.id}
-                      type="button"
-                      onClick={() => handleNavClick(item.id)}
-                      title={collapsed ? `${item.label} — ${item.description}` : undefined}
-                      className={`w-full group flex items-center justify-between gap-3 rounded-2xl cursor-pointer text-left relative transition-all duration-200 ${
-                        collapsed ? 'p-3 justify-center' : 'px-4 py-3'
-                      } ${
-                        isActive
-                          ? 'bg-emerald-500/15 text-white border border-emerald-500/40 shadow-lg shadow-emerald-500/10 scale-[1.02]'
-                          : 'text-zinc-400 hover:text-zinc-100 hover:bg-white/[0.06] border border-transparent hover:scale-[1.01]'
-                      }`}
-                    >
+                  const itemContent = (
+                    <>
                       {/* Left active indicator bar */}
                       {isActive && (
                         <span className="absolute left-0 top-2.5 bottom-2.5 w-1 rounded-r-full bg-emerald-400" />
@@ -321,15 +319,59 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         )}
                       </div>
 
-                      {!collapsed && item.badge && (
-                        <span
-                          className={`text-xs font-mono tabular-nums font-bold shrink-0 px-2 py-1 rounded-lg bg-white/5 ${
-                            isActive ? 'text-emerald-300' : badgeColor
-                          }`}
-                        >
-                          {item.badge}
-                        </span>
+                      {!collapsed && (
+                        item.externalUrl ? (
+                          <span className="text-zinc-500 group-hover:text-sky-400 transition-colors shrink-0">
+                            <ExternalLink className="w-4 h-4" />
+                          </span>
+                        ) : item.badge ? (
+                          <span
+                            className={`text-xs font-mono tabular-nums font-bold shrink-0 px-2 py-1 rounded-lg bg-white/5 ${
+                              isActive ? 'text-emerald-300' : badgeColor
+                            }`}
+                          >
+                            {item.badge}
+                          </span>
+                        ) : null
                       )}
+                    </>
+                  );
+
+                  if (item.externalUrl) {
+                    return (
+                      <a
+                        key={item.id}
+                        href={item.externalUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={() => {
+                          onCloseMobile();
+                        }}
+                        title={collapsed ? `${item.label} — ${item.description}` : undefined}
+                        className={`w-full group flex items-center justify-between gap-3 rounded-2xl cursor-pointer text-left relative transition-all duration-200 ${
+                          collapsed ? 'p-3 justify-center' : 'px-4 py-3'
+                        } text-zinc-400 hover:text-white hover:bg-sky-500/10 border border-transparent hover:border-sky-500/20 hover:scale-[1.01]`}
+                      >
+                        {itemContent}
+                      </a>
+                    );
+                  }
+
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => handleNavClick(item.id)}
+                      title={collapsed ? `${item.label} — ${item.description}` : undefined}
+                      className={`w-full group flex items-center justify-between gap-3 rounded-2xl cursor-pointer text-left relative transition-all duration-200 ${
+                        collapsed ? 'p-3 justify-center' : 'px-4 py-3'
+                      } ${
+                        isActive
+                          ? 'bg-emerald-500/15 text-white border border-emerald-500/40 shadow-lg shadow-emerald-500/10 scale-[1.02]'
+                          : 'text-zinc-400 hover:text-zinc-100 hover:bg-white/[0.06] border border-transparent hover:scale-[1.01]'
+                      }`}
+                    >
+                      {itemContent}
                     </button>
                   );
                 })}

@@ -26,6 +26,8 @@ import {
   QrCode,
   Clock,
   Layers,
+  Camera,
+  ExternalLink,
 } from 'lucide-react';
 
 const SECTION_STORAGE_KEY = 'formare3d_active_section';
@@ -39,6 +41,7 @@ const VALID_SECTIONS: ActiveSection[] = [
   'filamentos',
   'qr',
   'calculadora',
+  'camara',
 ];
 
 function FormareApp() {
@@ -848,6 +851,56 @@ function FormareApp() {
               spools={filamentStock}
               onCreateOperationWithPrice={handleCreateWithCalculatedPrice}
             />
+          )}
+
+          {/* 7. VER CÁMARA DE LA IMPRESORA (OctoEverywhere) */}
+          {activeSection === 'camara' && (
+            <div className="px-3 sm:px-6 lg:px-8 py-6 max-w-4xl mx-auto space-y-6 animate-fade-in">
+              <div className="glass-card rounded-3xl p-6 sm:p-8 border border-sky-500/30 bg-gradient-to-br from-sky-950/40 via-zinc-950/80 to-zinc-900/60 shadow-2xl relative overflow-hidden">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+                  <div className="space-y-2.5">
+                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-sky-500/15 border border-sky-500/30 text-sky-300 text-xs font-semibold">
+                      <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+                      <span>Transmisión en Directo</span>
+                    </div>
+                    <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight flex items-center gap-3">
+                      <Camera className="w-7 h-7 text-sky-400" />
+                      <span>Cámara de la Impresora 3D</span>
+                    </h2>
+                    <p className="text-sm text-zinc-300 max-w-xl leading-relaxed">
+                      Accede en directo a la cámara de la impresora y al gestor de red OctoEverywhere para supervisar tus impresiones y estado del taller en tiempo real.
+                    </p>
+                  </div>
+
+                  <a
+                    href="https://formare3d.octoeverywhere.com/network-device-manager/network/control"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center justify-center gap-2.5 px-6 py-3.5 rounded-2xl bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-black font-bold text-sm shadow-lg shadow-sky-500/25 hover:shadow-sky-500/40 transition-all duration-200 hover:scale-105 active:scale-95 cursor-pointer shrink-0"
+                  >
+                    <Camera className="w-5 h-5 text-black" />
+                    <span>Ver Cámara en OctoEverywhere</span>
+                    <ExternalLink className="w-4 h-4 text-black/70" />
+                  </a>
+                </div>
+
+                <div className="mt-6 pt-6 border-t border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-zinc-400">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-zinc-500 font-medium">Enlace directo:</span>
+                    <a
+                      href="https://formare3d.octoeverywhere.com/network-device-manager/network/control"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-2.5 py-1 rounded-lg bg-black/60 hover:bg-black/90 text-sky-300 hover:text-sky-200 font-mono text-[11px] border border-white/10 transition-colors flex items-center gap-1.5"
+                    >
+                      <span>https://formare3d.octoeverywhere.com/network-device-manager/network/control</span>
+                      <ExternalLink className="w-3 h-3 shrink-0" />
+                    </a>
+                  </div>
+                  <span className="text-zinc-400 font-medium">OctoEverywhere Network Control</span>
+                </div>
+              </div>
+            </div>
           )}
         </main>
       </div>
