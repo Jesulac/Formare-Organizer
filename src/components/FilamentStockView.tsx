@@ -8,6 +8,7 @@ interface FilamentStockViewProps {
   onAddFilamentOrder: (opData: Omit<Operation, 'id' | 'createdAt' | 'beneficio'>) => void;
   onUpdateFilamentRemaining: (spoolName: string, newRemainingGrams: number) => void;
   onUpdateFilamentInitial?: (spoolName: string, newInitialGrams: number) => void;
+  onUpdateFilamentPrice?: (spoolName: string, newPrice: number) => void;
   onDeleteFilamentSpool?: (spoolName: string) => void;
 }
 
@@ -16,6 +17,7 @@ export const FilamentStockView: React.FC<FilamentStockViewProps> = ({
   onAddFilamentOrder,
   onUpdateFilamentRemaining,
   onUpdateFilamentInitial,
+  onUpdateFilamentPrice,
   onDeleteFilamentSpool,
 }) => {
   const [newSpoolName, setNewSpoolName] = useState('');
@@ -34,6 +36,10 @@ export const FilamentStockView: React.FC<FilamentStockViewProps> = ({
   // State for editing initial grams on a specific filament spool
   const [editingInitialSpoolName, setEditingInitialSpoolName] = useState<string | null>(null);
   const [editInitialValue, setEditInitialValue] = useState<string>('');
+
+  // State for editing spool price per 1000g
+  const [editingPriceSpoolName, setEditingPriceSpoolName] = useState<string | null>(null);
+  const [editPriceValue, setEditPriceValue] = useState<string>('');
 
   const [confirmingDeleteSpool, setConfirmingDeleteSpool] = useState<string | null>(null);
 
@@ -84,6 +90,28 @@ export const FilamentStockView: React.FC<FilamentStockViewProps> = ({
     const valid = Math.max(0, Math.round(targetVal));
     setEditInitialValue(String(valid));
     onUpdateFilamentInitial?.(spoolName, valid);
+  };
+
+  const handleStartEditPrice = (spool: FilamentSpool) => {
+    setEditingSpoolName(null);
+    setEditingInitialSpoolName(null);
+    setEditingPriceSpoolName(spool.nombre);
+    setEditPriceValue(String(spool.precioBobina));
+  };
+
+  const handleSavePrice = (spoolName: string) => {
+    const parsed = parseFloat(editPriceValue.replace(',', '.'));
+    if (!isNaN(parsed) && parsed > 0) {
+      const rounded = Number(parsed.toFixed(2));
+      onUpdateFilamentPrice?.(spoolName, rounded);
+    }
+    setEditingPriceSpoolName(null);
+  };
+
+  const handleSetPriceQuickAndSave = (spoolName: string, targetPrice: number) => {
+    const valid = Math.max(0.01, Number(targetPrice.toFixed(2)));
+    setEditPriceValue(String(valid));
+    onUpdateFilamentPrice?.(spoolName, valid);
   };
 
   const handleCreateSpoolPurchase = (e: React.FormEvent) => {
@@ -413,9 +441,10 @@ export const FilamentStockView: React.FC<FilamentStockViewProps> = ({
                 : 0;
             const isLow = spool.gramosRestantes < 250;
             const isEditingThis = editingSpoolName === spool.nombre;
-          const isEditingInitialThis = editingInitialSpoolName === spool.nombre;
-          const isConfirmingDelete = confirmingDeleteSpool === spool.nombre;
-          const hasManualAdjust = Boolean(spool.ajusteManualGramos && spool.ajusteManualGramos !== 0);
+            const isEditingInitialThis = editingInitialSpoolName === spool.nombre;
+            const isEditingPriceThis = editingPriceSpoolName === spool.nombre;
+            const isConfirmingDelete = confirmingDeleteSpool === spool.nombre;
+            const hasManualAdjust = Boolean(spool.ajusteManualGramos && spool.ajusteManualGramos !== 0);
 
           return (
             <div
@@ -430,9 +459,26 @@ export const FilamentStockView: React.FC<FilamentStockViewProps> = ({
                     <Scale className="w-4 h-4 text-emerald-400 shrink-0" />
                     <span>{spool.nombre}</span>
                   </h3>
-                  <p className="text-[11px] text-zinc-400 mt-0.5 font-mono">
-                    Precio bobina (1000g): <strong className="text-zinc-200">{formatEuro(spool.precioBobina)}</strong>
-                    {spool.ultimaCompraFecha && ` · Últ. pedido: ${formatDateDisplay(spool.ultimaCompraFecha)}`}
+                  <p className="text-[11px] text-zinc-400 mt-0.5 font-mono flex items-center gap-1 flex-wrap">
+                    <span>Precio bobina (1000g):</span>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        isEditingPriceThis
+                          ? setEditingPriceSpoolName(null)
+                          : handleStartEditPrice(spool)
+                      }
+                      className="inline-flex items-center gap-1 text-zinc-100 font-bold hover:text-emerald-400 cursor-pointer underline decoration-dotted underline-offset-2 transition-colors"
+                      title="Pulsar para editar el precio de la bobina"
+                    >
+                      <span>{formatEuro(spool.precioBobina)}</span>
+                      <Edit3 className="w-3 h-3 text-emerald-400 opacity-80" />
+                    </button>
+                    {spool.ultimaCompraFecha && (
+                      <span className="text-zinc-500">
+                        · Últ. pedido: {formatDateDisplay(spool.ultimaCompraFecha)}
+                      </span>
+                    )}
                   </p>
                 </div>
 
@@ -627,6 +673,67 @@ export const FilamentStockView: React.FC<FilamentStockViewProps> = ({
                 </div>
               )}
 
+              {/* Inline Editor for Spool Price */}
+              {isEditingPriceThis && (
+                <div className="p-3 rounded-xl bg-zinc-900/95 border border-emerald-500/40 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[11px] font-semibold text-emerald-300">
+                      Actualizar precio bobina 1000g (€)
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setEditingPriceSpoolName(null)}
+                      className="text-zinc-400 hover:text-white p-0.5 cursor-pointer"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+
+                  <div className="flex items-center gap-1.5">
+                    <input
+                      type="number"
+                      min="0.01"
+                      step="0.01"
+                      value={editPriceValue}
+                      onChange={(e) => setEditPriceValue(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleSavePrice(spool.nombre);
+                        }
+                      }}
+                      className="flex-1 min-w-0 bg-black border border-white/15 rounded-lg px-2.5 py-1.5 text-xs text-white font-mono font-bold focus:outline-none focus:border-emerald-500"
+                      autoFocus
+                    />
+                    <span className="text-xs font-mono text-zinc-400">€</span>
+                    <button
+                      type="button"
+                      onClick={() => handleSavePrice(spool.nombre)}
+                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-black font-bold text-xs cursor-pointer"
+                    >
+                      <Check className="w-3.5 h-3.5 stroke-[2.5]" />
+                      <span>Guardar</span>
+                    </button>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-1 text-[10px]">
+                    <span className="text-zinc-400">Precios habituales:</span>
+                    <div className="flex items-center gap-1 flex-wrap">
+                      {[12.5, 13.99, 14.99, 15.99, 16.99, 19.99].map((preset) => (
+                        <button
+                          key={preset}
+                          type="button"
+                          onClick={() => handleSetPriceQuickAndSave(spool.nombre, preset)}
+                          className="px-1.5 py-0.5 rounded bg-white/5 hover:bg-white/15 text-zinc-300 font-mono cursor-pointer border border-white/10"
+                        >
+                          {preset}€
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Confirmation Banner before Deleting Filament */}
               {isConfirmingDelete && (
                 <div className="p-3 rounded-xl bg-rose-950/90 border border-rose-500/40 space-y-2.5">
@@ -661,6 +768,19 @@ export const FilamentStockView: React.FC<FilamentStockViewProps> = ({
                   1g = {formatEuro(spool.precioBobina / 1000)}
                 </span>
                 <div className="flex flex-wrap items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      isEditingPriceThis
+                        ? setEditingPriceSpoolName(null)
+                        : handleStartEditPrice(spool)
+                    }
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/15 text-zinc-200 border border-white/10 text-[11px] font-medium cursor-pointer transition-colors"
+                    title="Editar precio de la bobina"
+                  >
+                    <Edit3 className="w-3 h-3 text-emerald-400" />
+                    <span>Editar precio</span>
+                  </button>
                   <button
                     type="button"
                     onClick={() =>

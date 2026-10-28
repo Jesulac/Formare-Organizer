@@ -62,6 +62,7 @@ function FormareApp() {
     updateOperation,
     updateFilamentRemaining,
     updateFilamentInitial,
+    updateFilamentPrice,
     deleteFilamentSpool,
     attachQrToOperation,
     deleteOperation,
@@ -832,6 +833,7 @@ function FormareApp() {
               onAddFilamentOrder={addOperation}
               onUpdateFilamentRemaining={updateFilamentRemaining}
               onUpdateFilamentInitial={updateFilamentInitial}
+              onUpdateFilamentPrice={updateFilamentPrice}
               onDeleteFilamentSpool={deleteFilamentSpool}
             />
           )}

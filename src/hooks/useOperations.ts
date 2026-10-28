@@ -135,9 +135,12 @@ export function sanitizeAndMigrateOperations(rawList: any[]): Operation[] {
 export function cleanSpoolName(raw: string): string {
   if (!raw) return '';
   let s = raw.trim();
-  // Strip common purchase prefixes
-  s = s.replace(/^(pedido|compra|bobina)\s*(de)?\s*(filamento)?\s*/i, '').trim();
-  s = s.replace(/^filamento\s*/i, '').trim();
+  let prev = '';
+  while (s !== prev) {
+    prev = s;
+    s = s.replace(/^(pedido|compra|bobina|spool|rollo)\s*(de)?\s*/i, '').trim();
+    s = s.replace(/^filamento\s*(de)?\s*/i, '').trim();
+  }
   return s || raw.trim();
 }
 
@@ -277,6 +280,8 @@ function computeSpoolsList(
       precioBobina: number;
       gramosConsumidos: number;
       ultimaCompraFecha?: string;
+      latestPurchaseDateMs?: number;
+      latestPurchaseSubOrder?: number;
     }
   >();
 
@@ -288,10 +293,14 @@ function computeSpoolsList(
       totalGastadoCompras: Number((f.precio * f.bobinasBase).toFixed(2)),
       precioBobina: f.precio,
       gramosConsumidos: 0,
+      latestPurchaseDateMs: 0,
+      latestPurchaseSubOrder: 0,
     });
   });
 
-  operations.forEach((op) => {
+  const totalOps = operations.length;
+
+  operations.forEach((op, opIndex) => {
     const isFilamentoPurchase =
       op.tipo === 'compra' &&
       (op.esPedidoFilamento === true ||
@@ -299,29 +308,84 @@ function computeSpoolsList(
         isFilamentKeyword(op.material));
 
     if (isFilamentoPurchase) {
-      const rawMat = op.material || op.producto;
-      const key = resolveSpoolKeyForPurchase(rawMat);
+      const matClean = op.material ? cleanSpoolName(op.material) : '';
+      const prodClean = op.producto ? cleanSpoolName(op.producto) : '';
+
+      const matKey = matClean ? resolveSpoolKeyForPurchase(matClean) : '';
+      const prodKey = prodClean ? resolveSpoolKeyForPurchase(prodClean) : '';
+
+      let key = matKey;
+      if (!key || (!isFilamentKeyword(matClean) && isFilamentKeyword(prodClean))) {
+        key = prodKey;
+      }
+      if (!key) {
+        key = resolveSpoolKeyForPurchase(op.material || op.producto || 'PETG Negro (Elegoo)');
+      }
+
       const units = op.unidades && op.unidades > 0 ? op.unidades : 1;
       const cost = Math.abs(op.costes || 0);
-      const unitPrice = cost > 0 ? Number((cost / units).toFixed(2)) : 15.99;
+      const operativeCost = Math.abs(op.costesOperativos || 0);
+      const pureFilamentCost = Math.max(0, cost - operativeCost);
+      const effectiveCost = pureFilamentCost > 0 ? pureFilamentCost : cost;
+
+      const unitPrice =
+        typeof op.costeUnitario === 'number' && op.costeUnitario > 0
+          ? Number(op.costeUnitario.toFixed(2))
+          : effectiveCost > 0 && units > 0
+          ? Number((effectiveCost / units).toFixed(2))
+          : 0;
 
       const current = spoolsMap.get(key) || {
         nombre: key,
         bobinasCompradas: 0,
         gramosIniciales: 0,
         totalGastadoCompras: 0,
-        precioBobina: unitPrice,
+        precioBobina: unitPrice > 0 ? unitPrice : 15.99,
         gramosConsumidos: 0,
+        latestPurchaseDateMs: 0,
+        latestPurchaseSubOrder: 0,
       };
 
       current.bobinasCompradas += units;
       current.gramosIniciales += units * 1000;
       current.totalGastadoCompras += cost;
-      current.precioBobina = unitPrice;
-      if (!current.ultimaCompraFecha || parseDate(op.fecha) > parseDate(current.ultimaCompraFecha)) {
+
+      // Chronological purchase comparison: date first, then creation/update timestamp or array index
+      const opDateMs = parseDate(op.fecha).getTime() || 0;
+      const opSubOrder =
+        typeof op.createdAt === 'number' && op.createdAt > 0
+          ? op.createdAt
+          : typeof op.updatedAt === 'number' && op.updatedAt > 0
+          ? op.updatedAt
+          : (totalOps - opIndex);
+
+      const isNewer =
+        !current.latestPurchaseDateMs ||
+        opDateMs > current.latestPurchaseDateMs ||
+        (opDateMs === current.latestPurchaseDateMs &&
+          opSubOrder >= (current.latestPurchaseSubOrder ?? 0));
+
+      if (isNewer) {
+        current.latestPurchaseDateMs = opDateMs;
+        current.latestPurchaseSubOrder = opSubOrder;
         current.ultimaCompraFecha = op.fecha;
+        if (unitPrice > 0) {
+          current.precioBobina = unitPrice;
+        }
       }
+
       spoolsMap.set(key, current);
+    }
+  });
+
+  // Apply manual price overrides to spoolsMap before calculating sales consumption
+  Array.from(spoolsMap.keys()).forEach((k) => {
+    const manualPrice = filamentAdjustments[`__price__:${k}`];
+    if (typeof manualPrice === 'number' && manualPrice > 0) {
+      const spool = spoolsMap.get(k);
+      if (spool) {
+        spool.precioBobina = manualPrice;
+      }
     }
   });
 
@@ -384,11 +448,18 @@ function computeSpoolsList(
       const baseRestantes = Number((effectiveGramosIniciales - consumidosRedondeados).toFixed(2));
       const ajuste = filamentAdjustments[item.nombre] ?? 0;
       const gramosRestantes = Math.max(0, Number((baseRestantes + ajuste).toFixed(2)));
+
+      const manualPrice = filamentAdjustments[`__price__:${item.nombre}`];
+      const finalPrice =
+        typeof manualPrice === 'number' && manualPrice > 0
+          ? manualPrice
+          : item.precioBobina;
+
       return {
         id: `spool-${idx}`,
         nombre: item.nombre,
         gramosIniciales: effectiveGramosIniciales,
-        precioBobina: item.precioBobina,
+        precioBobina: finalPrice,
         bobinasCompradas: effectiveBobinas,
         gramosConsumidos: consumidosRedondeados,
         gramosRestantes,
@@ -759,6 +830,18 @@ export function useOperations() {
             [updatedSpool.nombre]: expectedRemaining - baseRestantes,
           };
         }
+
+        // Set or update latest purchase price immediately
+        const purchaseUnitPrice =
+          typeof newOp.costeUnitario === 'number' && newOp.costeUnitario > 0
+            ? newOp.costeUnitario
+            : newOp.costes && unidades > 0
+            ? Number((newOp.costes / unidades).toFixed(2))
+            : 0;
+
+        if (purchaseUnitPrice > 0) {
+          nextAdj[`__price__:${key}`] = purchaseUnitPrice;
+        }
       }
 
       commitStateChange(nextOps, nextAdj, 'Operación añadida y guardada en tiempo real', newId);
@@ -864,6 +947,18 @@ export function useOperations() {
                 delete nextAdj[k];
               }
             }
+          }
+
+          const opUds = modifiedOp.unidades && modifiedOp.unidades > 0 ? modifiedOp.unidades : 1;
+          const updatedUnitPrice =
+            typeof modifiedOp.costeUnitario === 'number' && modifiedOp.costeUnitario > 0
+              ? modifiedOp.costeUnitario
+              : modifiedOp.costes && opUds > 0
+              ? Number((modifiedOp.costes / opUds).toFixed(2))
+              : 0;
+
+          if (updatedUnitPrice > 0) {
+            nextAdj[`__price__:${key}`] = updatedUnitPrice;
           }
         }
       }
@@ -1157,6 +1252,22 @@ export function useOperations() {
     [commitStateChange]
   );
 
+  const updateFilamentPrice = useCallback(
+    (spoolName: string, targetPrice: number) => {
+      const validPrice = Math.max(0.01, Number(targetPrice.toFixed(2)));
+      const nextAdj = {
+        ...filamentAdjustmentsRef.current,
+        [`__price__:${spoolName}`]: validPrice,
+      };
+      commitStateChange(
+        operationsRef.current,
+        nextAdj,
+        `Precio de bobina "${spoolName}" actualizado a ${validPrice.toFixed(2)} €`
+      );
+    },
+    [commitStateChange]
+  );
+
   // Filtered & Sorted Operations list
   const filteredOperations = useMemo(() => {
     return operations
@@ -1441,6 +1552,7 @@ export function useOperations() {
     updateOperation,
     updateFilamentRemaining,
     updateFilamentInitial,
+    updateFilamentPrice,
     deleteFilamentSpool,
     attachQrToOperation,
     deleteOperation,
