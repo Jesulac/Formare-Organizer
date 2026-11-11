@@ -174,7 +174,7 @@ Claves JSON exactas:
 - "costes": coste total en euros (si es venta de catálogo y no indica coste: costeUnitario * unidades)
 - "costeUnitario": coste de 1 unidad en euros
 - "lugarVenta": "Wallapop" | "Vinted" | "Etsy" | "eBay" | "Amazon" | "Internet" | "En persona" | "Cults3D" | "Otro"
-- "estado": "Cobrado" | "Pagado" | "Pendiente de pago" | "En producción" | "Pendiente de cobro" | "Enviado" | "Cancelado" | "Otro"
+- "estado": "Cobrado" | "Pagado" | "Pendiente de pago" | "En producción" | "Pendiente de envío" | "Pendiente de cobro" | "Enviado" | "Cancelado" | "Otro"
 - "vendedor": "Jorge" | "Sandra" | "Alejandro" | "Jorge, Sandra" | "Otro"
 - "comentarios": string
 - "esPedidoFilamento": boolean`;

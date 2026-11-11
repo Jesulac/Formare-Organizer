@@ -36,7 +36,15 @@ export function normalizeStatus(rawStatus: string | undefined | null): Status {
     .toLowerCase();
 
   if (cleaned.includes('cobrado')) return 'Cobrado';
+  if (
+    cleaned.includes('pendiente de envio') ||
+    cleaned.includes('pendiente de envío') ||
+    (cleaned.includes('pendiente') && (cleaned.includes('envio') || cleaned.includes('envío')))
+  ) {
+    return 'Pendiente de envío';
+  }
   if (cleaned.includes('pendiente de pago')) return 'Pendiente de pago';
+  if (cleaned.includes('pendiente de cobro')) return 'Pendiente de cobro';
   if (cleaned.includes('pagado')) return 'Pagado';
   if (cleaned.includes('pendiente')) return 'Pendiente de cobro';
   if (cleaned.includes('enviado')) return 'Enviado';

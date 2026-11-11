@@ -56,6 +56,7 @@ export const QrStorageView: React.FC<QrStorageViewProps> = ({
       return (
         Boolean(op.fotoQr) ||
         op.estado === 'En producción' ||
+        op.estado === 'Pendiente de envío' ||
         op.estado === 'Enviado'
       );
     });

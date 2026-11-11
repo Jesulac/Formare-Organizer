@@ -1496,6 +1496,7 @@ export function useOperations() {
 
       if (
         op.estado === 'Pendiente de cobro' ||
+        op.estado === 'Pendiente de envío' ||
         op.estado === 'Enviado' ||
         op.estado === 'En producción'
       ) {

@@ -16,6 +16,7 @@ export type Status =
   | 'Pagado'
   | 'Pendiente de pago'
   | 'En producción'
+  | 'Pendiente de envío'
   | 'Pendiente de cobro'
   | 'Enviado'
   | 'Cancelado'

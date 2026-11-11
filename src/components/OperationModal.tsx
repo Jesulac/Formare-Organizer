@@ -92,11 +92,12 @@ const platformsList: Platform[] = [
 
 const statusesList: Status[] = [
   'En producción',
+  'Pendiente de envío',
+  'Enviado',
   'Cobrado',
   'Pagado',
   'Pendiente de pago',
   'Pendiente de cobro',
-  'Enviado',
   'Cancelado',
   'Otro',
 ];

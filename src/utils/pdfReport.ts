@@ -118,6 +118,7 @@ export function generateMonthlySalesPdf(
     .filter(
       (op) =>
         op.estado === 'Pendiente de cobro' ||
+        op.estado === 'Pendiente de envío' ||
         op.estado === 'En producción' ||
         op.estado === 'Enviado'
     )

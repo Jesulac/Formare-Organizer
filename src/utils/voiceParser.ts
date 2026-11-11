@@ -143,6 +143,8 @@ export function parseVoiceOperationSmartFallback(
   let estado = tipo === 'venta' ? 'En producción' : 'Pagado';
   if (/\b(en produccion|produccion|imprimiendo|fabricando)\b/.test(norm)) {
     estado = 'En producción';
+  } else if (/\b(pendiente de envio|pendiente de envío|por enviar|falta enviar|listo para enviar|preparado para enviar)\b/.test(norm)) {
+    estado = 'Pendiente de envío';
   } else if (/\b(pendiente de cobro|por cobrar|falta cobrar)\b/.test(norm)) {
     estado = 'Pendiente de cobro';
   } else if (/\b(pendiente de pago|por pagar|falta pagar)\b/.test(norm)) {

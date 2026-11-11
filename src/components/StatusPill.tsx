@@ -10,12 +10,13 @@ interface StatusPillProps {
 }
 
 const ALL_STATUSES: Status[] = [
+  'En producción',
+  'Pendiente de envío',
+  'Enviado',
   'Cobrado',
   'Pagado',
   'Pendiente de pago',
-  'En producción',
   'Pendiente de cobro',
-  'Enviado',
   'Cancelado',
   'Otro',
 ];
@@ -37,7 +38,7 @@ export const StatusPill: React.FC<StatusPillProps> = ({
       if (!buttonRef.current) return;
       const rect = buttonRef.current.getBoundingClientRect();
       const menuWidth = 176;
-      const menuHeight = 265;
+      const menuHeight = 300;
       const left = Math.max(8, Math.min(rect.right - menuWidth, window.innerWidth - menuWidth - 8));
       const spaceBelow = window.innerHeight - rect.bottom;
       const top =
@@ -92,6 +93,11 @@ export const StatusPill: React.FC<StatusPillProps> = ({
         return {
           pill: 'bg-amber-950/70 text-amber-300 border-amber-500/30',
           dot: 'bg-amber-400',
+        };
+      case 'Pendiente de envío':
+        return {
+          pill: 'bg-purple-950/70 text-purple-300 border-purple-500/35',
+          dot: 'bg-purple-400',
         };
       case 'Enviado':
         return {
