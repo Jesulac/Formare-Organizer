@@ -962,33 +962,11 @@ export const OperationModal: React.FC<OperationModalProps> = ({
             </div>
           </div>
 
-          {/* Producto: Buscador desplegable de productos vendidos + campo para escribir y buscar en vivo */}
+          {/* Producto: Campo único para escribir, buscar y seleccionar del catálogo */}
           <div className="space-y-1.5">
             <label className="block text-zinc-300 font-medium">
               Producto *
             </label>
-
-            {tipo === 'venta' && productCatalog.length > 0 && (
-              <OledSelect
-                value=""
-                searchable
-                searchPlaceholder="Buscar producto por nombre o material..."
-                onChange={(val) => {
-                  if (val) {
-                    handleSelectCatalogProduct(val);
-                    setShowProductSuggestions(false);
-                  }
-                }}
-                placeholder="Buscar o elegir producto registrado (carga coste y material)..."
-                options={productCatalog.map((item) => ({
-                  value: item.producto,
-                  label: item.producto,
-                  sublabel: item.material || undefined,
-                  badge: formatEuro(item.costeUnitario),
-                }))}
-                buttonClassName="bg-zinc-900/95 hover:bg-zinc-900 border border-emerald-500/35 rounded-xl px-3 py-2 text-xs text-emerald-300"
-              />
-            )}
 
             <div ref={productInputWrapRef} className="relative flex items-center">
               <Search className="w-3.5 h-3.5 text-zinc-400 absolute left-3 pointer-events-none" />
@@ -1047,7 +1025,7 @@ export const OperationModal: React.FC<OperationModalProps> = ({
                 placeholder={
                   tipo === 'compra'
                     ? 'Ej: Pedido filamento PETG negro, Tornillos M4...'
-                    : 'Escribe para buscar un producto o crear uno nuevo...'
+                    : 'Escribe para buscar o crear un producto...'
                 }
                 className="w-full bg-zinc-900/90 border border-white/10 rounded-xl pl-9 pr-14 py-2.5 text-xs sm:text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-emerald-500/50 transition-all"
               />
@@ -1056,6 +1034,7 @@ export const OperationModal: React.FC<OperationModalProps> = ({
                 {producto && (
                   <button
                     type="button"
+                    onMouseDown={(e) => e.preventDefault()}
                     onClick={() => {
                       setProducto('');
                       setHighlightedProductIdx(-1);
@@ -1074,12 +1053,16 @@ export const OperationModal: React.FC<OperationModalProps> = ({
                 {tipo === 'venta' && productCatalog.length > 0 && (
                   <button
                     type="button"
+                    onMouseDown={(e) => e.preventDefault()}
                     onClick={() => {
-                      setShowProductSuggestions((prev) => !prev);
-                      productInputRef.current?.focus();
+                      const next = !showProductSuggestions;
+                      setShowProductSuggestions(next);
+                      if (next) {
+                        productInputRef.current?.focus();
+                      }
                     }}
                     className="p-1 rounded-lg text-zinc-400 hover:text-emerald-400 hover:bg-white/10 transition-colors cursor-pointer"
-                    title="Ver productos coincidentes"
+                    title="Ver productos registrados"
                   >
                     <ChevronDown
                       className={`w-3.5 h-3.5 transition-transform duration-150 ${
