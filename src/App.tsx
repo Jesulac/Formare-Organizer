@@ -443,7 +443,15 @@ function FormareApp() {
   }, [rawOperations]);
 
   return (
-    <div className="min-h-screen w-full max-w-full bg-black text-zinc-100 flex font-sans selection:bg-emerald-500/30 selection:text-emerald-200 relative">
+    <div className="min-h-screen w-full max-w-full bg-black text-zinc-100 flex font-sans selection:bg-[#93c5fd]/35 selection:text-[#e0f2fe] relative overflow-x-clip">
+      {/* Living iOS 27 OLED Liquid Glass Ambient Plasma & Prism Backdrop */}
+      <div className="liquid-ambient-stage" aria-hidden="true">
+        <div className="liquid-orb liquid-orb-1" />
+        <div className="liquid-orb liquid-orb-2" />
+        <div className="liquid-orb liquid-orb-3" />
+        <div className="liquid-prism-mesh" />
+      </div>
+
       {/* Left Navigation Sidebar (Desktop Fixed Rail + Mobile Drawer) */}
       <Sidebar
         activeSection={activeSection}
@@ -472,11 +480,11 @@ function FormareApp() {
 
       {/* Right Workspace Column (Contextual Header + Main Content Viewport) */}
       <div
-        className={`flex-1 flex flex-col min-w-0 pb-20 lg:pb-10 ${
+        className={`relative z-10 flex-1 flex flex-col min-w-0 pb-20 lg:pb-10 ${
           isSidebarCollapsed ? 'lg:pl-[72px]' : 'lg:pl-72'
         }`}
         style={{
-          transition: 'padding-left 450ms cubic-bezier(0.4, 0, 0.2, 1)',
+          transition: 'padding-left 450ms cubic-bezier(0.22, 1, 0.36, 1)',
         }}
       >
         {/* Contextual Top Header */}
@@ -493,8 +501,8 @@ function FormareApp() {
 
         {/* Instant Save / Sync Confirmation Toast */}
         {saveNotification && (
-          <div className="fixed bottom-16 lg:bottom-6 left-1/2 -translate-x-1/2 z-50 pointer-events-none flex items-center gap-2 px-4 py-2.5 rounded-full bg-emerald-950/95 border border-emerald-400/40 text-emerald-200 text-xs font-semibold shadow-2xl backdrop-blur-md">
-            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+          <div className="fixed bottom-16 lg:bottom-6 left-1/2 -translate-x-1/2 z-50 pointer-events-none flex items-center gap-2 px-4 py-2.5 rounded-full glass-card-pastel animate-spring-pop text-[#e0f2fe] text-xs font-semibold">
+            <CheckCircle2 className="w-4 h-4 text-[#93c5fd] shrink-0" />
             <span>{saveNotification}</span>
           </div>
         )}
@@ -561,10 +569,10 @@ function FormareApp() {
               {/* Production Overview Cards */}
               <section className="px-2 sm:px-3 lg:px-4">
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-3">
-                  <div className="glass-card rounded-2xl p-3.5 sm:p-4 border border-sky-500/25 bg-sky-950/15">
-                    <span className="text-xs font-medium text-sky-300 flex items-center justify-between">
+                  <div className="glass-card glass-card-hover rounded-2xl p-3.5 sm:p-4">
+                    <span className="text-xs font-medium text-[#bae6fd] flex items-center justify-between">
                       <span>Pedidos en Producción</span>
-                      <Printer className="w-4 h-4 text-sky-400" />
+                      <Printer className="w-4 h-4 text-[#93c5fd] animate-liquid-float" />
                     </span>
                     <span className="text-2xl font-bold font-mono tabular-nums text-white mt-1 block">
                       {prodStats.enProd}
@@ -574,10 +582,10 @@ function FormareApp() {
                     </span>
                   </div>
 
-                  <div className="glass-card rounded-2xl p-3.5 sm:p-4 border border-white/10">
+                  <div className="glass-card glass-card-hover rounded-2xl p-3.5 sm:p-4">
                     <span className="text-xs font-medium text-zinc-300 flex items-center justify-between">
                       <span>Unidades a Imprimir</span>
-                      <Layers className="w-4 h-4 text-sky-400" />
+                      <Layers className="w-4 h-4 text-[#93c5fd]" />
                     </span>
                     <span className="text-2xl font-bold font-mono tabular-nums text-white mt-1 block">
                       {prodStats.unidadesEnProd}
@@ -587,12 +595,12 @@ function FormareApp() {
                     </span>
                   </div>
 
-                  <div className="glass-card rounded-2xl p-3.5 sm:p-4 border border-white/10">
-                    <span className="text-xs font-medium text-emerald-400 flex items-center justify-between">
+                  <div className="glass-card-pastel liquid-shimmer rounded-2xl p-3.5 sm:p-4">
+                    <span className="text-xs font-medium text-[#bae6fd] flex items-center justify-between">
                       <span>Importe en Producción</span>
-                      <Clock className="w-4 h-4 text-emerald-400" />
+                      <Clock className="w-4 h-4 text-[#93c5fd]" />
                     </span>
-                    <span className="text-2xl font-bold font-mono tabular-nums text-emerald-300 mt-1 block">
+                    <span className="text-2xl font-bold font-mono tabular-nums text-[#e0f2fe] mt-1 block">
                       {formatEuro(prodStats.importeEnProd)}
                     </span>
                     <span className="text-[11px] text-zinc-400 mt-0.5 block">
@@ -605,13 +613,14 @@ function FormareApp() {
               {/* Action Bar for Production Queue */}
               <section className="px-2 sm:px-3 lg:px-4 flex flex-wrap items-center justify-between gap-2">
                 <div className="flex flex-wrap items-center gap-2">
-                  <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-zinc-900/90 border border-sky-500/30 rounded-xl text-xs font-semibold text-sky-300">
-                    <Printer className="w-3.5 h-3.5 text-sky-400" />
+                  <div className="inline-flex items-center gap-2 px-3 py-1.5 glass-pill rounded-xl text-xs font-semibold text-[#bae6fd]">
+                    <span className="w-2 h-2 rounded-full bg-[#93c5fd] animate-liquid-dot" />
+                    <Printer className="w-3.5 h-3.5 text-[#93c5fd]" />
                     <span>Solo productos en producción ({prodStats.enProd})</span>
                   </div>
 
                   {/* Quick sort toggle for Fecha límite */}
-                  <div className="inline-flex items-center p-1 bg-zinc-900/90 border border-white/10 rounded-xl text-xs">
+                  <div className="inline-flex items-center p-1 liquid-segmented rounded-xl text-xs">
                     <button
                       type="button"
                       onClick={() =>
@@ -625,7 +634,7 @@ function FormareApp() {
                       }
                       className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg font-medium transition-all cursor-pointer ${
                         prodSort.sortBy === 'fechaLimite'
-                          ? 'bg-amber-500 text-black font-semibold shadow-sm'
+                          ? 'bg-amber-400 text-black font-semibold shadow-[0_4px_16px_rgba(251,191,36,0.3)]'
                           : 'text-zinc-400 hover:text-white'
                       }`}
                     >
@@ -652,7 +661,7 @@ function FormareApp() {
                       }
                       className={`px-2.5 py-1 rounded-lg font-medium transition-all cursor-pointer ${
                         prodSort.sortBy === 'fecha'
-                          ? 'bg-emerald-500 text-black font-semibold shadow-sm'
+                          ? 'liquid-btn-primary font-semibold'
                           : 'text-zinc-400 hover:text-white'
                       }`}
                     >
@@ -664,7 +673,7 @@ function FormareApp() {
                 <button
                   type="button"
                   onClick={handleOpenNewOp}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-sky-500/15 hover:bg-sky-500/25 border border-sky-500/30 text-sky-300 text-xs font-semibold cursor-pointer"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl liquid-btn-pastel-glass text-xs font-semibold cursor-pointer"
                 >
                   <Plus className="w-3.5 h-3.5" />
                   <span>Añadir pedido a producción</span>
@@ -706,8 +715,8 @@ function FormareApp() {
               {/* Gastos en General KPI Breakdown */}
               <section className="px-2 sm:px-3 lg:px-4">
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3">
-                  <div className="glass-card rounded-2xl p-3.5 sm:p-4 border border-rose-500/30 bg-rose-950/15">
-                    <span className="text-xs font-medium text-rose-300">
+                  <div className="glass-card glass-card-hover rounded-2xl p-3.5 sm:p-4 border-rose-400/30 bg-rose-500/[0.06]">
+                    <span className="text-xs font-medium text-rose-200">
                       Total Gastos en General
                     </span>
                     <span className="text-2xl font-bold font-mono tabular-nums text-rose-300 mt-1 block">
@@ -718,8 +727,8 @@ function FormareApp() {
                     </span>
                   </div>
 
-                  <div className="glass-card rounded-2xl p-3.5 sm:p-4 border border-white/10">
-                    <span className="text-xs font-medium text-zinc-300">
+                  <div className="glass-card glass-card-hover rounded-2xl p-3.5 sm:p-4">
+                    <span className="text-xs font-medium text-[#bae6fd]">
                       Compras de Bobinas (1000g)
                     </span>
                     <span className="text-2xl font-bold font-mono tabular-nums text-white mt-1 block">
@@ -730,7 +739,7 @@ function FormareApp() {
                     </span>
                   </div>
 
-                  <div className="glass-card rounded-2xl p-3.5 sm:p-4 border border-white/10">
+                  <div className="glass-card glass-card-hover rounded-2xl p-3.5 sm:p-4">
                     <span className="text-xs font-medium text-purple-300">
                       B. Sandra (Beneficio Sandra)
                     </span>
@@ -742,7 +751,7 @@ function FormareApp() {
                     </span>
                   </div>
 
-                  <div className="glass-card rounded-2xl p-3.5 sm:p-4 border border-white/10">
+                  <div className="glass-card glass-card-hover rounded-2xl p-3.5 sm:p-4">
                     <span className="text-xs font-medium text-zinc-300">
                       Otros Gastos e Inversiones
                     </span>
@@ -758,7 +767,7 @@ function FormareApp() {
 
               {/* Filter & Action Bar for Gastos en General */}
               <section className="px-2 sm:px-3 lg:px-4 flex flex-wrap items-center justify-between gap-2">
-                <div className="flex items-center p-1 bg-zinc-900/90 border border-white/10 rounded-xl overflow-x-auto no-scrollbar">
+                <div className="flex items-center p-1 liquid-segmented rounded-xl overflow-x-auto no-scrollbar">
                   {[
                     {
                       id: 'all_gastos',
@@ -783,7 +792,7 @@ function FormareApp() {
                       }
                       className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap cursor-pointer ${
                         gastosSubFilter === tab.id
-                          ? 'bg-emerald-500 text-black font-semibold shadow-sm'
+                          ? 'liquid-btn-primary font-semibold'
                           : 'text-zinc-400 hover:text-white'
                       }`}
                     >
@@ -795,7 +804,7 @@ function FormareApp() {
                 <button
                   type="button"
                   onClick={handleOpenNewPurchase}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 text-rose-200 text-xs font-semibold cursor-pointer"
+                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 border border-rose-400/35 text-rose-200 text-xs font-semibold backdrop-blur-md transition-all cursor-pointer"
                 >
                   <Plus className="w-3.5 h-3.5" />
                   <span>Registrar Compra / Gasto</span>
@@ -858,15 +867,15 @@ function FormareApp() {
           {/* 7. VER CÁMARA DE LA IMPRESORA (OctoEverywhere) */}
           {activeSection === 'camara' && (
             <div className="px-3 sm:px-6 lg:px-8 py-6 max-w-4xl mx-auto space-y-6 animate-fade-in">
-              <div className="glass-card rounded-3xl p-6 sm:p-8 border border-sky-500/30 bg-gradient-to-br from-sky-950/40 via-zinc-950/80 to-zinc-900/60 shadow-2xl relative overflow-hidden">
+              <div className="glass-card-pastel liquid-shimmer rounded-3xl p-6 sm:p-8 relative overflow-hidden">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
                   <div className="space-y-2.5">
-                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-sky-500/15 border border-sky-500/30 text-sky-300 text-xs font-semibold">
-                      <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full glass-pill border-[#93c5fd]/35 text-[#bae6fd] text-xs font-semibold">
+                      <span className="w-2 h-2 rounded-full bg-[#93c5fd] animate-liquid-dot" />
                       <span>Transmisión en Directo</span>
                     </div>
                     <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight flex items-center gap-3">
-                      <Camera className="w-7 h-7 text-sky-400" />
+                      <Camera className="w-7 h-7 text-[#93c5fd] animate-liquid-float-slow" />
                       <span>Cámara de la Impresora 3D</span>
                     </h2>
                     <p className="text-sm text-zinc-300 max-w-xl leading-relaxed">
@@ -878,11 +887,11 @@ function FormareApp() {
                     href="https://formare3d.octoeverywhere.com/network-device-manager/network/control"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center justify-center gap-2.5 px-6 py-3.5 rounded-2xl bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-black font-bold text-sm shadow-lg shadow-sky-500/25 hover:shadow-sky-500/40 transition-all duration-200 hover:scale-105 active:scale-95 cursor-pointer shrink-0"
+                    className="inline-flex items-center justify-center gap-2.5 px-6 py-3.5 rounded-2xl liquid-btn-primary font-bold text-sm cursor-pointer shrink-0"
                   >
-                    <Camera className="w-5 h-5 text-black" />
+                    <Camera className="w-5 h-5" />
                     <span>Ver Cámara en OctoEverywhere</span>
-                    <ExternalLink className="w-4 h-4 text-black/70" />
+                    <ExternalLink className="w-4 h-4 opacity-75" />
                   </a>
                 </div>
 
@@ -893,7 +902,7 @@ function FormareApp() {
                       href="https://formare3d.octoeverywhere.com/network-device-manager/network/control"
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="px-2.5 py-1 rounded-lg bg-black/60 hover:bg-black/90 text-sky-300 hover:text-sky-200 font-mono text-[11px] border border-white/10 transition-colors flex items-center gap-1.5"
+                      className="px-2.5 py-1 rounded-xl liquid-btn-glass text-[#bae6fd] hover:text-[#e0f2fe] font-mono text-[11px] flex items-center gap-1.5"
                     >
                       <span>https://formare3d.octoeverywhere.com/network-device-manager/network/control</span>
                       <ExternalLink className="w-3 h-3 shrink-0" />
@@ -907,8 +916,8 @@ function FormareApp() {
         </main>
       </div>
 
-      {/* Mobile Bottom Navigation Bar (< lg) */}
-      <nav className="lg:hidden fixed bottom-0 inset-x-0 z-30 h-14 bg-[#09090b]/95 backdrop-blur-xl border-t border-white/10 px-2 flex items-center justify-around">
+      {/* Mobile Bottom Navigation Bar (< lg) — iOS 27 Floating Liquid Glass Dock */}
+      <nav className="lg:hidden fixed bottom-0 inset-x-0 z-30 h-14 bg-[#060a14]/80 backdrop-blur-2xl border-t border-white/15 shadow-[0_-10px_32px_rgba(0,0,0,0.7),inset_0_1px_0_rgba(255,255,255,0.16)] px-2 flex items-center justify-around">
         {[
           { id: 'ventas' as ActiveSection, label: 'General', icon: Table2 },
           {
@@ -933,14 +942,16 @@ function FormareApp() {
               key={item.id}
               type="button"
               onClick={() => handleSectionChange(item.id)}
-              className={`relative flex flex-col items-center justify-center py-1 px-2 rounded-xl transition-colors cursor-pointer min-w-[56px] ${
-                isActive ? 'text-emerald-400' : 'text-zinc-400 hover:text-zinc-200'
+              className={`relative flex flex-col items-center justify-center py-1 px-2.5 rounded-xl transition-all duration-200 cursor-pointer min-w-[56px] ${
+                isActive
+                  ? 'bg-[#93c5fd]/18 text-[#e0f2fe] border border-[#93c5fd]/35 shadow-[inset_0_1px_0_rgba(255,255,255,0.22)]'
+                  : 'text-zinc-400 hover:text-zinc-200 border border-transparent'
               }`}
             >
               <div className="relative">
-                <Icon className="w-4 h-4" />
+                <Icon className={`w-4 h-4 transition-transform ${isActive ? 'text-[#93c5fd] scale-110' : ''}`} />
                 {item.badge !== undefined && (
-                  <span className="absolute -top-1.5 -right-2.5 px-1 min-w-[14px] h-3.5 rounded-full bg-emerald-500 text-black text-[9px] font-bold font-mono flex items-center justify-center">
+                  <span className="absolute -top-1.5 -right-2.5 px-1 min-w-[14px] h-3.5 rounded-full bg-[#93c5fd] text-[#041427] text-[9px] font-bold font-mono tabular-nums flex items-center justify-center shadow-[0_0_10px_rgba(147,197,253,0.6)]">
                     {item.badge}
                   </span>
                 )}

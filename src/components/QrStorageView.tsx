@@ -109,17 +109,17 @@ export const QrStorageView: React.FC<QrStorageViewProps> = ({
       />
 
       {/* Top Info Banner */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 glass-card rounded-2xl p-4 border border-white/10">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 glass-card liquid-shimmer rounded-2xl p-4">
         <div>
           <h2 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
-            <QrCode className="w-5 h-5 text-emerald-400" />
+            <QrCode className="w-5 h-5 text-[#93c5fd] animate-liquid-float-slow" />
             <span>Almacenamiento de QR y Etiquetas de Envío</span>
           </h2>
           <p className="text-xs text-zinc-400 mt-0.5">
             Cada venta genera automáticamente un espacio con su <strong className="text-zinc-200">lugar de venta</strong> y <strong className="text-zinc-200">fecha límite</strong> para escanear en Correos, InPost, Seur o Vinted Go.
           </p>
           <div className="flex items-center gap-1.5 text-[11px] text-amber-300/90 mt-1.5">
-            <ShieldCheck className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+            <ShieldCheck className="w-3.5 h-3.5 text-amber-300 shrink-0" />
             <span>
               Auto-limpieza activa: Los pedidos en &laquo;Pendiente de cobro&raquo; y los QR con más de 10 días se borran automáticamente del almacén.
             </span>
@@ -127,13 +127,13 @@ export const QrStorageView: React.FC<QrStorageViewProps> = ({
         </div>
 
         {/* Filter Switcher */}
-        <div className="flex items-center p-1 rounded-xl bg-zinc-900 border border-white/10 self-start sm:self-center shrink-0">
+        <div className="flex items-center p-1 rounded-xl liquid-segmented self-start sm:self-center shrink-0">
           <button
             type="button"
             onClick={() => setFilterMode('activos')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
+            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 cursor-pointer ${
               filterMode === 'activos'
-                ? 'bg-emerald-500 text-black font-semibold'
+                ? 'liquid-btn-primary font-bold'
                 : 'text-zinc-400 hover:text-white'
             }`}
           >
@@ -142,9 +142,9 @@ export const QrStorageView: React.FC<QrStorageViewProps> = ({
           <button
             type="button"
             onClick={() => setFilterMode('todas')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
+            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 cursor-pointer ${
               filterMode === 'todas'
-                ? 'bg-emerald-500 text-black font-semibold'
+                ? 'liquid-btn-primary font-bold'
                 : 'text-zinc-400 hover:text-white'
             }`}
           >
@@ -161,19 +161,19 @@ export const QrStorageView: React.FC<QrStorageViewProps> = ({
           return (
             <div
               key={op.id}
-              className={`glass-card rounded-2xl p-4 border transition-all flex flex-col justify-between gap-3 ${
+              className={`rounded-2xl p-4 glass-card-hover flex flex-col justify-between gap-3 ${
                 op.fotoQr
-                  ? 'border-emerald-500/40 bg-emerald-950/10'
-                  : 'border-white/10'
+                  ? 'glass-card-pastel'
+                  : 'glass-card'
               }`}
             >
               {/* Slot Header: Product, Platform & Deadline */}
               <div className="space-y-1.5">
                 <div className="flex items-start justify-between gap-2">
-                  <span className="inline-block px-2 py-0.5 rounded-md bg-white/10 text-zinc-200 font-semibold text-[10px] uppercase tracking-wider">
+                  <span className="inline-block px-2 py-0.5 rounded-md glass-pill text-zinc-200 font-semibold text-[10px] uppercase tracking-wider">
                     {op.lugarVenta}
                   </span>
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-300 border border-amber-500/30 text-[10px] font-mono">
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-200 border border-amber-400/30 text-[10px] font-mono tabular-nums">
                     <CalendarClock className="w-3 h-3" />
                     Límite: {op.fechaLimite ? formatDateDisplay(op.fechaLimite) : '—'}
                   </span>
@@ -182,7 +182,7 @@ export const QrStorageView: React.FC<QrStorageViewProps> = ({
                 <h3 className="text-sm font-bold text-white leading-snug">
                   {op.producto}
                   {op.unidades > 1 && (
-                    <span className="ml-1.5 text-xs font-mono text-emerald-300">
+                    <span className="ml-1.5 text-xs font-mono text-[#bae6fd]">
                       (×{op.unidades} uds)
                     </span>
                   )}
@@ -206,7 +206,7 @@ export const QrStorageView: React.FC<QrStorageViewProps> = ({
               {/* Shipping Carrier Selector (Correos, InPost, Seur, otro) */}
               <div>
                 <label className="block text-[11px] text-zinc-400 mb-1 flex items-center gap-1">
-                  <Truck className="w-3 h-3 text-emerald-400" />
+                  <Truck className="w-3 h-3 text-[#93c5fd]" />
                   <span>Lugar de envío</span>
                 </label>
                 <OledSelect
@@ -226,22 +226,22 @@ export const QrStorageView: React.FC<QrStorageViewProps> = ({
                 <div className="space-y-2">
                   <div
                     onClick={() => setScanModalOpId(op.id)}
-                    className="relative group bg-white rounded-xl p-2.5 flex items-center justify-center cursor-pointer overflow-hidden h-40 border border-emerald-500/30"
+                    className="relative group bg-white rounded-xl p-2.5 flex items-center justify-center cursor-pointer overflow-hidden h-40 border border-[#93c5fd]/45 shadow-[0_0_20px_-8px_rgba(147,197,253,0.45)] transition-transform duration-300 group-hover:scale-[1.01]"
                     title="Toca para abrir en pantalla completa para escanear"
                   >
                     <img
                       src={op.fotoQr}
                       alt={`QR de ${op.producto}`}
-                      className="max-h-full max-w-full object-contain"
+                      className="max-h-full max-w-full object-contain transition-transform duration-300 group-hover:scale-105"
                     />
-                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1.5 text-white text-xs font-semibold">
+                    <div className="absolute inset-0 bg-[#04152a]/55 backdrop-blur-[2px] opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center gap-1.5 text-[#e0f2fe] text-xs font-semibold">
                       <Maximize2 className="w-4 h-4" />
                       <span>Ampliar para escáner</span>
                     </div>
                   </div>
 
                   <div className="flex items-center justify-between text-[10px] text-zinc-400">
-                    <span className="inline-flex items-center gap-1 text-emerald-300">
+                    <span className="inline-flex items-center gap-1 text-[#bae6fd]">
                       <Clock className="w-3 h-3" />
                       Auto-borrado en {daysLeft} {daysLeft === 1 ? 'día' : 'días'}
                     </span>
@@ -250,14 +250,14 @@ export const QrStorageView: React.FC<QrStorageViewProps> = ({
                       <button
                         type="button"
                         onClick={() => handleTriggerUpload(op.id)}
-                        className="px-2 py-1 rounded-lg bg-white/10 hover:bg-white/15 text-zinc-200 cursor-pointer"
+                        className="px-2 py-1 rounded-lg liquid-btn-glass text-zinc-200 cursor-pointer"
                       >
                         Cambiar
                       </button>
                       <button
                         type="button"
                         onClick={() => onAttachQr(op.id, undefined, undefined)}
-                        className="p-1 rounded-lg bg-rose-500/20 text-rose-300 hover:bg-rose-500/30 cursor-pointer"
+                        className="p-1 rounded-lg bg-rose-500/20 text-rose-300 hover:bg-rose-500/30 border border-rose-400/25 cursor-pointer transition-colors"
                         title="Eliminar QR"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -269,9 +269,9 @@ export const QrStorageView: React.FC<QrStorageViewProps> = ({
                 <button
                   type="button"
                   onClick={() => handleTriggerUpload(op.id)}
-                  className="w-full h-32 rounded-xl border border-dashed border-white/20 hover:border-emerald-500/50 bg-white/[0.02] hover:bg-emerald-500/[0.05] flex flex-col items-center justify-center gap-2 text-zinc-400 hover:text-emerald-300 transition-all cursor-pointer"
+                  className="w-full h-32 rounded-xl border border-dashed border-white/20 hover:border-[#93c5fd]/60 bg-white/[0.02] hover:bg-[#93c5fd]/[0.08] flex flex-col items-center justify-center gap-2 text-zinc-400 hover:text-[#bae6fd] transition-all duration-300 cursor-pointer group"
                 >
-                  <Upload className="w-6 h-6" />
+                  <Upload className="w-6 h-6 transition-transform duration-300 group-hover:-translate-y-1 group-hover:text-[#93c5fd]" />
                   <span className="text-xs font-medium">Subir QR o Código de Barras</span>
                   <span className="text-[10px] text-zinc-500">Correos · InPost · Seur · Vinted Go</span>
                 </button>
@@ -285,16 +285,16 @@ export const QrStorageView: React.FC<QrStorageViewProps> = ({
       {scanModalOp && scanModalOp.fotoQr && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div
-            className="fixed inset-0 bg-black/90 backdrop-blur-md"
+            className="fixed inset-0 bg-black/85 backdrop-blur-md animate-backdrop-fade"
             onClick={() => setScanModalOpId(null)}
           />
-          <div className="relative z-10 w-full max-w-md bg-zinc-950 border border-white/20 rounded-3xl p-5 shadow-2xl space-y-4">
+          <div className="relative z-10 w-full max-w-md glass-modal rounded-3xl p-5 shadow-2xl space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-emerald-500 text-black">
+                <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-[#93c5fd] text-[#03152a]">
                   {scanModalOp.empresaEnvio || 'Correos'} · {scanModalOp.lugarVenta}
                 </span>
-                <h3 className="text-base font-bold text-white mt-1">
+                <h3 className="text-base font-bold text-white mt-1.5">
                   {scanModalOp.producto}
                 </h3>
                 <p className="text-xs text-zinc-400">
@@ -304,13 +304,13 @@ export const QrStorageView: React.FC<QrStorageViewProps> = ({
               <button
                 type="button"
                 onClick={() => setScanModalOpId(null)}
-                className="p-2 rounded-full bg-white/10 text-white hover:bg-white/20 cursor-pointer"
+                className="p-2 rounded-full liquid-btn-glass text-white cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="bg-white rounded-2xl p-4 flex items-center justify-center min-h-[280px]">
+            <div className="bg-white rounded-2xl p-4 flex items-center justify-center min-h-[280px] shadow-inner">
               <img
                 src={scanModalOp.fotoQr}
                 alt="Código QR para escaneo"

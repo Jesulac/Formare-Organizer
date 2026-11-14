@@ -80,43 +80,43 @@ export const StatusPill: React.FC<StatusPillProps> = ({
     switch (s) {
       case 'Cobrado':
         return {
-          pill: 'bg-emerald-950/70 text-emerald-300 border-emerald-500/30',
-          dot: 'bg-emerald-400',
+          pill: 'bg-[#93c5fd]/16 text-[#bae6fd] border-[#93c5fd]/40 shadow-[inset_0_1px_0_rgba(255,255,255,0.22),0_4px_14px_-6px_rgba(147,197,253,0.4)]',
+          dot: 'bg-[#93c5fd] animate-liquid-dot',
         };
       case 'Pagado':
         return {
-          pill: 'bg-red-950/85 text-red-300 border-red-500/45 shadow-sm shadow-red-950/40',
-          dot: 'bg-red-500',
+          pill: 'bg-red-950/75 text-red-200 border-red-400/40 shadow-[inset_0_1px_0_rgba(255,255,255,0.14)]',
+          dot: 'bg-red-400',
         };
       case 'Pendiente de cobro':
       case 'Pendiente de pago':
         return {
-          pill: 'bg-amber-950/70 text-amber-300 border-amber-500/30',
-          dot: 'bg-amber-400',
+          pill: 'bg-amber-950/60 text-amber-200 border-amber-400/35 shadow-[inset_0_1px_0_rgba(255,255,255,0.14)]',
+          dot: 'bg-amber-300',
         };
       case 'Pendiente de envío':
         return {
-          pill: 'bg-purple-950/70 text-purple-300 border-purple-500/35',
-          dot: 'bg-purple-400',
+          pill: 'bg-purple-950/60 text-purple-200 border-purple-400/35 shadow-[inset_0_1px_0_rgba(255,255,255,0.14)]',
+          dot: 'bg-purple-300',
         };
       case 'Enviado':
         return {
-          pill: 'bg-indigo-950/70 text-indigo-300 border-indigo-500/30',
-          dot: 'bg-indigo-400',
+          pill: 'bg-indigo-950/60 text-indigo-200 border-indigo-400/35 shadow-[inset_0_1px_0_rgba(255,255,255,0.14)]',
+          dot: 'bg-indigo-300',
         };
       case 'En producción':
         return {
-          pill: 'bg-sky-950/70 text-sky-300 border-sky-500/30',
-          dot: 'bg-sky-400',
+          pill: 'bg-sky-950/60 text-sky-200 border-sky-400/35 shadow-[inset_0_1px_0_rgba(255,255,255,0.14)]',
+          dot: 'bg-sky-300 animate-liquid-dot',
         };
       case 'Cancelado':
         return {
-          pill: 'bg-rose-950/70 text-rose-300 border-rose-500/30',
+          pill: 'bg-rose-950/60 text-rose-200 border-rose-400/35 shadow-[inset_0_1px_0_rgba(255,255,255,0.14)]',
           dot: 'bg-rose-400',
         };
       default:
         return {
-          pill: 'bg-zinc-800/80 text-zinc-300 border-zinc-700/50',
+          pill: 'bg-white/10 text-zinc-200 border-white/15',
           dot: 'bg-zinc-400',
         };
     }
@@ -135,8 +135,8 @@ export const StatusPill: React.FC<StatusPillProps> = ({
             setOpen(!open);
           }
         }}
-        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium border backdrop-blur-sm transition-all whitespace-nowrap ${styleClasses} ${
-          onStatusChange ? 'cursor-pointer hover:brightness-110 active:scale-95' : ''
+        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium border backdrop-blur-md transition-all duration-200 whitespace-nowrap ${styleClasses} ${
+          onStatusChange ? 'cursor-pointer hover:brightness-115 hover:scale-[1.03] active:scale-95' : ''
         }`}
         title={onStatusChange ? `Estado: ${status} (clic para cambiar)` : status}
       >
@@ -153,7 +153,7 @@ export const StatusPill: React.FC<StatusPillProps> = ({
             ref={dropdownRef}
             onClick={(e) => e.stopPropagation()}
             style={{ top: `${menuPos.top}px`, left: `${menuPos.left}px` }}
-            className="fixed w-44 z-[9999] bg-[#09090b]/98 backdrop-blur-2xl rounded-2xl p-1.5 shadow-2xl border border-white/15 text-left"
+            className="fixed w-44 z-[9999] liquid-popover rounded-2xl p-1.5 text-left"
           >
             {ALL_STATUSES.map((s) => {
               const itemColors = getStatusColors(s);
@@ -166,14 +166,14 @@ export const StatusPill: React.FC<StatusPillProps> = ({
                     onStatusChange(s);
                     setOpen(false);
                   }}
-                  className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-[11px] transition-colors cursor-pointer ${
+                  className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-[11px] transition-all duration-150 cursor-pointer ${
                     isSelected
                       ? s === 'Pagado'
-                        ? 'bg-red-500/20 text-red-300 font-semibold'
-                        : 'bg-emerald-500/20 text-emerald-300 font-semibold'
+                        ? 'bg-red-500/20 text-red-200 font-semibold'
+                        : 'bg-[#93c5fd]/20 text-[#bae6fd] font-semibold border border-[#93c5fd]/30'
                       : s === 'Pagado'
                       ? 'text-red-300 hover:bg-red-500/15'
-                      : 'text-zinc-300 hover:bg-white/10'
+                      : 'text-zinc-200 hover:bg-white/10 hover:text-white'
                   }`}
                 >
                   <span className="flex items-center gap-2">

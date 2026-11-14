@@ -80,13 +80,13 @@ export const Header: React.FC<HeaderProps> = ({
     activeSection === 'gastos';
 
   return (
-    <header className="sticky top-0 z-20 glass-header border-b border-white/[0.08] px-3 sm:px-5 lg:px-6 h-16 flex items-center justify-between gap-3 transition-all duration-200">
+    <header className="sticky top-0 z-20 glass-header border-b border-white/[0.1] px-3 sm:px-5 lg:px-6 h-16 flex items-center justify-between gap-3 transition-all duration-300">
       {/* Zone 1: Mobile Menu Trigger + Section Breadcrumb & Title */}
       <div className="flex items-center gap-3 min-w-0">
         <button
           type="button"
           onClick={onOpenMobileSidebar}
-          className="lg:hidden p-2 -ml-1 rounded-xl text-zinc-300 hover:text-white bg-white/[0.05] hover:bg-white/[0.1] border border-white/10 transition-colors cursor-pointer shrink-0"
+          className="lg:hidden p-2 -ml-1 rounded-xl text-zinc-200 hover:text-white liquid-btn-glass cursor-pointer shrink-0"
           aria-label="Abrir menú de navegación"
         >
           <Menu className="w-5 h-5" />
@@ -105,13 +105,13 @@ export const Header: React.FC<HeaderProps> = ({
       {/* Zone 3: Contextual Controls & Primary Actions (No "Reparto" button) */}
       <div className="flex items-center gap-2 shrink-0">
         {showViewSwitcher && (
-          <div className="flex items-center p-0.5 rounded-xl bg-zinc-900/90 border border-white/10">
+          <div className="flex items-center p-0.5 rounded-xl liquid-segmented">
             <button
               type="button"
               onClick={() => onViewModeChange('iphone')}
-              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer whitespace-nowrap ${
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all duration-300 cursor-pointer whitespace-nowrap ${
                 viewMode === 'iphone'
-                  ? 'bg-emerald-500 text-black font-semibold shadow-sm'
+                  ? 'liquid-btn-primary font-bold'
                   : 'text-zinc-400 hover:text-white'
               }`}
               title="Ver en formato tarjetas móviles"
@@ -122,9 +122,9 @@ export const Header: React.FC<HeaderProps> = ({
             <button
               type="button"
               onClick={() => onViewModeChange('desktop')}
-              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer whitespace-nowrap ${
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all duration-300 cursor-pointer whitespace-nowrap ${
                 viewMode === 'desktop'
-                  ? 'bg-emerald-500 text-black font-semibold shadow-sm'
+                  ? 'liquid-btn-primary font-bold'
                   : 'text-zinc-400 hover:text-white'
               }`}
               title="Ver tabla completa"
@@ -140,10 +140,10 @@ export const Header: React.FC<HeaderProps> = ({
           <button
             type="button"
             onClick={onOpenPricingCalculator}
-            className="hidden sm:inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium text-zinc-200 bg-white/[0.04] hover:bg-white/[0.09] border border-white/10 transition-all active:scale-95 cursor-pointer whitespace-nowrap"
+            className="hidden sm:inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium text-zinc-100 liquid-btn-glass cursor-pointer whitespace-nowrap"
             title="Abrir calculadora rápida de precios"
           >
-            <Calculator className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+            <Calculator className="w-3.5 h-3.5 text-[#93c5fd] shrink-0" />
             <span className="hidden xl:inline">Calcular precio</span>
           </button>
         )}
@@ -153,10 +153,10 @@ export const Header: React.FC<HeaderProps> = ({
           href="https://formare3d.octoeverywhere.com/network-device-manager/network/control"
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium text-sky-300 bg-sky-500/10 hover:bg-sky-500/20 border border-sky-500/30 transition-all active:scale-95 cursor-pointer whitespace-nowrap"
+          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium liquid-btn-pastel-glass cursor-pointer whitespace-nowrap"
           title="Ver cámara de la impresora (OctoEverywhere)"
         >
-          <Camera className="w-3.5 h-3.5 text-sky-400 shrink-0" />
+          <Camera className="w-3.5 h-3.5 text-[#bae6fd] shrink-0 animate-liquid-float-slow" />
           <span className="hidden md:inline">Ver cámara</span>
         </a>
 
@@ -165,10 +165,10 @@ export const Header: React.FC<HeaderProps> = ({
           <button
             type="button"
             onClick={onExportMonthlyPDF}
-            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium text-emerald-200 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 transition-all active:scale-95 cursor-pointer whitespace-nowrap"
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium liquid-btn-pastel-glass cursor-pointer whitespace-nowrap"
             title="Descargar resumen mensual en PDF"
           >
-            <FileText className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+            <FileText className="w-3.5 h-3.5 text-[#93c5fd] shrink-0" />
             <span className="hidden sm:inline">Resumen PDF</span>
           </button>
         )}
@@ -177,7 +177,7 @@ export const Header: React.FC<HeaderProps> = ({
         <button
           type="button"
           onClick={onNewOperation}
-          className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-semibold text-xs transition-all active:scale-95 cursor-pointer shadow-lg shadow-emerald-500/15 whitespace-nowrap"
+          className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl liquid-btn-primary font-bold text-xs cursor-pointer whitespace-nowrap"
         >
           <Plus className="w-4 h-4 stroke-[2.75] shrink-0" />
           <span>Nueva Operación</span>

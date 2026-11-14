@@ -21,12 +21,12 @@ export const DashboardSummary: React.FC<DashboardSummaryProps> = ({ stats }) => 
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 sm:gap-3">
           
           {/* Ingresos / Ventas */}
-          <div className="glass-card rounded-2xl p-3 sm:p-4 flex flex-col justify-between transition-all">
-            <span className="text-[11px] sm:text-xs font-medium text-zinc-400">
+          <div className="glass-card glass-card-hover liquid-shimmer rounded-2xl p-3 sm:p-4 flex flex-col justify-between">
+            <span className="text-[11px] sm:text-xs font-medium text-zinc-300">
               Ventas (Ingresos)
             </span>
             <div className="mt-1 flex items-baseline justify-between">
-              <span className="text-lg sm:text-2xl font-bold tracking-tight text-white font-mono">
+              <span className="text-lg sm:text-2xl font-bold tracking-tight text-white font-mono tabular-nums">
                 {formatEuro(stats.totalIngresos)}
               </span>
             </div>
@@ -36,12 +36,12 @@ export const DashboardSummary: React.FC<DashboardSummaryProps> = ({ stats }) => 
           </div>
 
           {/* Gastos de Producción (Solo Filamento de Ventas) */}
-          <div className="glass-card rounded-2xl p-3 sm:p-4 flex flex-col justify-between transition-all">
-            <span className="text-[11px] sm:text-xs font-medium text-sky-400/90">
+          <div className="glass-card glass-card-hover rounded-2xl p-3 sm:p-4 flex flex-col justify-between">
+            <span className="text-[11px] sm:text-xs font-medium text-[#bae6fd]/90">
               Gastos de Producción
             </span>
             <div className="mt-1 flex items-baseline justify-between">
-              <span className="text-lg sm:text-2xl font-bold tracking-tight text-sky-300 font-mono">
+              <span className="text-lg sm:text-2xl font-bold tracking-tight text-[#bae6fd] font-mono tabular-nums">
                 {formatEuro(stats.gastosProduccion)}
               </span>
             </div>
@@ -51,12 +51,12 @@ export const DashboardSummary: React.FC<DashboardSummaryProps> = ({ stats }) => 
           </div>
 
           {/* Gastos en General / Total (Bobinas y Compras aparte) */}
-          <div className="glass-card rounded-2xl p-3 sm:p-4 flex flex-col justify-between transition-all">
-            <span className="text-[11px] sm:text-xs font-medium text-rose-400/90">
+          <div className="glass-card glass-card-hover rounded-2xl p-3 sm:p-4 flex flex-col justify-between border-rose-400/20">
+            <span className="text-[11px] sm:text-xs font-medium text-rose-300/90">
               Gastos en General
             </span>
             <div className="mt-1 flex items-baseline justify-between">
-              <span className="text-lg sm:text-2xl font-bold tracking-tight text-rose-300 font-mono">
+              <span className="text-lg sm:text-2xl font-bold tracking-tight text-rose-300 font-mono tabular-nums">
                 {formatEuro(stats.gastosGenerales)}
               </span>
             </div>
@@ -65,31 +65,31 @@ export const DashboardSummary: React.FC<DashboardSummaryProps> = ({ stats }) => 
             </span>
           </div>
 
-          {/* Beneficio Neto */}
-          <div className="glass-card rounded-2xl p-3 sm:p-4 flex flex-col justify-between border-emerald-500/30 bg-emerald-950/20 transition-all">
-            <span className="text-[11px] sm:text-xs font-medium text-emerald-400 flex items-center justify-between">
+          {/* Beneficio Neto (Hero Pastel Blue Liquid Glass Card) */}
+          <div className="glass-card-pastel glass-card-hover rounded-2xl p-3 sm:p-4 flex flex-col justify-between">
+            <span className="text-[11px] sm:text-xs font-semibold text-[#bae6fd] flex items-center justify-between">
               <span>Beneficio Neto</span>
-              <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              <span className="inline-block w-2 h-2 rounded-full bg-[#93c5fd] animate-liquid-dot" />
             </span>
             <div className="mt-1 flex items-baseline justify-between">
-              <span className={`text-xl sm:text-2xl font-extrabold tracking-tight font-mono ${
-                stats.totalBeneficio >= 0 ? 'text-emerald-400' : 'text-rose-400'
+              <span className={`text-xl sm:text-2xl font-extrabold tracking-tight font-mono tabular-nums ${
+                stats.totalBeneficio >= 0 ? 'text-[#e0f2fe]' : 'text-rose-400'
               }`}>
                 {formatEuro(stats.totalBeneficio)}
               </span>
             </div>
-            <span className="text-[10px] text-emerald-300/70 mt-0.5 truncate">
+            <span className="text-[10px] text-[#93c5fd]/80 mt-0.5 truncate">
               Ventas - Producción - B. Sandra
             </span>
           </div>
 
           {/* Pendiente de cobro */}
-          <div className="glass-card rounded-2xl p-3 sm:p-4 flex flex-col justify-between transition-all">
-            <span className="text-[11px] sm:text-xs font-medium text-amber-400/90">
+          <div className="glass-card glass-card-hover rounded-2xl p-3 sm:p-4 flex flex-col justify-between border-amber-400/20">
+            <span className="text-[11px] sm:text-xs font-medium text-amber-300/90">
               Pendiente
             </span>
             <div className="mt-1 flex items-baseline justify-between">
-              <span className="text-lg sm:text-2xl font-bold tracking-tight text-amber-300 font-mono">
+              <span className="text-lg sm:text-2xl font-bold tracking-tight text-amber-300 font-mono tabular-nums">
                 {formatEuro(stats.pendienteCobro)}
               </span>
             </div>
@@ -99,15 +99,15 @@ export const DashboardSummary: React.FC<DashboardSummaryProps> = ({ stats }) => 
           </div>
 
           {/* Operaciones Count */}
-          <div className="glass-card rounded-2xl p-3 sm:p-4 flex flex-col justify-between transition-all">
-            <span className="text-[11px] sm:text-xs font-medium text-zinc-400">
+          <div className="glass-card glass-card-hover rounded-2xl p-3 sm:p-4 flex flex-col justify-between">
+            <span className="text-[11px] sm:text-xs font-medium text-zinc-300">
               Operaciones
             </span>
             <div className="mt-1 flex items-baseline justify-between gap-1">
-              <span className="text-lg sm:text-2xl font-bold tracking-tight text-white font-mono">
+              <span className="text-lg sm:text-2xl font-bold tracking-tight text-white font-mono tabular-nums">
                 {stats.count}
               </span>
-              <span className="text-[10px] text-zinc-500 font-normal truncate">registros</span>
+              <span className="text-[10px] text-[#93c5fd]/75 font-normal truncate">registros</span>
             </div>
             <span className="text-[10px] text-zinc-500 mt-0.5 truncate">
               En vista actual

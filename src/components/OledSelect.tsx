@@ -178,17 +178,17 @@ export const OledSelect: React.FC<OledSelectProps> = ({
         className={
           iconOnly
             ? buttonClassName ||
-              'w-7 h-7 flex items-center justify-center rounded-lg bg-white/5 hover:bg-white/15 text-zinc-300 hover:text-white transition-colors cursor-pointer'
+              'w-7 h-7 flex items-center justify-center rounded-lg liquid-btn-glass text-zinc-300 hover:text-[#bae6fd] cursor-pointer'
             : `w-full flex items-center justify-between gap-2 text-left transition-all cursor-pointer ${
                 buttonClassName ||
-                'bg-zinc-900/95 hover:bg-zinc-900 border border-white/12 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-emerald-500/60'
+                'liquid-input hover:border-[#93c5fd]/40 rounded-xl px-3 py-2 text-xs text-zinc-100'
               }`
         }
       >
         {iconOnly ? (
           <ChevronDown
-            className={`w-3.5 h-3.5 transition-transform duration-150 ${
-              open ? 'rotate-180 text-emerald-400' : ''
+            className={`w-3.5 h-3.5 transition-transform duration-200 ${
+              open ? 'rotate-180 text-[#93c5fd]' : ''
             }`}
           />
         ) : (
@@ -201,8 +201,8 @@ export const OledSelect: React.FC<OledSelectProps> = ({
               {selectedOption ? selectedOption.label : placeholder}
             </span>
             <ChevronDown
-              className={`w-3.5 h-3.5 shrink-0 text-zinc-400 transition-transform duration-150 ${
-                open ? 'rotate-180 text-emerald-400' : ''
+              className={`w-3.5 h-3.5 shrink-0 text-zinc-400 transition-transform duration-200 ${
+                open ? 'rotate-180 text-[#93c5fd]' : ''
               }`}
             />
           </>
@@ -221,12 +221,12 @@ export const OledSelect: React.FC<OledSelectProps> = ({
               width: `${menuPos.width}px`,
               maxHeight: `${menuPos.maxHeight}px`,
             }}
-            className="fixed z-[9999] bg-[#09090b]/98 backdrop-blur-2xl rounded-2xl shadow-2xl border border-white/15 flex flex-col overflow-hidden text-left"
+            className="fixed z-[9999] liquid-popover rounded-2xl flex flex-col overflow-hidden text-left"
           >
             {searchable && (
-              <div className="p-1.5 border-b border-white/10 bg-[#09090b]/95 shrink-0">
+              <div className="p-1.5 border-b border-white/10 bg-white/[0.03] shrink-0">
                 <div className="relative flex items-center">
-                  <Search className="w-3.5 h-3.5 text-zinc-400 absolute left-2.5 pointer-events-none" />
+                  <Search className="w-3.5 h-3.5 text-[#93c5fd]/75 absolute left-2.5 pointer-events-none" />
                   <input
                     ref={searchInputRef}
                     type="text"
@@ -243,7 +243,7 @@ export const OledSelect: React.FC<OledSelectProps> = ({
                       }
                     }}
                     placeholder={searchPlaceholder}
-                    className="w-full bg-zinc-900 border border-white/15 rounded-xl pl-8 pr-7 py-1.5 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-emerald-500/60"
+                    className="w-full liquid-input rounded-xl pl-8 pr-7 py-1.5 text-xs text-white placeholder-zinc-500"
                   />
                   {searchQuery && (
                     <button
@@ -278,9 +278,9 @@ export const OledSelect: React.FC<OledSelectProps> = ({
                         onChange(opt.value);
                         setOpen(false);
                       }}
-                      className={`w-full flex items-center justify-between gap-2 px-2.5 py-2 rounded-xl text-xs transition-colors cursor-pointer text-left ${
+                      className={`w-full flex items-center justify-between gap-2 px-2.5 py-2 rounded-xl text-xs transition-all duration-150 cursor-pointer text-left ${
                         isSelected
-                          ? 'bg-emerald-500/20 text-emerald-300 font-semibold border border-emerald-500/30'
+                          ? 'bg-[#93c5fd]/20 text-[#bae6fd] font-semibold border border-[#93c5fd]/35 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]'
                           : 'text-zinc-200 hover:bg-white/10 hover:text-white border border-transparent'
                       }`}
                     >
@@ -294,11 +294,11 @@ export const OledSelect: React.FC<OledSelectProps> = ({
                       </div>
                       <div className="flex items-center gap-1.5 shrink-0">
                         {opt.badge && (
-                          <span className="text-[10px] font-mono text-emerald-300 bg-emerald-500/15 px-1.5 py-0.5 rounded-md">
+                          <span className="text-[10px] font-mono text-[#bae6fd] bg-[#93c5fd]/15 border border-[#93c5fd]/25 px-1.5 py-0.5 rounded-md">
                             {opt.badge}
                           </span>
                         )}
-                        {isSelected && <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />}
+                        {isSelected && <Check className="w-3.5 h-3.5 text-[#93c5fd] shrink-0" />}
                       </div>
                     </button>
                   );

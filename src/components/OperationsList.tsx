@@ -159,10 +159,10 @@ export const OperationsList: React.FC<OperationsListProps> = ({
             <React.Fragment key={op.id}>
               <div
                 onClick={() => onSelectOperation(op)}
-                className={`glass-card glass-card-hover rounded-2xl p-3.5 relative cursor-pointer active:scale-[0.99] transition-all flex flex-col gap-2 border ${
+                className={`rounded-2xl p-3.5 relative cursor-pointer active:scale-[0.985] transition-all flex flex-col gap-2 ${
                   isHighlighted
-                    ? 'border-emerald-400/80 ring-1 ring-emerald-400/50 bg-emerald-950/20'
-                    : 'border-white/10'
+                    ? 'glass-card-pastel ring-1 ring-[#93c5fd]/55'
+                    : 'glass-card glass-card-hover'
                 }`}
               >
                 {/* Card Top Row: Type badge, Units, Product Title & Status */}
@@ -170,15 +170,15 @@ export const OperationsList: React.FC<OperationsListProps> = ({
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5 mb-0.5">
                       <span
-                        className={`text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded ${
+                        className={`text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded-md border backdrop-blur-md ${
                           isCompra
-                            ? 'bg-rose-950/80 text-rose-300 border border-rose-500/30'
-                            : 'bg-emerald-950/80 text-emerald-300 border border-emerald-500/30'
+                            ? 'bg-rose-500/15 text-rose-200 border-rose-400/35'
+                            : 'bg-[#93c5fd]/15 text-[#bae6fd] border-[#93c5fd]/35'
                         }`}
                       >
                         {isCompra ? 'Compra' : 'Venta'}
                       </span>
-                      <span className="text-[10px] font-mono font-semibold bg-emerald-500/15 text-emerald-300 border border-emerald-500/25 px-1.5 py-0.5 rounded">
+                      <span className="text-[10px] font-mono tabular-nums font-semibold bg-[#93c5fd]/12 text-[#bae6fd] border border-[#93c5fd]/30 px-1.5 py-0.5 rounded-md">
                         {op.unidades || 1} {(op.unidades || 1) === 1 ? 'ud.' : 'uds.'}
                       </span>
                     </div>
@@ -289,9 +289,9 @@ export const OperationsList: React.FC<OperationsListProps> = ({
                       Beneficio
                     </span>
                     <span
-                      className={`font-mono font-bold ${
+                      className={`font-mono tabular-nums font-bold ${
                         op.beneficio > 0
-                          ? 'text-emerald-400'
+                          ? 'text-[#bae6fd]'
                           : op.beneficio < 0
                           ? 'text-rose-400'
                           : 'text-zinc-400'
@@ -303,12 +303,12 @@ export const OperationsList: React.FC<OperationsListProps> = ({
                 </div>
 
                 {/* Extra Footer: Fecha Límite & Adjuntar Foto/QR */}
-                <div className="flex items-center justify-between pt-1.5 border-t border-white/5 text-[11px]">
+                <div className="flex items-center justify-between pt-1.5 border-t border-white/10 text-[11px]">
                   <div className="flex items-center gap-1.5 text-zinc-400">
                     <CalendarClock className="w-3.5 h-3.5 text-amber-400 shrink-0" />
                     <span>
                       Fecha límite:{' '}
-                      <strong className="text-amber-300 font-mono">
+                      <strong className="text-amber-300 font-mono tabular-nums">
                         {op.tipo === 'venta' && op.fechaLimite
                           ? formatDateDisplay(op.fechaLimite)
                           : '—'}
@@ -321,7 +321,7 @@ export const OperationsList: React.FC<OperationsListProps> = ({
                       <button
                         type="button"
                         onClick={() => setPreviewQrOpId(op.id)}
-                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 text-[11px] font-medium cursor-pointer"
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl liquid-btn-pastel-glass text-[11px] font-medium cursor-pointer"
                       >
                         <QrCode className="w-3.5 h-3.5" />
                         <span>Ver Foto / QR</span>
@@ -330,7 +330,7 @@ export const OperationsList: React.FC<OperationsListProps> = ({
                       <button
                         type="button"
                         onClick={(e) => handleTriggerPhotoUpload(op.id, e)}
-                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-zinc-300 border border-white/10 text-[11px] cursor-pointer"
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl liquid-btn-glass text-[11px] cursor-pointer"
                       >
                         <ImageIcon className="w-3.5 h-3.5 text-zinc-400" />
                         <span>Adjuntar Foto</span>
@@ -342,21 +342,21 @@ export const OperationsList: React.FC<OperationsListProps> = ({
 
               {/* Monthly Summary Card at end of each month */}
               {monthSummary && (
-                <div className="rounded-2xl p-3.5 bg-emerald-950/25 border border-emerald-500/30 space-y-2">
+                <div className="glass-card-pastel liquid-shimmer rounded-2xl p-3.5 space-y-2">
                   <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-1.5 text-emerald-300 font-bold text-xs uppercase tracking-wider">
-                      <BarChart3 className="w-4 h-4" />
+                    <div className="flex items-center gap-1.5 text-[#bae6fd] font-bold text-xs uppercase tracking-wider">
+                      <BarChart3 className="w-4 h-4 text-[#93c5fd]" />
                       <span>Cierre Mensual: {monthSummary.monthLabel}</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="text-[11px] font-mono text-zinc-300">
+                      <span className="text-[11px] font-mono tabular-nums text-zinc-300">
                         {monthSummary.numVentas} ventas · {monthSummary.numPedidos} pedidos
                       </span>
                       {onExportMonthPDF && (
                         <button
                           type="button"
                           onClick={() => onExportMonthPDF(monthSummary.monthKey)}
-                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 text-[10px] font-semibold cursor-pointer transition-colors"
+                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg liquid-btn-pastel-glass text-[10px] font-semibold cursor-pointer"
                           title={`Descargar resumen de ${monthSummary.monthLabel} en PDF`}
                         >
                           <FileText className="w-3 h-3" />
@@ -365,36 +365,36 @@ export const OperationsList: React.FC<OperationsListProps> = ({
                       )}
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-6 gap-2 pt-1.5 border-t border-emerald-500/20 text-[11px]">
+                  <div className="grid grid-cols-2 sm:grid-cols-6 gap-2 pt-1.5 border-t border-[#93c5fd]/20 text-[11px]">
                     <div>
                       <span className="text-zinc-400 block">Bruto generado</span>
-                      <span className="font-mono font-semibold text-white">
+                      <span className="font-mono tabular-nums font-semibold text-white">
                         {formatEuro(monthSummary.dineroBruto)}
                       </span>
                     </div>
                     <div>
                       <span className="text-zinc-400 block">Gastos producción</span>
-                      <span className="font-mono font-semibold text-sky-300">
+                      <span className="font-mono tabular-nums font-semibold text-[#bae6fd]">
                         {formatEuro(monthSummary.costesVentas)}
                       </span>
                     </div>
                     <div>
                       <span className="text-purple-300/90 block">B. Sandra</span>
-                      <span className="font-mono font-semibold text-purple-300">
+                      <span className="font-mono tabular-nums font-semibold text-purple-300">
                         {formatEuro(monthSummary.beneficioSandra || 0)}
                       </span>
                     </div>
                     <div>
                       <span className="text-zinc-400 block">Gastos en general</span>
-                      <span className="font-mono font-semibold text-rose-300">
+                      <span className="font-mono tabular-nums font-semibold text-rose-300">
                         {formatEuro(monthSummary.dineroGastadoCompras)}
                       </span>
                     </div>
                     <div>
                       <span className="text-zinc-400 block">Neto generado</span>
                       <span
-                        className={`font-mono font-bold ${
-                          monthSummary.dineroNeto >= 0 ? 'text-emerald-400' : 'text-rose-400'
+                        className={`font-mono tabular-nums font-bold ${
+                          monthSummary.dineroNeto >= 0 ? 'text-[#e0f2fe]' : 'text-rose-400'
                         }`}
                       >
                         {formatEuro(monthSummary.dineroNeto)}
@@ -402,7 +402,7 @@ export const OperationsList: React.FC<OperationsListProps> = ({
                     </div>
                     <div>
                       <span className="text-zinc-400 block">Filamento consumido</span>
-                      <span className="font-mono font-semibold text-sky-300">
+                      <span className="font-mono tabular-nums font-semibold text-[#bae6fd]">
                         {formatGramsMaxTwoDecimals(monthSummary.gramosConsumidos)} g
                       </span>
                     </div>
@@ -416,17 +416,17 @@ export const OperationsList: React.FC<OperationsListProps> = ({
 
       {/* 2. VISTA TABLA COMPLETA EN PANTALLA (Aprovechando el 100% del ancho disponible sin apretar columnas) */}
       <div
-        className={`${showDesktopTable} w-full max-w-none glass-card rounded-2xl border border-white/10 shadow-2xl overflow-hidden`}
+        className={`${showDesktopTable} w-full max-w-none glass-card rounded-2xl shadow-2xl overflow-hidden`}
       >
-        <div className="w-full max-w-none overflow-x-auto">
+        <div className="w-full max-w-none overflow-x-auto custom-table-scroll">
           <table className="w-full table-auto text-left text-xs border-collapse">
             <thead>
-              <tr className="border-b border-white/10 bg-zinc-950/95 text-zinc-300 text-[11px] font-bold tracking-tight">
+              <tr className="border-b border-white/10 bg-white/[0.04] backdrop-blur-xl text-zinc-300 text-[11px] font-bold tracking-tight">
                 <th
                   onClick={() => handleHeaderSort('fecha')}
                   className={`py-3 px-2.5 whitespace-nowrap select-none ${
                     onSortChange ? 'cursor-pointer hover:text-white transition-colors' : ''
-                  } ${sortBy === 'fecha' ? 'text-emerald-400' : ''}`}
+                  } ${sortBy === 'fecha' ? 'text-[#bae6fd]' : ''}`}
                   title="Ordenar por Fecha"
                 >
                   <span className="inline-flex items-center gap-1">
@@ -443,7 +443,7 @@ export const OperationsList: React.FC<OperationsListProps> = ({
                   onClick={() => handleHeaderSort('producto')}
                   className={`py-3 px-2.5 min-w-[150px] select-none ${
                     onSortChange ? 'cursor-pointer hover:text-white transition-colors' : ''
-                  } ${sortBy === 'producto' ? 'text-emerald-400' : ''}`}
+                  } ${sortBy === 'producto' ? 'text-[#bae6fd]' : ''}`}
                   title="Ordenar por Producto"
                 >
                   <span className="inline-flex items-center gap-1">
@@ -461,7 +461,7 @@ export const OperationsList: React.FC<OperationsListProps> = ({
                   onClick={() => handleHeaderSort('precio')}
                   className={`py-3 px-2 text-right whitespace-nowrap select-none ${
                     onSortChange ? 'cursor-pointer hover:text-white transition-colors' : ''
-                  } ${sortBy === 'precio' ? 'text-emerald-400' : ''}`}
+                  } ${sortBy === 'precio' ? 'text-[#bae6fd]' : ''}`}
                   title="Ordenar por Precio"
                 >
                   <span className="inline-flex items-center justify-end gap-1">
@@ -483,7 +483,7 @@ export const OperationsList: React.FC<OperationsListProps> = ({
                   onClick={() => handleHeaderSort('costes')}
                   className={`py-3 px-2 text-right whitespace-nowrap select-none ${
                     onSortChange ? 'cursor-pointer hover:text-white transition-colors' : ''
-                  } ${sortBy === 'costes' ? 'text-emerald-400' : ''}`}
+                  } ${sortBy === 'costes' ? 'text-[#bae6fd]' : ''}`}
                   title="Ordenar por Costes"
                 >
                   <span className="inline-flex items-center justify-end gap-1">
@@ -499,7 +499,7 @@ export const OperationsList: React.FC<OperationsListProps> = ({
                   onClick={() => handleHeaderSort('beneficio')}
                   className={`py-3 px-2 text-right whitespace-nowrap select-none ${
                     onSortChange ? 'cursor-pointer hover:text-white transition-colors' : ''
-                  } ${sortBy === 'beneficio' ? 'text-emerald-400' : ''}`}
+                  } ${sortBy === 'beneficio' ? 'text-[#bae6fd]' : ''}`}
                   title="Ordenar por Beneficio"
                 >
                   <span className="inline-flex items-center justify-end gap-1">
@@ -540,7 +540,7 @@ export const OperationsList: React.FC<OperationsListProps> = ({
                 <th className="py-3 px-2 text-center whitespace-nowrap">Acciones</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-white/5">
+            <tbody className="divide-y divide-white/[0.06]">
               {operations.map((op, index) => {
                 const isCompra = op.tipo === 'compra' || op.tipo === 'inversion';
                 const isConfirmingDelete = confirmDeleteId === op.id;
@@ -555,10 +555,10 @@ export const OperationsList: React.FC<OperationsListProps> = ({
                   <React.Fragment key={op.id}>
                     <tr
                       onClick={() => onSelectOperation(op)}
-                      className={`transition-colors group cursor-pointer ${
+                      className={`transition-colors duration-200 group cursor-pointer ${
                         isHighlighted
-                          ? 'bg-emerald-500/15 hover:bg-emerald-500/20'
-                          : 'hover:bg-white/[0.04]'
+                          ? 'bg-[#93c5fd]/15 hover:bg-[#93c5fd]/22'
+                          : 'hover:bg-[#93c5fd]/[0.05]'
                       }`}
                     >
                       {/* 1. Fecha */}
@@ -569,10 +569,10 @@ export const OperationsList: React.FC<OperationsListProps> = ({
                       {/* 2. Venta / Compra */}
                       <td className="py-2.5 px-2 whitespace-nowrap align-middle">
                         <span
-                          className={`inline-block text-[10.5px] font-semibold px-2 py-0.5 rounded-md border ${
+                          className={`inline-block text-[10.5px] font-semibold px-2 py-0.5 rounded-lg border backdrop-blur-md ${
                             isCompra
-                              ? 'bg-rose-950/60 text-rose-300 border-rose-500/30'
-                              : 'bg-emerald-950/60 text-emerald-300 border-emerald-500/30'
+                              ? 'bg-rose-500/15 text-rose-200 border-rose-400/35'
+                              : 'bg-[#93c5fd]/15 text-[#bae6fd] border-[#93c5fd]/35'
                           }`}
                         >
                           {isCompra ? 'Compra' : 'Venta'}
@@ -592,27 +592,27 @@ export const OperationsList: React.FC<OperationsListProps> = ({
                         className="py-2.5 px-2 text-center whitespace-nowrap align-middle"
                         onClick={(e) => e.stopPropagation()}
                       >
-                        <div className="inline-flex items-center justify-center gap-1 bg-zinc-900/90 border border-white/10 rounded-lg px-1.5 py-0.5">
+                        <div className="inline-flex items-center justify-center gap-1 glass-pill rounded-lg px-1.5 py-0.5">
                           {onUnitsChange && (
                             <button
                               type="button"
                               onClick={() =>
                                 onUnitsChange(op.id, Math.max(1, (op.unidades || 1) - 1))
                               }
-                              className="text-zinc-400 hover:text-white p-0.5 cursor-pointer"
+                              className="text-zinc-400 hover:text-white p-0.5 cursor-pointer transition-colors"
                               title="Restar 1 unidad"
                             >
                               <Minus className="w-3 h-3" />
                             </button>
                           )}
-                          <span className="font-mono tabular-nums font-bold text-emerald-300 text-xs min-w-[18px] text-center">
+                          <span className="font-mono tabular-nums font-bold text-[#bae6fd] text-xs min-w-[18px] text-center">
                             {op.unidades || 1}
                           </span>
                           {onUnitsChange && (
                             <button
                               type="button"
                               onClick={() => onUnitsChange(op.id, (op.unidades || 1) + 1)}
-                              className="text-zinc-400 hover:text-white p-0.5 cursor-pointer"
+                              className="text-zinc-400 hover:text-white p-0.5 cursor-pointer transition-colors"
                               title="Sumar 1 unidad"
                             >
                               <Plus className="w-3 h-3" />
@@ -655,7 +655,7 @@ export const OperationsList: React.FC<OperationsListProps> = ({
                         <span
                           className={
                             op.beneficio > 0
-                              ? 'text-emerald-400'
+                              ? 'text-[#bae6fd]'
                               : op.beneficio < 0
                               ? 'text-rose-400'
                               : 'text-zinc-400'
@@ -715,7 +715,7 @@ export const OperationsList: React.FC<OperationsListProps> = ({
                           <button
                             type="button"
                             onClick={() => setPreviewQrOpId(op.id)}
-                            className="inline-flex items-center justify-center p-1.5 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 cursor-pointer transition-colors"
+                            className="inline-flex items-center justify-center p-1.5 rounded-xl liquid-btn-pastel-glass cursor-pointer"
                             title="Ver foto / código QR adjunto"
                           >
                             <QrCode className="w-4 h-4" />
@@ -724,7 +724,7 @@ export const OperationsList: React.FC<OperationsListProps> = ({
                           <button
                             type="button"
                             onClick={(e) => handleTriggerPhotoUpload(op.id, e)}
-                            className="inline-flex items-center justify-center p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white border border-white/10 cursor-pointer transition-colors"
+                            className="inline-flex items-center justify-center p-1.5 rounded-xl liquid-btn-glass text-zinc-400 hover:text-white cursor-pointer"
                             title="Adjuntar foto o código QR"
                           >
                             <Upload className="w-4 h-4" />
@@ -784,16 +784,16 @@ export const OperationsList: React.FC<OperationsListProps> = ({
 
                     {/* Fila de Cierre Mensual automático al final de cada mes */}
                     {monthSummary && (
-                      <tr className="bg-emerald-950/30 border-y border-emerald-500/30 text-xs">
+                      <tr className="bg-[#93c5fd]/[0.08] border-y border-[#93c5fd]/30 backdrop-blur-md text-xs">
                         <td colSpan={16} className="py-3 px-4">
                           <div className="flex flex-wrap items-center justify-between gap-4">
                             {/* Left: Month Title & Counts */}
                             <div className="flex items-center gap-2.5">
-                              <div className="flex items-center gap-1.5 font-bold text-emerald-300 uppercase tracking-wider">
-                                <Layers className="w-4 h-4 text-emerald-400 shrink-0" />
+                              <div className="flex items-center gap-1.5 font-bold text-[#bae6fd] uppercase tracking-wider">
+                                <Layers className="w-4 h-4 text-[#93c5fd] shrink-0" />
                                 <span>Cierre Mensual: {monthSummary.monthLabel}</span>
                               </div>
-                              <span className="text-zinc-400 font-mono text-[11px]">
+                              <span className="text-zinc-400 font-mono tabular-nums text-[11px]">
                                 ({monthSummary.numVentas} ventas · {monthSummary.numPedidos} pedidos)
                               </span>
                             </div>
@@ -813,7 +813,7 @@ export const OperationsList: React.FC<OperationsListProps> = ({
                                 <span className="text-[10px] font-sans text-zinc-400 block uppercase">
                                   Gastos Producción
                                 </span>
-                                <span className="font-semibold text-sky-300">
+                                <span className="font-semibold text-[#bae6fd]">
                                   {formatEuro(monthSummary.costesVentas)}
                                 </span>
                               </div>
@@ -843,7 +843,7 @@ export const OperationsList: React.FC<OperationsListProps> = ({
                                 <span
                                   className={`font-extrabold ${
                                     monthSummary.dineroNeto >= 0
-                                      ? 'text-emerald-400'
+                                      ? 'text-[#e0f2fe]'
                                       : 'text-rose-400'
                                   }`}
                                 >
@@ -855,7 +855,7 @@ export const OperationsList: React.FC<OperationsListProps> = ({
                                 <span className="text-[10px] font-sans text-zinc-400 block uppercase">
                                   Filamento Consumido
                                 </span>
-                                <span className="font-bold text-sky-300">
+                                <span className="font-bold text-[#bae6fd]">
                                   {formatGramsMaxTwoDecimals(monthSummary.gramosConsumidos)} g
                                 </span>
                               </div>
@@ -864,7 +864,7 @@ export const OperationsList: React.FC<OperationsListProps> = ({
                                 <button
                                   type="button"
                                   onClick={() => onExportMonthPDF(monthSummary.monthKey)}
-                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 text-xs font-sans font-semibold cursor-pointer transition-colors"
+                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl liquid-btn-pastel-glass text-xs font-sans font-semibold cursor-pointer"
                                   title={`Descargar resumen de ${monthSummary.monthLabel} en PDF`}
                                 >
                                   <FileText className="w-3.5 h-3.5" />
@@ -888,10 +888,10 @@ export const OperationsList: React.FC<OperationsListProps> = ({
       {previewQrOp && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div
-            className="fixed inset-0 bg-black/85 backdrop-blur-md"
+            className="fixed inset-0 bg-black/75 backdrop-blur-md animate-backdrop-fade"
             onClick={() => setPreviewQrOpId(null)}
           />
-          <div className="relative z-10 w-full max-w-md glass-modal rounded-3xl p-5 border border-white/15 shadow-2xl space-y-4">
+          <div className="relative z-10 w-full max-w-md glass-modal rounded-3xl p-5 space-y-4">
             <div className="flex items-center justify-between border-b border-white/10 pb-3">
               <div>
                 <h3 className="text-sm font-bold text-white">{previewQrOp.producto}</h3>
@@ -905,14 +905,14 @@ export const OperationsList: React.FC<OperationsListProps> = ({
               <button
                 type="button"
                 onClick={() => setPreviewQrOpId(null)}
-                className="p-1.5 rounded-full text-zinc-400 hover:text-white hover:bg-white/10 cursor-pointer"
+                className="p-1.5 rounded-full text-zinc-400 hover:text-white hover:bg-white/10 transition-all cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             {previewQrOp.fotoQr && (
-              <div className="bg-white rounded-2xl p-3 flex items-center justify-center">
+              <div className="bg-white/95 rounded-2xl p-3 flex items-center justify-center shadow-[inset_0_1px_0_rgba(255,255,255,0.6)]">
                 <img
                   src={previewQrOp.fotoQr}
                   alt={`QR / Foto de ${previewQrOp.producto}`}
@@ -937,7 +937,7 @@ export const OperationsList: React.FC<OperationsListProps> = ({
                 <button
                   type="button"
                   onClick={(e) => handleTriggerPhotoUpload(previewQrOp.id, e)}
-                  className="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-zinc-200 text-xs font-medium cursor-pointer"
+                  className="px-3 py-2 rounded-xl liquid-btn-glass text-xs font-medium cursor-pointer"
                 >
                   Cambiar foto
                 </button>
@@ -947,7 +947,7 @@ export const OperationsList: React.FC<OperationsListProps> = ({
                     onAttachQr(previewQrOp.id, undefined, undefined);
                     setPreviewQrOpId(null);
                   }}
-                  className="px-3 py-2 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 text-xs font-medium cursor-pointer"
+                  className="px-3 py-2 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 border border-rose-400/30 text-rose-200 text-xs font-medium transition-all cursor-pointer"
                 >
                   Borrar foto
                 </button>

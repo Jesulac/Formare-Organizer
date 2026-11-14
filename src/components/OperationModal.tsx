@@ -766,14 +766,14 @@ export const OperationModal: React.FC<OperationModalProps> = ({
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
       {/* Dark backdrop blur */}
       <div 
-        className="fixed inset-0 bg-black/80 backdrop-blur-md transition-opacity" 
+        className="fixed inset-0 bg-black/75 backdrop-blur-md animate-backdrop-fade" 
         onClick={onClose}
       />
 
       {/* Main Glass Modal/Sheet */}
-      <div className="relative w-full max-w-lg glass-modal rounded-t-3xl sm:rounded-3xl p-4 sm:p-6 border border-white/10 shadow-2xl z-10 max-h-[92vh] overflow-y-auto">
+      <div className="relative w-full max-w-lg glass-modal rounded-t-3xl sm:rounded-3xl p-4 sm:p-6 z-10 max-h-[92vh] overflow-y-auto custom-table-scroll">
         {/* Mobile Grab Handle */}
-        <div className="w-10 h-1 bg-zinc-700 rounded-full mx-auto -mt-1 mb-3 sm:hidden" />
+        <div className="w-10 h-1 bg-white/25 rounded-full mx-auto -mt-1 mb-3 sm:hidden" />
 
         {/* Modal Header */}
         <div className="flex items-center justify-between pb-3 border-b border-white/10 mb-3.5">
@@ -843,11 +843,11 @@ export const OperationModal: React.FC<OperationModalProps> = ({
         {/* Form Body */}
         <form onSubmit={handleSubmit} className="space-y-3.5 text-xs">
           {/* APARTADO DE INTELIGENCIA ARTIFICIAL */}
-          <div className="p-3.5 rounded-2xl bg-gradient-to-br from-emerald-950/50 via-zinc-900/90 to-zinc-950 border border-emerald-500/35 space-y-2.5 shadow-lg">
+          <div className="p-3.5 rounded-2xl glass-card-pastel liquid-shimmer space-y-2.5">
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
-                <div className="flex items-center gap-1.5 text-emerald-300 font-bold text-xs">
-                  <Sparkles className="w-4 h-4 text-emerald-400 shrink-0" />
+                <div className="flex items-center gap-1.5 text-[#bae6fd] font-bold text-xs">
+                  <Sparkles className="w-4 h-4 text-[#93c5fd] shrink-0 animate-liquid-float-slow" />
                   <span>Autocompletar con Inteligencia Artificial</span>
                 </div>
                 <p className="text-[11px] text-zinc-400 mt-0.5 leading-snug">
@@ -861,7 +861,7 @@ export const OperationModal: React.FC<OperationModalProps> = ({
                     setVoiceTranscript('');
                     setVoiceStatusMsg(null);
                   }}
-                  className="text-[10px] text-zinc-400 hover:text-white px-2 py-0.5 rounded-lg bg-white/5 hover:bg-white/10 transition-colors cursor-pointer shrink-0"
+                  className="text-[10px] text-zinc-400 hover:text-white px-2 py-0.5 rounded-lg liquid-btn-glass transition-colors cursor-pointer shrink-0"
                 >
                   Limpiar
                 </button>
@@ -880,19 +880,19 @@ export const OperationModal: React.FC<OperationModalProps> = ({
                   }
                 }}
                 placeholder="Ej: Venta de 2 Volantes F1 Logitech G29 por 36 euros en Wallapop, en producción, vendedor Jorge..."
-                className="w-full bg-black/70 border border-white/15 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-emerald-500/60 focus:ring-1 focus:ring-emerald-500/30 resize-none leading-relaxed"
+                className="w-full liquid-input rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-zinc-500 resize-none leading-relaxed"
               />
 
               <div className="flex items-center justify-between gap-2">
                 <span className="text-[10px] text-zinc-500">
-                  Pulsa <kbd className="px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-300 font-mono text-[9px]">Enter</kbd> o el botón para rellenar
+                  Pulsa <kbd className="px-1.5 py-0.5 rounded bg-white/10 border border-white/15 text-zinc-200 font-mono text-[9px]">Enter</kbd> o el botón para rellenar
                 </span>
 
                 <button
                   type="button"
                   disabled={isProcessingVoice || !voiceTranscript.trim()}
                   onClick={() => void processTextWithAi(voiceTranscript)}
-                  className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 disabled:opacity-40 disabled:pointer-events-none text-black font-bold text-xs shadow-lg shadow-emerald-500/20 active:scale-95 transition-all cursor-pointer shrink-0"
+                  className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl liquid-btn-primary disabled:opacity-40 disabled:pointer-events-none font-bold text-xs cursor-pointer shrink-0"
                 >
                   {isProcessingVoice ? (
                     <>
@@ -910,15 +910,15 @@ export const OperationModal: React.FC<OperationModalProps> = ({
             </div>
 
             {voiceStatusMsg && (
-              <div className="text-[11px] text-emerald-300 bg-emerald-950/60 border border-emerald-500/30 rounded-xl px-2.5 py-1.5 flex items-center gap-1.5">
-                <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+              <div className="text-[11px] text-[#bae6fd] bg-[#93c5fd]/15 border border-[#93c5fd]/35 rounded-xl px-2.5 py-1.5 flex items-center gap-1.5 animate-spring-pop">
+                <Check className="w-3.5 h-3.5 text-[#93c5fd] shrink-0" />
                 <span>{voiceStatusMsg}</span>
               </div>
             )}
           </div>
 
           {errorMsg && (
-            <div className="p-2.5 rounded-xl bg-rose-950/80 border border-rose-500/30 text-rose-200 text-xs">
+            <div className="p-2.5 rounded-xl bg-rose-500/15 border border-rose-400/35 text-rose-200 text-xs backdrop-blur-md">
               {errorMsg}
             </div>
           )}
@@ -928,7 +928,7 @@ export const OperationModal: React.FC<OperationModalProps> = ({
             <label className="block text-zinc-400 font-medium mb-1.5">
               Casilla de Venta / Compra
             </label>
-            <div className="grid grid-cols-3 gap-1.5 p-1 bg-zinc-900 border border-white/10 rounded-2xl">
+            <div className="grid grid-cols-3 gap-1.5 p-1 liquid-segmented rounded-2xl">
               {[
                 { id: 'venta', label: 'Venta' },
                 { id: 'compra', label: 'Compra (Pedido)' },
@@ -952,7 +952,7 @@ export const OperationModal: React.FC<OperationModalProps> = ({
                   }}
                   className={`py-2 px-2 rounded-xl text-[11px] font-medium transition-all text-center cursor-pointer ${
                     tipo === t.id
-                      ? 'bg-emerald-500 text-black font-semibold shadow-sm'
+                      ? 'liquid-btn-primary font-semibold'
                       : 'text-zinc-400 hover:text-white'
                   }`}
                 >
@@ -1027,7 +1027,7 @@ export const OperationModal: React.FC<OperationModalProps> = ({
                     ? 'Ej: Pedido filamento PETG negro, Tornillos M4...'
                     : 'Escribe para buscar o crear un producto...'
                 }
-                className="w-full bg-zinc-900/90 border border-white/10 rounded-xl pl-9 pr-14 py-2.5 text-xs sm:text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-emerald-500/50 transition-all"
+                className="w-full liquid-input rounded-xl pl-9 pr-14 py-2.5 text-xs sm:text-sm text-white placeholder-zinc-500"
               />
 
               <div className="absolute right-2 flex items-center gap-1">
@@ -1061,12 +1061,12 @@ export const OperationModal: React.FC<OperationModalProps> = ({
                         productInputRef.current?.focus();
                       }
                     }}
-                    className="p-1 rounded-lg text-zinc-400 hover:text-emerald-400 hover:bg-white/10 transition-colors cursor-pointer"
+                    className="p-1 rounded-lg text-zinc-400 hover:text-[#93c5fd] hover:bg-white/10 transition-colors cursor-pointer"
                     title="Ver productos registrados"
                   >
                     <ChevronDown
-                      className={`w-3.5 h-3.5 transition-transform duration-150 ${
-                        showProductSuggestions ? 'rotate-180 text-emerald-400' : ''
+                      className={`w-3.5 h-3.5 transition-transform duration-200 ${
+                        showProductSuggestions ? 'rotate-180 text-[#93c5fd]' : ''
                       }`}
                     />
                   </button>
@@ -1088,12 +1088,12 @@ export const OperationModal: React.FC<OperationModalProps> = ({
                     width: `${productDropdownPos.width}px`,
                     maxHeight: `${productDropdownPos.maxHeight}px`,
                   }}
-                  className="fixed z-[9999] bg-[#09090b]/98 backdrop-blur-2xl rounded-2xl p-1.5 shadow-2xl border border-white/15 overflow-y-auto custom-table-scroll text-left"
+                  className="fixed z-[9999] liquid-popover rounded-2xl p-1.5 overflow-y-auto custom-table-scroll text-left"
                 >
                   {filteredProductSuggestions.length === 0 ? (
                     <div className="px-3 py-2.5 text-[11px] text-zinc-400 flex items-center justify-between gap-2">
                       <span>No está en el catálogo: se usará como producto nuevo</span>
-                      <span className="text-[10px] font-semibold text-emerald-400 shrink-0">
+                      <span className="text-[10px] font-semibold text-[#bae6fd] shrink-0">
                         Nuevo
                       </span>
                     </div>
@@ -1112,9 +1112,9 @@ export const OperationModal: React.FC<OperationModalProps> = ({
                             setShowProductSuggestions(false);
                             setHighlightedProductIdx(-1);
                           }}
-                          className={`w-full flex items-center justify-between gap-2 px-2.5 py-2 rounded-xl text-xs transition-colors cursor-pointer text-left ${
+                          className={`w-full flex items-center justify-between gap-2 px-2.5 py-2 rounded-xl text-xs transition-all cursor-pointer text-left ${
                             isHighlighted || isExact
-                              ? 'bg-emerald-500/20 text-emerald-300 font-semibold border border-emerald-500/30'
+                              ? 'bg-[#93c5fd]/20 text-[#e0f2fe] font-semibold border border-[#93c5fd]/40'
                               : 'text-zinc-200 hover:bg-white/10 hover:text-white border border-transparent'
                           }`}
                         >
@@ -1126,7 +1126,7 @@ export const OperationModal: React.FC<OperationModalProps> = ({
                               </div>
                             )}
                           </div>
-                          <span className="text-[10px] font-mono text-emerald-300 bg-emerald-500/15 px-1.5 py-0.5 rounded-md shrink-0">
+                          <span className="text-[10px] font-mono tabular-nums text-[#bae6fd] bg-[#93c5fd]/18 border border-[#93c5fd]/30 px-1.5 py-0.5 rounded-md shrink-0">
                             {formatEuro(item.costeUnitario)}
                           </span>
                         </button>
@@ -1142,7 +1142,7 @@ export const OperationModal: React.FC<OperationModalProps> = ({
           <div className="grid grid-cols-12 gap-2.5 items-start">
             <div className="col-span-6 pr-2.5 sm:pr-0 min-w-0 overflow-hidden">
               <label className="block text-zinc-300 font-medium mb-1 flex items-center gap-1">
-                <Calendar className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
+                <Calendar className="w-3.5 h-3.5 text-[#93c5fd] shrink-0" />
                 <span className="truncate">Fecha</span>
               </label>
               <div className="w-[88%] sm:w-full max-w-[142px] sm:max-w-none overflow-hidden">
@@ -1157,14 +1157,14 @@ export const OperationModal: React.FC<OperationModalProps> = ({
                       setFechaLimiteCustom(calculateDeadlineDate(nextFecha, lugarVenta, tipo));
                     }
                   }}
-                  className="block w-full min-w-0 appearance-none box-border bg-zinc-900/90 border border-white/10 rounded-xl px-2 py-2 h-[38px] text-[11px] sm:text-xs text-white focus:outline-none focus:border-emerald-500/50"
+                  className="block w-full min-w-0 appearance-none box-border liquid-input rounded-xl px-2 py-2 h-[38px] text-[11px] sm:text-xs text-white"
                 />
               </div>
             </div>
 
             <div className="col-span-6 min-w-0">
               <label className="block text-zinc-300 font-medium mb-1 flex items-center gap-1">
-                <Tag className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
+                <Tag className="w-3.5 h-3.5 text-[#93c5fd] shrink-0" />
                 <span className="truncate">Lugar</span>
               </label>
               <OledSelect
@@ -1177,7 +1177,7 @@ export const OperationModal: React.FC<OperationModalProps> = ({
                   }
                 }}
                 options={platformsList.map((p) => ({ value: p, label: p }))}
-                buttonClassName="bg-zinc-900/90 hover:bg-zinc-900 border border-white/10 rounded-xl px-2.5 py-2 h-[38px] text-xs text-white"
+                buttonClassName="rounded-xl px-2.5 py-2 h-[38px] text-xs text-white"
               />
             </div>
           </div>
@@ -1209,14 +1209,14 @@ export const OperationModal: React.FC<OperationModalProps> = ({
 
           {/* Checkbox para pedido de filamento de 1000g en Compras */}
           {tipo === 'compra' && (
-            <label className="flex items-center gap-2.5 p-2.5 rounded-xl bg-sky-950/25 border border-sky-500/30 cursor-pointer">
+            <label className="flex items-center gap-2.5 p-2.5 rounded-xl glass-card border-[#93c5fd]/30 cursor-pointer">
               <input
                 type="checkbox"
                 checked={esPedidoFilamento}
                 onChange={(e) => setEsPedidoFilamento(e.target.checked)}
-                className="rounded accent-emerald-500 w-4 h-4"
+                className="rounded accent-[#93c5fd] w-4 h-4"
               />
-              <span className="text-xs text-sky-200">
+              <span className="text-xs text-[#bae6fd]">
                 Es pedido de bobina de filamento (+1000g por unidad al stock)
               </span>
             </label>
@@ -1226,7 +1226,7 @@ export const OperationModal: React.FC<OperationModalProps> = ({
           <div className="space-y-2">
             <div className="flex items-center justify-between gap-2">
               <label className="text-zinc-300 font-medium flex items-center gap-1.5">
-                <Boxes className="w-3.5 h-3.5 text-emerald-400" />
+                <Boxes className="w-3.5 h-3.5 text-[#93c5fd]" />
                 <span>
                   {isMultiMaterialMode
                     ? 'Lista de Materiales (Filamento y Gramos)'
@@ -1237,7 +1237,7 @@ export const OperationModal: React.FC<OperationModalProps> = ({
               <button
                 type="button"
                 onClick={handleAddMaterialRow}
-                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/35 text-[11px] font-semibold transition-all active:scale-95 cursor-pointer"
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl liquid-btn-pastel-glass text-[11px] font-semibold cursor-pointer"
                 title="Añadir más filamento y especificar gramos"
               >
                 <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
@@ -1254,7 +1254,7 @@ export const OperationModal: React.FC<OperationModalProps> = ({
                     value={materialRows[0]?.material || ''}
                     onChange={(e) => handleChangeMaterialRow(0, 'material', e.target.value)}
                     placeholder="Ej: PETG Negro (Elegoo), ASA Negro (Winkle)..."
-                    className="w-full bg-zinc-900/90 border border-white/10 rounded-xl pl-3 pr-9 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-emerald-500/50"
+                    className="w-full liquid-input rounded-xl pl-3 pr-9 py-2 text-xs text-white placeholder-zinc-500"
                   />
                   {filamentStock.length > 0 && (
                     <div className="absolute right-1.5 inset-y-1 flex items-center">
@@ -1280,7 +1280,7 @@ export const OperationModal: React.FC<OperationModalProps> = ({
                 <button
                   type="button"
                   onClick={handleAddMaterialRow}
-                  className="h-[36px] w-[36px] rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black flex items-center justify-center shadow-md shadow-emerald-500/20 active:scale-95 transition-all cursor-pointer shrink-0"
+                  className="h-[36px] w-[36px] rounded-xl liquid-btn-primary flex items-center justify-center cursor-pointer shrink-0"
                   title="Añadir otro filamento con gramos"
                 >
                   <Plus className="w-4 h-4 stroke-[2.8]" />
@@ -1288,7 +1288,7 @@ export const OperationModal: React.FC<OperationModalProps> = ({
               </div>
             ) : (
               /* MODO LISTA MULTIMATERIAL: Cada fila tiene Filamento + Gramos + botón borrar y se puede seguir dando a + */
-              <div className="p-3 rounded-2xl bg-zinc-900/70 border border-emerald-500/30 space-y-2.5">
+              <div className="p-3 rounded-2xl glass-card border-[#93c5fd]/30 space-y-2.5">
                 <div className="grid grid-cols-12 gap-2 text-[10px] font-bold uppercase tracking-wider text-zinc-400 px-1">
                   <div className="col-span-7">Filamento</div>
                   <div className="col-span-4">Gramos (g)</div>
@@ -1314,7 +1314,7 @@ export const OperationModal: React.FC<OperationModalProps> = ({
                                 handleChangeMaterialRow(idx, 'material', e.target.value)
                               }
                               placeholder={`Filamento ${idx + 1}...`}
-                              className="w-full bg-black/80 border border-white/15 rounded-xl pl-2.5 pr-8 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-emerald-500"
+                              className="w-full liquid-input rounded-xl pl-2.5 pr-8 py-2 text-xs text-white placeholder-zinc-500"
                             />
                             {filamentStock.length > 0 && (
                               <div className="absolute right-1 inset-y-1 flex items-center">
@@ -1350,7 +1350,7 @@ export const OperationModal: React.FC<OperationModalProps> = ({
                                 }
                               }}
                               placeholder="0.0"
-                              className="w-full bg-black/80 border border-white/15 rounded-xl pl-2.5 pr-6 py-2 text-xs text-emerald-300 font-mono font-bold placeholder-zinc-600 focus:outline-none focus:border-emerald-500"
+                              className="w-full liquid-input rounded-xl pl-2.5 pr-6 py-2 text-xs text-[#bae6fd] font-mono tabular-nums font-bold placeholder-zinc-600"
                             />
                             <span className="absolute right-2 text-[11px] font-mono text-zinc-400 pointer-events-none">
                               g
@@ -1362,7 +1362,7 @@ export const OperationModal: React.FC<OperationModalProps> = ({
                             <button
                               type="button"
                               onClick={() => handleRemoveMaterialRow(idx)}
-                              className="p-1.5 rounded-xl bg-rose-500/15 hover:bg-rose-500/30 text-rose-300 transition-colors cursor-pointer"
+                              className="p-1.5 rounded-xl bg-rose-500/15 hover:bg-rose-500/30 border border-rose-400/25 text-rose-200 transition-all cursor-pointer"
                               title={
                                 materialRows.length <= 2
                                   ? 'Quitar y volver a 1 material sin gramos'
@@ -1375,11 +1375,11 @@ export const OperationModal: React.FC<OperationModalProps> = ({
                         </div>
 
                         {row.material.trim() && validRowGrams > 0 && (
-                          <div className="flex items-center justify-between px-2 text-[10px] font-mono text-zinc-400">
+                          <div className="flex items-center justify-between px-2 text-[10px] font-mono tabular-nums text-zinc-400">
                             <span>
                               {normalizeFilamentKey(row.material)} ({formatEuro(rowSpoolPrice)}/kg)
                             </span>
-                            <span className="text-sky-300">
+                            <span className="text-[#bae6fd]">
                               {Number(validRowGrams.toFixed(2))}g = {formatEuro(rowCost)} / ud.
                             </span>
                           </div>
@@ -1394,15 +1394,15 @@ export const OperationModal: React.FC<OperationModalProps> = ({
                   <button
                     type="button"
                     onClick={handleAddMaterialRow}
-                    className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-bold text-[11px] shadow-sm active:scale-95 transition-all cursor-pointer"
+                    className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl liquid-btn-primary font-bold text-[11px] cursor-pointer"
                   >
                     <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
                     <span>Añadir más filamento</span>
                   </button>
 
                   {totalMultiGramsPerUnit > 0 && (
-                    <div className="text-[11px] font-mono text-emerald-300 flex items-center gap-1.5">
-                      <Scale className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                    <div className="text-[11px] font-mono tabular-nums text-[#bae6fd] flex items-center gap-1.5">
+                      <Scale className="w-3.5 h-3.5 text-[#93c5fd] shrink-0" />
                       <span>
                         Total: <strong>{totalMultiGramsPerUnit} g</strong>
                         {unidades > 1
@@ -1435,7 +1435,7 @@ export const OperationModal: React.FC<OperationModalProps> = ({
                 }}
                 placeholder="0.00"
                 disabled={tipo === 'compra' || tipo === 'inversion'}
-                className="w-full bg-zinc-900/90 border border-white/10 rounded-xl px-2.5 py-2 text-xs text-white font-mono placeholder-zinc-600 focus:outline-none focus:border-emerald-500/50 disabled:opacity-40"
+                className="w-full liquid-input rounded-xl px-2.5 py-2 text-xs text-white font-mono tabular-nums placeholder-zinc-600 disabled:opacity-40"
               />
             </div>
 
@@ -1458,7 +1458,7 @@ export const OperationModal: React.FC<OperationModalProps> = ({
                   }
                 }}
                 placeholder="0.00"
-                className="w-full bg-zinc-900/90 border border-white/10 rounded-xl px-2.5 py-2 text-xs text-white font-mono placeholder-zinc-600 focus:outline-none focus:border-emerald-500/50"
+                className="w-full liquid-input rounded-xl px-2.5 py-2 text-xs text-white font-mono tabular-nums placeholder-zinc-600"
               />
             </div>
 
@@ -1478,14 +1478,14 @@ export const OperationModal: React.FC<OperationModalProps> = ({
                   }
                 }}
                 placeholder="0.00"
-                className="w-full bg-zinc-900/90 border border-white/10 rounded-xl px-2.5 py-2 text-xs text-white font-mono placeholder-zinc-600 focus:outline-none focus:border-emerald-500/50"
+                className="w-full liquid-input rounded-xl px-2.5 py-2 text-xs text-white font-mono tabular-nums placeholder-zinc-600"
               />
             </div>
 
             {/* Nº de Unidades (por defecto 1, multiplica el coste unitario) */}
             <div>
               <label className="block text-zinc-300 font-medium mb-1 flex items-center gap-1">
-                <Hash className="w-3 h-3 text-emerald-400" />
+                <Hash className="w-3 h-3 text-[#93c5fd]" />
                 <span>Unidades</span>
               </label>
               <input
@@ -1494,31 +1494,31 @@ export const OperationModal: React.FC<OperationModalProps> = ({
                 step="1"
                 value={unidades}
                 onChange={(e) => handleUnitsChange(e.target.value)}
-                className="w-full bg-zinc-900/90 border border-white/10 rounded-xl px-2.5 py-2 text-xs text-white font-mono focus:outline-none focus:border-emerald-500/50"
+                className="w-full liquid-input rounded-xl px-2.5 py-2 text-xs text-white font-mono tabular-nums"
               />
             </div>
           </div>
 
           {/* Calculated Profit Banner Preview */}
-          <div className="bg-zinc-900/90 border border-white/10 rounded-2xl p-3 flex items-center justify-between">
+          <div className="glass-card rounded-2xl p-3 flex items-center justify-between">
             <div>
               <span className="text-xs text-zinc-400 font-medium block">Beneficio Calculado</span>
               {otrosCostesNum > 0 ? (
-                <span className="text-[10px] text-zinc-400 font-mono">
+                <span className="text-[10px] text-zinc-400 font-mono tabular-nums">
                   Costes {formatEuro(costesBaseNum)} + Otros costes {formatEuro(otrosCostesNum)} = Total {formatEuro(costesNum)}
                 </span>
               ) : (
                 costeUnitario !== undefined &&
                 costeUnitario > 0 &&
                 unidades > 1 && (
-                  <span className="text-[10px] text-zinc-500 font-mono">
+                  <span className="text-[10px] text-zinc-500 font-mono tabular-nums">
                     Coste base {formatEuro(costeUnitario)} × {unidades} uds = {formatEuro(costesNum)}
                   </span>
                 )
               )}
             </div>
-            <span className={`text-base font-bold font-mono ${
-              previewBeneficio > 0 ? 'text-emerald-400' : previewBeneficio < 0 ? 'text-rose-400' : 'text-zinc-300'
+            <span className={`text-base font-bold font-mono tabular-nums ${
+              previewBeneficio > 0 ? 'text-[#bae6fd]' : previewBeneficio < 0 ? 'text-rose-400' : 'text-zinc-300'
             }`}>
               {previewBeneficio > 0 ? `+${formatEuro(previewBeneficio)}` : formatEuro(previewBeneficio)}
             </span>
@@ -1537,7 +1537,7 @@ export const OperationModal: React.FC<OperationModalProps> = ({
 
             <div>
               <label className="block text-zinc-300 font-medium mb-1 flex items-center gap-1">
-                <User className="w-3.5 h-3.5 text-zinc-400" />
+                <User className="w-3.5 h-3.5 text-[#93c5fd]" />
                 Vendedor
               </label>
               <OledSelect
@@ -1562,30 +1562,30 @@ export const OperationModal: React.FC<OperationModalProps> = ({
                 value={vendedorCustom}
                 onChange={(e) => setVendedorCustom(e.target.value)}
                 placeholder="Escribe el nombre del vendedor..."
-                className="w-full bg-zinc-900/90 border border-white/10 rounded-xl px-3 py-2 text-xs text-white"
+                className="w-full liquid-input rounded-xl px-3 py-2 text-xs text-white"
               />
             </div>
           )}
 
           {previewSandraCommission > 0 && (
-            <div className="p-2.5 rounded-xl bg-rose-950/30 border border-rose-500/30 flex items-center justify-between text-xs">
+            <div className="p-2.5 rounded-xl bg-rose-500/15 border border-rose-400/30 flex items-center justify-between text-xs backdrop-blur-md">
               <span className="text-rose-200/90">
-                B. Sandra ({effectiveVendedorPreview}) → <strong className="text-rose-300">Gastos en General</strong>:
+                B. Sandra ({effectiveVendedorPreview}) → <strong className="text-rose-200">Gastos en General</strong>:
               </span>
-              <span className="font-mono font-bold text-rose-300">
+              <span className="font-mono tabular-nums font-bold text-rose-200">
                 {formatEuro(previewSandraCommission)}
               </span>
             </div>
           )}
 
           {/* Adjuntar Foto / Código QR / Etiqueta de Envío enlazada al pedido */}
-          <div className="p-3 rounded-2xl bg-zinc-900/70 border border-white/10 space-y-2.5">
+          <div className="p-3 rounded-2xl glass-card space-y-2.5">
             <div className="flex items-center justify-between">
               <span className="text-xs font-medium text-zinc-200 flex items-center gap-1.5">
-                <QrCode className="w-4 h-4 text-emerald-400" />
+                <QrCode className="w-4 h-4 text-[#93c5fd]" />
                 Foto / Código QR o Etiqueta de Envío
               </span>
-              <label className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 text-[11px] font-medium cursor-pointer transition-colors">
+              <label className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl liquid-btn-pastel-glass text-[11px] font-medium cursor-pointer">
                 <Upload className="w-3.5 h-3.5" />
                 <span>{fotoQr ? 'Cambiar foto' : 'Subir foto / QR'}</span>
                 <input
@@ -1615,7 +1615,7 @@ export const OperationModal: React.FC<OperationModalProps> = ({
                 <button
                   type="button"
                   onClick={() => setFotoQr(undefined)}
-                  className="p-2 rounded-xl bg-rose-500/15 text-rose-300 hover:bg-rose-500/25 cursor-pointer"
+                  className="p-2 rounded-xl bg-rose-500/15 text-rose-200 hover:bg-rose-500/25 border border-rose-400/25 cursor-pointer transition-all"
                   title="Quitar foto"
                 >
                   <Trash2 className="w-4 h-4" />
@@ -1627,7 +1627,7 @@ export const OperationModal: React.FC<OperationModalProps> = ({
           {/* Comentarios / Observaciones */}
           <div>
             <label className="block text-zinc-300 font-medium mb-1 flex items-center gap-1">
-              <FileText className="w-3.5 h-3.5 text-zinc-400" />
+              <FileText className="w-3.5 h-3.5 text-[#93c5fd]" />
               Comentarios
             </label>
             <textarea
@@ -1635,7 +1635,7 @@ export const OperationModal: React.FC<OperationModalProps> = ({
               value={comentarios}
               onChange={(e) => setComentarios(e.target.value)}
               placeholder="Observaciones libres, detalles del comprador, grabados..."
-              className="w-full bg-zinc-900/90 border border-white/10 rounded-xl p-3 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-emerald-500/50"
+              className="w-full liquid-input rounded-xl p-3 text-xs text-white placeholder-zinc-500"
             />
           </div>
 
@@ -1643,7 +1643,7 @@ export const OperationModal: React.FC<OperationModalProps> = ({
           <div className="pt-1">
             <button
               type="submit"
-              className="w-full h-11 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-black font-bold text-sm flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 active:scale-[0.98] transition-all cursor-pointer"
+              className="w-full h-11 rounded-2xl liquid-btn-primary font-bold text-sm flex items-center justify-center gap-2 cursor-pointer"
             >
               <Check className="w-5 h-5 stroke-[2.5]" />
               <span>Guardar</span>

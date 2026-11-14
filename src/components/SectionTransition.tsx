@@ -32,13 +32,13 @@ export const SectionTransition: React.FC<SectionTransitionProps> = ({
 
   return (
     <div
-      className={`w-full transition-all duration-300 ${
+      className={`w-full transition-all duration-400 ${
         isVisible
-          ? 'opacity-100 translate-y-0'
-          : 'opacity-0 translate-y-4'
+          ? 'opacity-100 translate-y-0 scale-100 blur-0'
+          : 'opacity-0 translate-y-3 scale-[0.99] blur-[4px]'
       }`}
       style={{
-        transitionTimingFunction: 'cubic-bezier(0.4, 0, 0.2, 1)',
+        transitionTimingFunction: 'cubic-bezier(0.22, 1, 0.36, 1)',
       }}
     >
       {children}
