@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { 
   X, 
   Trash2, 
@@ -17,7 +18,8 @@ import {
   Loader2,
   Plus,
   ChevronDown,
-  Scale
+  Scale,
+  Search
 } from 'lucide-react';
 import { 
   Operation, 
@@ -149,11 +151,43 @@ export const OperationModal: React.FC<OperationModalProps> = ({
   const [voiceTranscript, setVoiceTranscript] = useState('');
   const [voiceStatusMsg, setVoiceStatusMsg] = useState<string | null>(null);
 
+  // Product Search / Autocomplete States
+  const [showProductSuggestions, setShowProductSuggestions] = useState(false);
+  const [highlightedProductIdx, setHighlightedProductIdx] = useState(-1);
+  const [productDropdownPos, setProductDropdownPos] = useState<{
+    top: number;
+    left: number;
+    width: number;
+    maxHeight: number;
+  }>({ top: 0, left: 0, width: 300, maxHeight: 240 });
+
   const initializedModalKeyRef = useRef<string | null>(null);
+  const productInputWrapRef = useRef<HTMLDivElement>(null);
+  const productInputRef = useRef<HTMLInputElement>(null);
+  const productDropdownRef = useRef<HTMLDivElement>(null);
+
+  const filteredProductSuggestions = useMemo(() => {
+    if (tipo !== 'venta' || productCatalog.length === 0) return [];
+    const norm = (s: string) =>
+      s
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .trim();
+    const q = norm(producto);
+    if (!q) return productCatalog;
+    return productCatalog.filter(
+      (item) =>
+        norm(item.producto).includes(q) ||
+        (item.material ? norm(item.material).includes(q) : false)
+    );
+  }, [tipo, productCatalog, producto]);
 
   useEffect(() => {
     if (!isOpen) {
       initializedModalKeyRef.current = null;
+      setShowProductSuggestions(false);
+      setHighlightedProductIdx(-1);
       return;
     }
 
@@ -172,6 +206,8 @@ export const OperationModal: React.FC<OperationModalProps> = ({
     setErrorMsg(null);
     setVoiceStatusMsg(null);
     setVoiceTranscript('');
+    setShowProductSuggestions(false);
+    setHighlightedProductIdx(-1);
 
     const defaultToday = formatDateInput(new Date().toISOString());
 
@@ -277,6 +313,67 @@ export const OperationModal: React.FC<OperationModalProps> = ({
       setEsPedidoFilamento(false);
     }
   }, [operationToEdit, initialData, isOpen]);
+
+  useEffect(() => {
+    if (!isOpen || !showProductSuggestions) return;
+
+    const updateProductDropdownPos = () => {
+      if (!productInputWrapRef.current) return;
+      const rect = productInputWrapRef.current.getBoundingClientRect();
+      const width = Math.min(rect.width, window.innerWidth - 16);
+      const left = Math.max(8, Math.min(rect.left, window.innerWidth - width - 8));
+      const spaceBelow = window.innerHeight - rect.bottom - 12;
+      const spaceAbove = rect.top - 12;
+      const estimatedHeight = Math.min(
+        Math.max(filteredProductSuggestions.length, 1) * 44 + 16,
+        240
+      );
+
+      let top = rect.bottom + 6;
+      let maxHeight = Math.max(140, Math.min(240, spaceBelow));
+
+      if (spaceBelow < estimatedHeight && spaceAbove > spaceBelow) {
+        maxHeight = Math.max(140, Math.min(240, spaceAbove));
+        top = Math.max(8, rect.top - Math.min(estimatedHeight, maxHeight) - 6);
+      }
+
+      setProductDropdownPos({ top, left, width, maxHeight });
+    };
+
+    updateProductDropdownPos();
+
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as Node;
+      if (
+        productInputWrapRef.current &&
+        !productInputWrapRef.current.contains(target) &&
+        productDropdownRef.current &&
+        !productDropdownRef.current.contains(target)
+      ) {
+        setShowProductSuggestions(false);
+      }
+    };
+
+    const handleScrollOrResize = (e: Event) => {
+      if (
+        productDropdownRef.current &&
+        e.target instanceof Node &&
+        productDropdownRef.current.contains(e.target)
+      ) {
+        return;
+      }
+      updateProductDropdownPos();
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    window.addEventListener('scroll', handleScrollOrResize, true);
+    window.addEventListener('resize', handleScrollOrResize);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      window.removeEventListener('scroll', handleScrollOrResize, true);
+      window.removeEventListener('resize', handleScrollOrResize);
+    };
+  }, [isOpen, showProductSuggestions, filteredProductSuggestions.length]);
 
   if (!isOpen) return null;
 
@@ -865,7 +962,7 @@ export const OperationModal: React.FC<OperationModalProps> = ({
             </div>
           </div>
 
-          {/* Producto: Desplegable de productos vendidos + campo para escribir/añadir nuevo */}
+          {/* Producto: Buscador desplegable de productos vendidos + campo para escribir y buscar en vivo */}
           <div className="space-y-1.5">
             <label className="block text-zinc-300 font-medium">
               Producto *
@@ -874,10 +971,15 @@ export const OperationModal: React.FC<OperationModalProps> = ({
             {tipo === 'venta' && productCatalog.length > 0 && (
               <OledSelect
                 value=""
+                searchable
+                searchPlaceholder="Buscar producto por nombre o material..."
                 onChange={(val) => {
-                  if (val) handleSelectCatalogProduct(val);
+                  if (val) {
+                    handleSelectCatalogProduct(val);
+                    setShowProductSuggestions(false);
+                  }
                 }}
-                placeholder="Seleccionar producto registrado (carga coste y material)..."
+                placeholder="Buscar o elegir producto registrado (carga coste y material)..."
                 options={productCatalog.map((item) => ({
                   value: item.producto,
                   label: item.producto,
@@ -888,25 +990,169 @@ export const OperationModal: React.FC<OperationModalProps> = ({
               />
             )}
 
-            <input
-              type="text"
-              required
-              value={producto}
-              onChange={(e) => {
-                const val = e.target.value;
-                setProducto(val);
-                if (errorMsg) setErrorMsg(null);
-                if (tipo === 'compra' && isFilamentKeyword(val) && !esPedidoFilamento) {
-                  setEsPedidoFilamento(true);
+            <div ref={productInputWrapRef} className="relative flex items-center">
+              <Search className="w-3.5 h-3.5 text-zinc-400 absolute left-3 pointer-events-none" />
+              <input
+                ref={productInputRef}
+                type="text"
+                required
+                value={producto}
+                onFocus={() => {
+                  if (tipo === 'venta' && productCatalog.length > 0) {
+                    setShowProductSuggestions(true);
+                  }
+                }}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setProducto(val);
+                  setHighlightedProductIdx(-1);
+                  if (tipo === 'venta' && productCatalog.length > 0) {
+                    setShowProductSuggestions(true);
+                  }
+                  if (errorMsg) setErrorMsg(null);
+                  if (tipo === 'compra' && isFilamentKeyword(val) && !esPedidoFilamento) {
+                    setEsPedidoFilamento(true);
+                  }
+                }}
+                onKeyDown={(e) => {
+                  if (!showProductSuggestions || tipo !== 'venta' || productCatalog.length === 0) {
+                    return;
+                  }
+                  if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    setHighlightedProductIdx((prev) =>
+                      prev < filteredProductSuggestions.length - 1 ? prev + 1 : 0
+                    );
+                  } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    setHighlightedProductIdx((prev) =>
+                      prev > 0 ? prev - 1 : filteredProductSuggestions.length - 1
+                    );
+                  } else if (
+                    e.key === 'Enter' &&
+                    highlightedProductIdx >= 0 &&
+                    filteredProductSuggestions[highlightedProductIdx]
+                  ) {
+                    e.preventDefault();
+                    handleSelectCatalogProduct(
+                      filteredProductSuggestions[highlightedProductIdx].producto
+                    );
+                    setShowProductSuggestions(false);
+                    setHighlightedProductIdx(-1);
+                  } else if (e.key === 'Escape') {
+                    setShowProductSuggestions(false);
+                    setHighlightedProductIdx(-1);
+                  }
+                }}
+                placeholder={
+                  tipo === 'compra'
+                    ? 'Ej: Pedido filamento PETG negro, Tornillos M4...'
+                    : 'Escribe para buscar un producto o crear uno nuevo...'
                 }
-              }}
-              placeholder={
-                tipo === 'compra'
-                  ? 'Ej: Pedido filamento PETG negro, Tornillos M4...'
-                  : 'Escribe un producto nuevo o selecciona arriba...'
-              }
-              className="w-full bg-zinc-900/90 border border-white/10 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-emerald-500/50 transition-all"
-            />
+                className="w-full bg-zinc-900/90 border border-white/10 rounded-xl pl-9 pr-14 py-2.5 text-xs sm:text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-emerald-500/50 transition-all"
+              />
+
+              <div className="absolute right-2 flex items-center gap-1">
+                {producto && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setProducto('');
+                      setHighlightedProductIdx(-1);
+                      if (tipo === 'venta' && productCatalog.length > 0) {
+                        setShowProductSuggestions(true);
+                      }
+                      productInputRef.current?.focus();
+                    }}
+                    className="p-1 rounded-lg text-zinc-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                    title="Limpiar campo"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+
+                {tipo === 'venta' && productCatalog.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowProductSuggestions((prev) => !prev);
+                      productInputRef.current?.focus();
+                    }}
+                    className="p-1 rounded-lg text-zinc-400 hover:text-emerald-400 hover:bg-white/10 transition-colors cursor-pointer"
+                    title="Ver productos coincidentes"
+                  >
+                    <ChevronDown
+                      className={`w-3.5 h-3.5 transition-transform duration-150 ${
+                        showProductSuggestions ? 'rotate-180 text-emerald-400' : ''
+                      }`}
+                    />
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {showProductSuggestions &&
+              tipo === 'venta' &&
+              productCatalog.length > 0 &&
+              typeof document !== 'undefined' &&
+              createPortal(
+                <div
+                  ref={productDropdownRef}
+                  onClick={(e) => e.stopPropagation()}
+                  style={{
+                    top: `${productDropdownPos.top}px`,
+                    left: `${productDropdownPos.left}px`,
+                    width: `${productDropdownPos.width}px`,
+                    maxHeight: `${productDropdownPos.maxHeight}px`,
+                  }}
+                  className="fixed z-[9999] bg-[#09090b]/98 backdrop-blur-2xl rounded-2xl p-1.5 shadow-2xl border border-white/15 overflow-y-auto custom-table-scroll text-left"
+                >
+                  {filteredProductSuggestions.length === 0 ? (
+                    <div className="px-3 py-2.5 text-[11px] text-zinc-400 flex items-center justify-between gap-2">
+                      <span>No está en el catálogo: se usará como producto nuevo</span>
+                      <span className="text-[10px] font-semibold text-emerald-400 shrink-0">
+                        Nuevo
+                      </span>
+                    </div>
+                  ) : (
+                    filteredProductSuggestions.map((item, idx) => {
+                      const isHighlighted = idx === highlightedProductIdx;
+                      const isExact =
+                        item.producto.toLowerCase() === producto.trim().toLowerCase();
+                      return (
+                        <button
+                          key={item.producto}
+                          type="button"
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => {
+                            handleSelectCatalogProduct(item.producto);
+                            setShowProductSuggestions(false);
+                            setHighlightedProductIdx(-1);
+                          }}
+                          className={`w-full flex items-center justify-between gap-2 px-2.5 py-2 rounded-xl text-xs transition-colors cursor-pointer text-left ${
+                            isHighlighted || isExact
+                              ? 'bg-emerald-500/20 text-emerald-300 font-semibold border border-emerald-500/30'
+                              : 'text-zinc-200 hover:bg-white/10 hover:text-white border border-transparent'
+                          }`}
+                        >
+                          <div className="min-w-0 flex-1">
+                            <div className="truncate">{item.producto}</div>
+                            {item.material && (
+                              <div className="text-[10px] text-zinc-400 font-mono truncate mt-0.5">
+                                {item.material}
+                              </div>
+                            )}
+                          </div>
+                          <span className="text-[10px] font-mono text-emerald-300 bg-emerald-500/15 px-1.5 py-0.5 rounded-md shrink-0">
+                            {formatEuro(item.costeUnitario)}
+                          </span>
+                        </button>
+                      );
+                    })
+                  )}
+                </div>,
+                document.body
+              )}
           </div>
 
           {/* Fecha & Lugar de Venta */}

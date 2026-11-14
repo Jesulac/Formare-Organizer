@@ -1,6 +1,6 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { ChevronDown, Check } from 'lucide-react';
+import { ChevronDown, Check, Search, X } from 'lucide-react';
 
 export interface OledSelectOption {
   value: string;
@@ -20,6 +20,16 @@ interface OledSelectProps {
   iconOnly?: boolean;
   title?: string;
   ariaLabel?: string;
+  searchable?: boolean;
+  searchPlaceholder?: string;
+}
+
+function normalizeSearchStr(str: string): string {
+  return str
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim();
 }
 
 export const OledSelect: React.FC<OledSelectProps> = ({
@@ -33,8 +43,11 @@ export const OledSelect: React.FC<OledSelectProps> = ({
   iconOnly = false,
   title,
   ariaLabel,
+  searchable = false,
+  searchPlaceholder = 'Buscar...',
 }) => {
   const [open, setOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const [menuPos, setMenuPos] = useState<{
     top: number;
     left: number;
@@ -49,8 +62,36 @@ export const OledSelect: React.FC<OledSelectProps> = ({
 
   const buttonRef = useRef<HTMLButtonElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   const selectedOption = options.find((o) => o.value === value);
+
+  const filteredOptions = useMemo(() => {
+    if (!searchable || !searchQuery.trim()) return options;
+    const q = normalizeSearchStr(searchQuery);
+    return options.filter((opt) => {
+      const labelMatch = normalizeSearchStr(opt.label).includes(q);
+      const sublabelMatch = opt.sublabel
+        ? normalizeSearchStr(opt.sublabel).includes(q)
+        : false;
+      const valueMatch = normalizeSearchStr(opt.value).includes(q);
+      return labelMatch || sublabelMatch || valueMatch;
+    });
+  }, [options, searchable, searchQuery]);
+
+  useEffect(() => {
+    if (!open) {
+      setSearchQuery('');
+      return;
+    }
+
+    if (searchable) {
+      const timer = setTimeout(() => {
+        searchInputRef.current?.focus();
+      }, 20);
+      return () => clearTimeout(timer);
+    }
+  }, [open, searchable]);
 
   useEffect(() => {
     if (!open) return;
@@ -66,13 +107,14 @@ export const OledSelect: React.FC<OledSelectProps> = ({
 
       const spaceBelow = window.innerHeight - rect.bottom - 12;
       const spaceAbove = rect.top - 12;
-      const estimatedHeight = Math.min(options.length * 38 + 16, 300);
+      const searchHeaderHeight = searchable ? 52 : 0;
+      const estimatedHeight = Math.min(options.length * 38 + 16 + searchHeaderHeight, 320);
 
       let top = rect.bottom + 6;
-      let maxHeight = Math.max(160, Math.min(300, spaceBelow));
+      let maxHeight = Math.max(180, Math.min(320, spaceBelow));
 
       if (spaceBelow < estimatedHeight && spaceAbove > spaceBelow) {
-        maxHeight = Math.max(160, Math.min(300, spaceAbove));
+        maxHeight = Math.max(180, Math.min(320, spaceAbove));
         top = Math.max(8, rect.top - Math.min(estimatedHeight, maxHeight) - 6);
       }
 
@@ -120,7 +162,7 @@ export const OledSelect: React.FC<OledSelectProps> = ({
       window.removeEventListener('scroll', handleScrollOrResize, true);
       window.removeEventListener('resize', handleScrollOrResize);
     };
-  }, [open, options.length, menuWidth, iconOnly]);
+  }, [open, options.length, menuWidth, iconOnly, searchable]);
 
   return (
     <div className={`relative ${className}`}>
@@ -179,43 +221,90 @@ export const OledSelect: React.FC<OledSelectProps> = ({
               width: `${menuPos.width}px`,
               maxHeight: `${menuPos.maxHeight}px`,
             }}
-            className="fixed z-[9999] bg-[#09090b]/98 backdrop-blur-2xl rounded-2xl p-1.5 shadow-2xl border border-white/15 overflow-y-auto custom-table-scroll text-left"
+            className="fixed z-[9999] bg-[#09090b]/98 backdrop-blur-2xl rounded-2xl shadow-2xl border border-white/15 flex flex-col overflow-hidden text-left"
           >
-            {options.map((opt) => {
-              const isSelected = opt.value === value && opt.value !== '';
-              return (
-                <button
-                  key={`${opt.value}-${opt.label}`}
-                  type="button"
-                  onClick={() => {
-                    onChange(opt.value);
-                    setOpen(false);
-                  }}
-                  className={`w-full flex items-center justify-between gap-2 px-2.5 py-2 rounded-xl text-xs transition-colors cursor-pointer text-left ${
-                    isSelected
-                      ? 'bg-emerald-500/20 text-emerald-300 font-semibold border border-emerald-500/30'
-                      : 'text-zinc-200 hover:bg-white/10 hover:text-white border border-transparent'
-                  }`}
-                >
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate">{opt.label}</div>
-                    {opt.sublabel && (
-                      <div className="text-[10px] text-zinc-400 font-mono truncate mt-0.5">
-                        {opt.sublabel}
+            {searchable && (
+              <div className="p-1.5 border-b border-white/10 bg-[#09090b]/95 shrink-0">
+                <div className="relative flex items-center">
+                  <Search className="w-3.5 h-3.5 text-zinc-400 absolute left-2.5 pointer-events-none" />
+                  <input
+                    ref={searchInputRef}
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && filteredOptions.length > 0) {
+                        e.preventDefault();
+                        onChange(filteredOptions[0].value);
+                        setOpen(false);
+                      } else if (e.key === 'Escape') {
+                        e.preventDefault();
+                        setOpen(false);
+                      }
+                    }}
+                    placeholder={searchPlaceholder}
+                    className="w-full bg-zinc-900 border border-white/15 rounded-xl pl-8 pr-7 py-1.5 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-emerald-500/60"
+                  />
+                  {searchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSearchQuery('');
+                        searchInputRef.current?.focus();
+                      }}
+                      className="absolute right-1.5 p-0.5 rounded-md text-zinc-400 hover:text-white hover:bg-white/10 cursor-pointer"
+                      aria-label="Limpiar búsqueda"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+
+            <div className="p-1.5 overflow-y-auto custom-table-scroll flex-1">
+              {filteredOptions.length === 0 ? (
+                <div className="px-3 py-4 text-center text-[11px] text-zinc-500">
+                  No se encontraron resultados
+                </div>
+              ) : (
+                filteredOptions.map((opt) => {
+                  const isSelected = opt.value === value && opt.value !== '';
+                  return (
+                    <button
+                      key={`${opt.value}-${opt.label}`}
+                      type="button"
+                      onClick={() => {
+                        onChange(opt.value);
+                        setOpen(false);
+                      }}
+                      className={`w-full flex items-center justify-between gap-2 px-2.5 py-2 rounded-xl text-xs transition-colors cursor-pointer text-left ${
+                        isSelected
+                          ? 'bg-emerald-500/20 text-emerald-300 font-semibold border border-emerald-500/30'
+                          : 'text-zinc-200 hover:bg-white/10 hover:text-white border border-transparent'
+                      }`}
+                    >
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate">{opt.label}</div>
+                        {opt.sublabel && (
+                          <div className="text-[10px] text-zinc-400 font-mono truncate mt-0.5">
+                            {opt.sublabel}
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    {opt.badge && (
-                      <span className="text-[10px] font-mono text-emerald-300 bg-emerald-500/15 px-1.5 py-0.5 rounded-md">
-                        {opt.badge}
-                      </span>
-                    )}
-                    {isSelected && <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />}
-                  </div>
-                </button>
-              );
-            })}
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        {opt.badge && (
+                          <span className="text-[10px] font-mono text-emerald-300 bg-emerald-500/15 px-1.5 py-0.5 rounded-md">
+                            {opt.badge}
+                          </span>
+                        )}
+                        {isSelected && <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />}
+                      </div>
+                    </button>
+                  );
+                })
+              )}
+            </div>
           </div>,
           document.body
         )}
