@@ -178,17 +178,17 @@ export const OledSelect: React.FC<OledSelectProps> = ({
         className={
           iconOnly
             ? buttonClassName ||
-              'w-7 h-7 flex items-center justify-center rounded-lg liquid-btn-glass text-zinc-300 hover:text-[#bae6fd] cursor-pointer'
+              'w-7 h-7 flex items-center justify-center rounded-lg liquid-btn-glass text-zinc-300 hover:text-theme-light cursor-pointer'
             : `w-full flex items-center justify-between gap-2 text-left transition-all cursor-pointer ${
                 buttonClassName ||
-                'liquid-input hover:border-[#93c5fd]/40 rounded-xl px-3 py-2 text-xs text-zinc-100'
+                'liquid-input hover:border-theme-accent/40 rounded-xl px-3 py-2 text-xs text-zinc-100'
               }`
         }
       >
         {iconOnly ? (
           <ChevronDown
             className={`w-3.5 h-3.5 transition-transform duration-200 ${
-              open ? 'rotate-180 text-[#93c5fd]' : ''
+              open ? 'rotate-180 text-theme-accent' : ''
             }`}
           />
         ) : (
@@ -202,7 +202,7 @@ export const OledSelect: React.FC<OledSelectProps> = ({
             </span>
             <ChevronDown
               className={`w-3.5 h-3.5 shrink-0 text-zinc-400 transition-transform duration-200 ${
-                open ? 'rotate-180 text-[#93c5fd]' : ''
+                open ? 'rotate-180 text-theme-accent' : ''
               }`}
             />
           </>
@@ -226,7 +226,7 @@ export const OledSelect: React.FC<OledSelectProps> = ({
             {searchable && (
               <div className="p-1.5 border-b border-white/10 bg-white/[0.03] shrink-0">
                 <div className="relative flex items-center">
-                  <Search className="w-3.5 h-3.5 text-[#93c5fd]/75 absolute left-2.5 pointer-events-none" />
+                  <Search className="w-3.5 h-3.5 text-theme-accent/75 absolute left-2.5 pointer-events-none" />
                   <input
                     ref={searchInputRef}
                     type="text"
@@ -280,7 +280,7 @@ export const OledSelect: React.FC<OledSelectProps> = ({
                       }}
                       className={`w-full flex items-center justify-between gap-2 px-2.5 py-2 rounded-xl text-xs transition-all duration-150 cursor-pointer text-left ${
                         isSelected
-                          ? 'bg-[#93c5fd]/20 text-[#bae6fd] font-semibold border border-[#93c5fd]/35 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]'
+                          ? 'bg-theme-accent/20 text-theme-light font-semibold border border-theme-accent/35 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]'
                           : 'text-zinc-200 hover:bg-white/10 hover:text-white border border-transparent'
                       }`}
                     >
@@ -294,11 +294,11 @@ export const OledSelect: React.FC<OledSelectProps> = ({
                       </div>
                       <div className="flex items-center gap-1.5 shrink-0">
                         {opt.badge && (
-                          <span className="text-[10px] font-mono text-[#bae6fd] bg-[#93c5fd]/15 border border-[#93c5fd]/25 px-1.5 py-0.5 rounded-md">
+                          <span className="text-[10px] font-mono text-theme-light bg-theme-accent/15 border border-theme-accent/25 px-1.5 py-0.5 rounded-md">
                             {opt.badge}
                           </span>
                         )}
-                        {isSelected && <Check className="w-3.5 h-3.5 text-[#93c5fd] shrink-0" />}
+                        {isSelected && <Check className="w-3.5 h-3.5 text-theme-accent shrink-0" />}
                       </div>
                     </button>
                   );

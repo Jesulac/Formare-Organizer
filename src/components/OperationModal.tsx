@@ -16,13 +16,13 @@ import {
   Hash,
   Sparkles,
   Loader2,
-  Plus,
+  Search,
   ChevronDown,
-  Scale,
-  Search
+  Plus,
+  Scale
 } from 'lucide-react';
 import { 
-  Operation, 
+  Operation,
   OperationType, 
   Platform, 
   Status,
@@ -31,6 +31,7 @@ import {
   FilamentSpool,
   MaterialItem
 } from '../types/operation';
+import { SlidingSegmentedControl } from './SlidingSegmentedControl';
 import { 
   calculateBeneficio, 
   calculateDeadlineDate,
@@ -846,8 +847,8 @@ export const OperationModal: React.FC<OperationModalProps> = ({
           <div className="p-3.5 rounded-2xl glass-card-pastel liquid-shimmer space-y-2.5">
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
-                <div className="flex items-center gap-1.5 text-[#bae6fd] font-bold text-xs">
-                  <Sparkles className="w-4 h-4 text-[#93c5fd] shrink-0 animate-liquid-float-slow" />
+                <div className="flex items-center gap-1.5 text-theme-light font-bold text-xs">
+                  <Sparkles className="w-4 h-4 text-theme-accent shrink-0 animate-liquid-float-slow" />
                   <span>Autocompletar con Inteligencia Artificial</span>
                 </div>
                 <p className="text-[11px] text-zinc-400 mt-0.5 leading-snug">
@@ -910,8 +911,8 @@ export const OperationModal: React.FC<OperationModalProps> = ({
             </div>
 
             {voiceStatusMsg && (
-              <div className="text-[11px] text-[#bae6fd] bg-[#93c5fd]/15 border border-[#93c5fd]/35 rounded-xl px-2.5 py-1.5 flex items-center gap-1.5 animate-spring-pop">
-                <Check className="w-3.5 h-3.5 text-[#93c5fd] shrink-0" />
+              <div className="text-[11px] text-theme-light bg-theme-accent/15 border border-theme-accent/35 rounded-xl px-2.5 py-1.5 flex items-center gap-1.5 animate-spring-pop">
+                <Check className="w-3.5 h-3.5 text-theme-accent shrink-0" />
                 <span>{voiceStatusMsg}</span>
               </div>
             )}
@@ -922,44 +923,22 @@ export const OperationModal: React.FC<OperationModalProps> = ({
               {errorMsg}
             </div>
           )}
-          
-          {/* Casilla de Venta / Compra */}
-          <div>
-            <label className="block text-zinc-400 font-medium mb-1.5">
-              Casilla de Venta / Compra
+
+          {/* Tipo de Operación Selector con Burbuja Deslizante */}
+          <div className="space-y-1.5">
+            <label className="block text-zinc-300 font-medium">
+              Tipo de Operación
             </label>
-            <div className="grid grid-cols-3 gap-1.5 p-1 liquid-segmented rounded-2xl">
-              {[
+            <SlidingSegmentedControl
+              options={[
                 { id: 'venta', label: 'Venta' },
                 { id: 'compra', label: 'Compra (Pedido)' },
                 { id: 'inversion', label: 'Inversión / Activo' },
-              ].map((t) => (
-                <button
-                  key={t.id}
-                  type="button"
-                  onClick={() => {
-                    const newTipo = t.id as OperationType;
-                    setTipo(newTipo);
-                    if (newTipo === 'compra' || newTipo === 'inversion') {
-                      setEstado('Pagado');
-                      setLugarVenta('Internet');
-                      setFechaLimiteCustom('');
-                    } else if (newTipo === 'venta') {
-                      setEstado('En producción');
-                      setLugarVenta('Wallapop');
-                      setFechaLimiteCustom(calculateDeadlineDate(fecha, 'Wallapop', 'venta'));
-                    }
-                  }}
-                  className={`py-2 px-2 rounded-xl text-[11px] font-medium transition-all text-center cursor-pointer ${
-                    tipo === t.id
-                      ? 'liquid-btn-primary font-semibold'
-                      : 'text-zinc-400 hover:text-white'
-                  }`}
-                >
-                  {t.label}
-                </button>
-              ))}
-            </div>
+              ]}
+              value={tipo}
+              onChange={(val) => setTipo(val as OperationType)}
+              className="w-full"
+            />
           </div>
 
           {/* Producto: Campo único para escribir, buscar y seleccionar del catálogo */}
@@ -1061,12 +1040,12 @@ export const OperationModal: React.FC<OperationModalProps> = ({
                         productInputRef.current?.focus();
                       }
                     }}
-                    className="p-1 rounded-lg text-zinc-400 hover:text-[#93c5fd] hover:bg-white/10 transition-colors cursor-pointer"
+                    className="p-1 rounded-lg text-zinc-400 hover:text-theme-accent hover:bg-white/10 transition-colors cursor-pointer"
                     title="Ver productos registrados"
                   >
                     <ChevronDown
                       className={`w-3.5 h-3.5 transition-transform duration-200 ${
-                        showProductSuggestions ? 'rotate-180 text-[#93c5fd]' : ''
+                        showProductSuggestions ? 'rotate-180 text-theme-accent' : ''
                       }`}
                     />
                   </button>
@@ -1093,7 +1072,7 @@ export const OperationModal: React.FC<OperationModalProps> = ({
                   {filteredProductSuggestions.length === 0 ? (
                     <div className="px-3 py-2.5 text-[11px] text-zinc-400 flex items-center justify-between gap-2">
                       <span>No está en el catálogo: se usará como producto nuevo</span>
-                      <span className="text-[10px] font-semibold text-[#bae6fd] shrink-0">
+                      <span className="text-[10px] font-semibold text-theme-light shrink-0">
                         Nuevo
                       </span>
                     </div>
@@ -1114,7 +1093,7 @@ export const OperationModal: React.FC<OperationModalProps> = ({
                           }}
                           className={`w-full flex items-center justify-between gap-2 px-2.5 py-2 rounded-xl text-xs transition-all cursor-pointer text-left ${
                             isHighlighted || isExact
-                              ? 'bg-[#93c5fd]/20 text-[#e0f2fe] font-semibold border border-[#93c5fd]/40'
+                              ? 'bg-theme-accent/20 text-theme-frost font-semibold border border-theme-accent/40'
                               : 'text-zinc-200 hover:bg-white/10 hover:text-white border border-transparent'
                           }`}
                         >
@@ -1126,7 +1105,7 @@ export const OperationModal: React.FC<OperationModalProps> = ({
                               </div>
                             )}
                           </div>
-                          <span className="text-[10px] font-mono tabular-nums text-[#bae6fd] bg-[#93c5fd]/18 border border-[#93c5fd]/30 px-1.5 py-0.5 rounded-md shrink-0">
+                          <span className="text-[10px] font-mono tabular-nums text-theme-light bg-theme-accent/18 border border-theme-accent/30 px-1.5 py-0.5 rounded-md shrink-0">
                             {formatEuro(item.costeUnitario)}
                           </span>
                         </button>
@@ -1142,7 +1121,7 @@ export const OperationModal: React.FC<OperationModalProps> = ({
           <div className="grid grid-cols-12 gap-2.5 items-start">
             <div className="col-span-6 pr-2.5 sm:pr-0 min-w-0 overflow-hidden">
               <label className="block text-zinc-300 font-medium mb-1 flex items-center gap-1">
-                <Calendar className="w-3.5 h-3.5 text-[#93c5fd] shrink-0" />
+                <Calendar className="w-3.5 h-3.5 text-theme-accent shrink-0" />
                 <span className="truncate">Fecha</span>
               </label>
               <div className="w-[88%] sm:w-full max-w-[142px] sm:max-w-none overflow-hidden">
@@ -1164,7 +1143,7 @@ export const OperationModal: React.FC<OperationModalProps> = ({
 
             <div className="col-span-6 min-w-0">
               <label className="block text-zinc-300 font-medium mb-1 flex items-center gap-1">
-                <Tag className="w-3.5 h-3.5 text-[#93c5fd] shrink-0" />
+                <Tag className="w-3.5 h-3.5 text-theme-accent shrink-0" />
                 <span className="truncate">Lugar</span>
               </label>
               <OledSelect
@@ -1209,14 +1188,14 @@ export const OperationModal: React.FC<OperationModalProps> = ({
 
           {/* Checkbox para pedido de filamento de 1000g en Compras */}
           {tipo === 'compra' && (
-            <label className="flex items-center gap-2.5 p-2.5 rounded-xl glass-card border-[#93c5fd]/30 cursor-pointer">
+            <label className="flex items-center gap-2.5 p-2.5 rounded-xl glass-card border-theme-accent/30 cursor-pointer">
               <input
                 type="checkbox"
                 checked={esPedidoFilamento}
                 onChange={(e) => setEsPedidoFilamento(e.target.checked)}
-                className="rounded accent-[#93c5fd] w-4 h-4"
+                className="rounded accent-theme-accent w-4 h-4"
               />
-              <span className="text-xs text-[#bae6fd]">
+              <span className="text-xs text-theme-light">
                 Es pedido de bobina de filamento (+1000g por unidad al stock)
               </span>
             </label>
@@ -1226,7 +1205,7 @@ export const OperationModal: React.FC<OperationModalProps> = ({
           <div className="space-y-2">
             <div className="flex items-center justify-between gap-2">
               <label className="text-zinc-300 font-medium flex items-center gap-1.5">
-                <Boxes className="w-3.5 h-3.5 text-[#93c5fd]" />
+                <Boxes className="w-3.5 h-3.5 text-theme-accent" />
                 <span>
                   {isMultiMaterialMode
                     ? 'Lista de Materiales (Filamento y Gramos)'
@@ -1288,7 +1267,7 @@ export const OperationModal: React.FC<OperationModalProps> = ({
               </div>
             ) : (
               /* MODO LISTA MULTIMATERIAL: Cada fila tiene Filamento + Gramos + botón borrar y se puede seguir dando a + */
-              <div className="p-3 rounded-2xl glass-card border-[#93c5fd]/30 space-y-2.5">
+              <div className="p-3 rounded-2xl glass-card border-theme-accent/30 space-y-2.5">
                 <div className="grid grid-cols-12 gap-2 text-[10px] font-bold uppercase tracking-wider text-zinc-400 px-1">
                   <div className="col-span-7">Filamento</div>
                   <div className="col-span-4">Gramos (g)</div>
@@ -1350,7 +1329,7 @@ export const OperationModal: React.FC<OperationModalProps> = ({
                                 }
                               }}
                               placeholder="0.0"
-                              className="w-full liquid-input rounded-xl pl-2.5 pr-6 py-2 text-xs text-[#bae6fd] font-mono tabular-nums font-bold placeholder-zinc-600"
+                              className="w-full liquid-input rounded-xl pl-2.5 pr-6 py-2 text-xs text-theme-light font-mono tabular-nums font-bold placeholder-zinc-600"
                             />
                             <span className="absolute right-2 text-[11px] font-mono text-zinc-400 pointer-events-none">
                               g
@@ -1379,7 +1358,7 @@ export const OperationModal: React.FC<OperationModalProps> = ({
                             <span>
                               {normalizeFilamentKey(row.material)} ({formatEuro(rowSpoolPrice)}/kg)
                             </span>
-                            <span className="text-[#bae6fd]">
+                            <span className="text-theme-light">
                               {Number(validRowGrams.toFixed(2))}g = {formatEuro(rowCost)} / ud.
                             </span>
                           </div>
@@ -1401,8 +1380,8 @@ export const OperationModal: React.FC<OperationModalProps> = ({
                   </button>
 
                   {totalMultiGramsPerUnit > 0 && (
-                    <div className="text-[11px] font-mono tabular-nums text-[#bae6fd] flex items-center gap-1.5">
-                      <Scale className="w-3.5 h-3.5 text-[#93c5fd] shrink-0" />
+                    <div className="text-[11px] font-mono tabular-nums text-theme-light flex items-center gap-1.5">
+                      <Scale className="w-3.5 h-3.5 text-theme-accent shrink-0" />
                       <span>
                         Total: <strong>{totalMultiGramsPerUnit} g</strong>
                         {unidades > 1
@@ -1485,7 +1464,7 @@ export const OperationModal: React.FC<OperationModalProps> = ({
             {/* Nº de Unidades (por defecto 1, multiplica el coste unitario) */}
             <div>
               <label className="block text-zinc-300 font-medium mb-1 flex items-center gap-1">
-                <Hash className="w-3 h-3 text-[#93c5fd]" />
+                <Hash className="w-3 h-3 text-theme-accent" />
                 <span>Unidades</span>
               </label>
               <input
@@ -1518,7 +1497,7 @@ export const OperationModal: React.FC<OperationModalProps> = ({
               )}
             </div>
             <span className={`text-base font-bold font-mono tabular-nums ${
-              previewBeneficio > 0 ? 'text-[#bae6fd]' : previewBeneficio < 0 ? 'text-rose-400' : 'text-zinc-300'
+              previewBeneficio > 0 ? 'text-theme-light' : previewBeneficio < 0 ? 'text-rose-400' : 'text-zinc-300'
             }`}>
               {previewBeneficio > 0 ? `+${formatEuro(previewBeneficio)}` : formatEuro(previewBeneficio)}
             </span>
@@ -1537,7 +1516,7 @@ export const OperationModal: React.FC<OperationModalProps> = ({
 
             <div>
               <label className="block text-zinc-300 font-medium mb-1 flex items-center gap-1">
-                <User className="w-3.5 h-3.5 text-[#93c5fd]" />
+                <User className="w-3.5 h-3.5 text-theme-accent" />
                 Vendedor
               </label>
               <OledSelect
@@ -1582,7 +1561,7 @@ export const OperationModal: React.FC<OperationModalProps> = ({
           <div className="p-3 rounded-2xl glass-card space-y-2.5">
             <div className="flex items-center justify-between">
               <span className="text-xs font-medium text-zinc-200 flex items-center gap-1.5">
-                <QrCode className="w-4 h-4 text-[#93c5fd]" />
+                <QrCode className="w-4 h-4 text-theme-accent" />
                 Foto / Código QR o Etiqueta de Envío
               </span>
               <label className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl liquid-btn-pastel-glass text-[11px] font-medium cursor-pointer">
@@ -1627,7 +1606,7 @@ export const OperationModal: React.FC<OperationModalProps> = ({
           {/* Comentarios / Observaciones */}
           <div>
             <label className="block text-zinc-300 font-medium mb-1 flex items-center gap-1">
-              <FileText className="w-3.5 h-3.5 text-[#93c5fd]" />
+              <FileText className="w-3.5 h-3.5 text-theme-accent" />
               Comentarios
             </label>
             <textarea

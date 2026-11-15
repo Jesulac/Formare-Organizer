@@ -66,19 +66,19 @@ export function AccessCodeGate({ onAuthorized }: AccessCodeGateProps) {
           <div
             className={`w-16 h-16 rounded-2xl flex items-center justify-center mb-4 transition-all duration-500 animate-liquid-float ${
               isSuccess
-                ? 'glass-card-pastel text-[#bae6fd] scale-110'
-                : 'glass-card text-[#a5d8ff] border-[#93c5fd]/30 shadow-[0_0_28px_-8px_rgba(147,197,253,0.45)]'
+                ? 'glass-card-pastel text-theme-light scale-110'
+                : 'glass-card text-theme-soft border-theme-accent/30 shadow-[0_0_28px_-8px_rgba(var(--theme-rgb),0.45)]'
             }`}
           >
             {isSuccess ? (
-              <Unlock className="w-8 h-8 text-[#bae6fd] animate-pulse" />
+              <Unlock className="w-8 h-8 text-theme-light animate-pulse" />
             ) : (
-              <Lock className="w-8 h-8 text-[#a5d8ff]" />
+              <Lock className="w-8 h-8 text-theme-soft" />
             )}
           </div>
 
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full glass-pill border-[#93c5fd]/30 text-[11px] font-mono font-semibold text-[#bae6fd] mb-2.5 animate-liquid-halo">
-            <ShieldCheck className="w-3.5 h-3.5 text-[#93c5fd]" />
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full glass-pill border-theme-accent/30 text-[11px] font-mono font-semibold text-theme-light mb-2.5 animate-liquid-halo">
+            <ShieldCheck className="w-3.5 h-3.5 text-theme-accent" />
             <span>FORMARE 3D SECURE GATE</span>
           </div>
 
@@ -111,7 +111,7 @@ export function AccessCodeGate({ onAuthorized }: AccessCodeGateProps) {
                   error
                     ? 'border-rose-500/80 ring-2 ring-rose-500/20'
                     : isSuccess
-                    ? 'border-[#93c5fd] ring-2 ring-[#93c5fd]/30'
+                    ? 'border-theme-accent ring-2 ring-theme-accent/30'
                     : ''
                 }`}
               />
@@ -119,7 +119,7 @@ export function AccessCodeGate({ onAuthorized }: AccessCodeGateProps) {
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
                 disabled={isSubmitting || isSuccess}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-[#bae6fd] transition-colors p-1 cursor-pointer"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-theme-light transition-colors p-1 cursor-pointer"
                 title={showPassword ? 'Ocultar código' : 'Mostrar código'}
               >
                 {showPassword ? (
@@ -141,8 +141,8 @@ export function AccessCodeGate({ onAuthorized }: AccessCodeGateProps) {
 
           {/* Success Notice */}
           {isSuccess && (
-            <div className="flex items-center gap-2 p-3 rounded-2xl glass-card-pastel text-[#e0f2fe] text-xs animate-spring-pop">
-              <Sparkles className="w-4 h-4 shrink-0 text-[#bae6fd]" />
+            <div className="flex items-center gap-2 p-3 rounded-2xl glass-card-pastel text-theme-frost text-xs animate-spring-pop">
+              <Sparkles className="w-4 h-4 shrink-0 text-theme-light" />
               <span>¡Dispositivo autorizado con éxito! Entrando...</span>
             </div>
           )}
@@ -155,7 +155,7 @@ export function AccessCodeGate({ onAuthorized }: AccessCodeGateProps) {
           >
             {isSubmitting ? (
               <span className="flex items-center gap-2">
-                <span className="w-4 h-4 border-2 border-[#03152a] border-t-transparent rounded-full animate-spin" />
+                <span className="w-4 h-4 border-2 border-theme-ink border-t-transparent rounded-full animate-spin" />
                 Verificando...
               </span>
             ) : isSuccess ? (

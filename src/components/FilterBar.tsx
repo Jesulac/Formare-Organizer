@@ -11,12 +11,13 @@ import {
 } from 'lucide-react';
 import {
   FilterOptions,
+  TimeFilter,
   Platform,
   Status,
-  TimeFilter,
   SortField,
 } from '../types/operation';
 import { OledSelect } from './OledSelect';
+import { SlidingSegmentedControl } from './SlidingSegmentedControl';
 
 interface FilterBarProps {
   filters: FilterOptions;
@@ -121,7 +122,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
         {/* Search Bar & Filter Trigger */}
         <div className="flex items-center gap-2 flex-1">
           <div className="relative flex-1">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#93c5fd]/75" />
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-theme-accent/75" />
             <input
               type="text"
               value={filters.search}
@@ -146,10 +147,10 @@ export const FilterBar: React.FC<FilterBarProps> = ({
             onClick={() => setShowMobileFilterSheet(true)}
             className="flex items-center gap-1.5 px-3 py-2 rounded-xl liquid-btn-glass text-xs text-zinc-100 font-medium shrink-0 cursor-pointer"
           >
-            <SlidersHorizontal className="w-4 h-4 text-[#93c5fd]" />
+            <SlidersHorizontal className="w-4 h-4 text-theme-accent" />
             <span className="hidden sm:inline">Filtros</span>
             {activeFiltersCount > 0 && (
-              <span className="w-4 h-4 rounded-full bg-[#93c5fd] text-[#03152a] text-[10px] font-bold flex items-center justify-center shadow-[0_0_10px_rgba(147,197,253,0.7)]">
+              <span className="w-4 h-4 rounded-full bg-theme-accent text-theme-ink text-[10px] font-bold flex items-center justify-center shadow-[0_0_10px_rgba(var(--theme-rgb),0.7)]">
                 {activeFiltersCount}
               </span>
             )}
@@ -158,23 +159,15 @@ export const FilterBar: React.FC<FilterBarProps> = ({
 
         {/* Quick Time Filter Segmented Buttons & Custom OLED Dropdowns */}
         <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-0.5">
-          {/* Time Segmented Buttons */}
-          <div className="flex items-center p-1 liquid-segmented rounded-xl shrink-0">
-            {timeFilterLabels.map((t) => (
-              <button
-                key={t.id}
-                type="button"
-                onClick={() => onFilterChange({ ...filters, timeFilter: t.id })}
-                className={`px-2.5 py-1 text-xs font-medium rounded-lg transition-all duration-200 whitespace-nowrap cursor-pointer ${
-                  filters.timeFilter === t.id
-                    ? 'liquid-btn-primary font-bold'
-                    : 'text-zinc-400 hover:text-white'
-                }`}
-              >
-                {t.label}
-              </button>
-            ))}
-          </div>
+          <SlidingSegmentedControl
+            options={timeFilterLabels}
+            value={filters.timeFilter}
+            onChange={(val) =>
+              onFilterChange({ ...filters, timeFilter: val as TimeFilter })
+            }
+            size="sm"
+            className="shrink-0"
+          />
 
           {/* Platform Custom OLED Dropdown */}
           <div className="hidden sm:block w-44 shrink-0">
@@ -182,13 +175,13 @@ export const FilterBar: React.FC<FilterBarProps> = ({
               value={filters.platform}
               onChange={(val) => onFilterChange({ ...filters, platform: val })}
               options={platformSelectOptions}
-              buttonClassName="liquid-input hover:border-[#93c5fd]/40 rounded-xl px-3 py-1.5 text-xs text-zinc-100"
+              buttonClassName="liquid-input hover:border-theme-accent/40 rounded-xl px-3 py-1.5 text-xs text-zinc-100"
             />
           </div>
 
           {/* Sort Custom OLED Selector */}
           <div className="flex items-center gap-1 liquid-segmented rounded-xl px-2 py-1 shrink-0 text-xs">
-            <ArrowUpDown className="w-3.5 h-3.5 text-[#93c5fd]/80 ml-1 shrink-0" />
+            <ArrowUpDown className="w-3.5 h-3.5 text-theme-accent/80 ml-1 shrink-0" />
             <OledSelect
               value={filters.sortBy}
               onChange={(val) =>
@@ -210,7 +203,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
                   sortOrder: filters.sortOrder === 'asc' ? 'desc' : 'asc',
                 })
               }
-              className="p-1 hover:text-[#bae6fd] text-zinc-400 rounded-md cursor-pointer transition-colors"
+              className="p-1 hover:text-theme-light text-zinc-400 rounded-md cursor-pointer transition-colors"
               title={
                 filters.sortOrder === 'asc'
                   ? 'Orden ascendente (más antigua arriba)'
@@ -237,7 +230,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
 
             <div className="flex items-center justify-between pb-3 border-b border-white/10 mb-4">
               <h3 className="text-base font-bold text-white flex items-center gap-2">
-                <SlidersHorizontal className="w-4 h-4 text-[#93c5fd]" />
+                <SlidersHorizontal className="w-4 h-4 text-theme-accent" />
                 <span>Filtros y Ordenación</span>
               </h3>
               <button
@@ -253,7 +246,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
               {/* Periodo de Tiempo */}
               <div>
                 <label className="block text-zinc-400 font-medium mb-1.5 flex items-center gap-1.5">
-                  <Calendar className="w-3.5 h-3.5 text-[#93c5fd]" />
+                  <Calendar className="w-3.5 h-3.5 text-theme-accent" />
                   <span>Periodo</span>
                 </label>
                 <div className="grid grid-cols-3 gap-1.5">
@@ -277,7 +270,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
               {/* Plataforma */}
               <div>
                 <label className="block text-zinc-400 font-medium mb-1.5 flex items-center gap-1.5">
-                  <Tag className="w-3.5 h-3.5 text-[#bae6fd]" />
+                  <Tag className="w-3.5 h-3.5 text-theme-light" />
                   <span>Plataforma</span>
                 </label>
                 <OledSelect

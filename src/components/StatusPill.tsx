@@ -80,8 +80,8 @@ export const StatusPill: React.FC<StatusPillProps> = ({
     switch (s) {
       case 'Cobrado':
         return {
-          pill: 'bg-[#93c5fd]/16 text-[#bae6fd] border-[#93c5fd]/40 shadow-[inset_0_1px_0_rgba(255,255,255,0.22),0_4px_14px_-6px_rgba(147,197,253,0.4)]',
-          dot: 'bg-[#93c5fd] animate-liquid-dot',
+          pill: 'bg-theme-accent/16 text-theme-light border-theme-accent/40 shadow-[inset_0_1px_0_rgba(255,255,255,0.22),0_4px_14px_-6px_rgba(var(--theme-rgb),0.4)]',
+          dot: 'bg-theme-accent animate-liquid-dot',
         };
       case 'Pagado':
         return {
@@ -170,7 +170,7 @@ export const StatusPill: React.FC<StatusPillProps> = ({
                     isSelected
                       ? s === 'Pagado'
                         ? 'bg-red-500/20 text-red-200 font-semibold'
-                        : 'bg-[#93c5fd]/20 text-[#bae6fd] font-semibold border border-[#93c5fd]/30'
+                        : 'bg-theme-accent/20 text-theme-light font-semibold border border-theme-accent/30'
                       : s === 'Pagado'
                       ? 'text-red-300 hover:bg-red-500/15'
                       : 'text-zinc-200 hover:bg-white/10 hover:text-white'

@@ -37,11 +37,11 @@ export const DashboardSummary: React.FC<DashboardSummaryProps> = ({ stats }) => 
 
           {/* Gastos de Producción (Solo Filamento de Ventas) */}
           <div className="glass-card glass-card-hover rounded-2xl p-3 sm:p-4 flex flex-col justify-between">
-            <span className="text-[11px] sm:text-xs font-medium text-[#bae6fd]/90">
+            <span className="text-[11px] sm:text-xs font-medium text-theme-light/90">
               Gastos de Producción
             </span>
             <div className="mt-1 flex items-baseline justify-between">
-              <span className="text-lg sm:text-2xl font-bold tracking-tight text-[#bae6fd] font-mono tabular-nums">
+              <span className="text-lg sm:text-2xl font-bold tracking-tight text-theme-light font-mono tabular-nums">
                 {formatEuro(stats.gastosProduccion)}
               </span>
             </div>
@@ -67,18 +67,18 @@ export const DashboardSummary: React.FC<DashboardSummaryProps> = ({ stats }) => 
 
           {/* Beneficio Neto (Hero Pastel Blue Liquid Glass Card) */}
           <div className="glass-card-pastel glass-card-hover rounded-2xl p-3 sm:p-4 flex flex-col justify-between">
-            <span className="text-[11px] sm:text-xs font-semibold text-[#bae6fd] flex items-center justify-between">
+            <span className="text-[11px] sm:text-xs font-semibold text-theme-light flex items-center justify-between">
               <span>Beneficio Neto</span>
-              <span className="inline-block w-2 h-2 rounded-full bg-[#93c5fd] animate-liquid-dot" />
+              <span className="inline-block w-2 h-2 rounded-full bg-theme-accent animate-liquid-dot" />
             </span>
             <div className="mt-1 flex items-baseline justify-between">
               <span className={`text-xl sm:text-2xl font-extrabold tracking-tight font-mono tabular-nums ${
-                stats.totalBeneficio >= 0 ? 'text-[#e0f2fe]' : 'text-rose-400'
+                stats.totalBeneficio >= 0 ? 'text-theme-frost' : 'text-rose-400'
               }`}>
                 {formatEuro(stats.totalBeneficio)}
               </span>
             </div>
-            <span className="text-[10px] text-[#93c5fd]/80 mt-0.5 truncate">
+            <span className="text-[10px] text-theme-accent/80 mt-0.5 truncate">
               Ventas - Producción - B. Sandra
             </span>
           </div>
@@ -107,7 +107,7 @@ export const DashboardSummary: React.FC<DashboardSummaryProps> = ({ stats }) => 
               <span className="text-lg sm:text-2xl font-bold tracking-tight text-white font-mono tabular-nums">
                 {stats.count}
               </span>
-              <span className="text-[10px] text-[#93c5fd]/75 font-normal truncate">registros</span>
+              <span className="text-[10px] text-theme-accent/75 font-normal truncate">registros</span>
             </div>
             <span className="text-[10px] text-zinc-500 mt-0.5 truncate">
               En vista actual

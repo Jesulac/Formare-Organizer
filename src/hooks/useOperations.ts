@@ -79,12 +79,14 @@ export function sanitizeAndMigrateOperations(rawList: any[]): Operation[] {
           ? Number((baseCostes / unidades).toFixed(2))
           : baseCostes;
 
-      // Auto-delete QR data older than 10 days OR when status is 'Pendiente de cobro'
+      // Auto-delete QR data older than 10 days OR when status is 'Pendiente de cobro', 'Cobrado', or 'Cancelado'
       let fotoQr = op.fotoQr;
       let empresaEnvio = op.empresaEnvio;
       let fechaSubidaQr = op.fechaSubidaQr;
       if (
         estado === 'Pendiente de cobro' ||
+        estado === 'Cobrado' ||
+        estado === 'Cancelado' ||
         (fechaSubidaQr && now > fechaSubidaQr && now - fechaSubidaQr > TEN_DAYS_MS)
       ) {
         fotoQr = undefined;
@@ -765,7 +767,10 @@ export function useOperations() {
       const nextRev = revisionRef.current + 1;
       const newId = `op-v7-${now}-${Math.random().toString(36).substring(2, 6)}`;
 
-      const clearQrForPending = estado === 'Pendiente de cobro';
+      const clearQrForPending =
+        estado === 'Pendiente de cobro' ||
+        estado === 'Cobrado' ||
+        estado === 'Cancelado';
       const isFilamentoOrder =
         opData.tipo === 'compra' &&
         Boolean(
@@ -861,8 +866,12 @@ export function useOperations() {
           updated.estado = normalizeStatus(updated.estado);
         }
 
-        // If status is 'Pendiente de cobro', automatically delete QR from storage as requested
-        if (updated.estado === 'Pendiente de cobro') {
+        // If status is 'Pendiente de cobro', 'Cobrado', or 'Cancelado', automatically delete QR from storage
+        if (
+          updated.estado === 'Pendiente de cobro' ||
+          updated.estado === 'Cobrado' ||
+          updated.estado === 'Cancelado'
+        ) {
           updated.fotoQr = undefined;
           updated.empresaEnvio = undefined;
           updated.fechaSubidaQr = undefined;

@@ -7,6 +7,8 @@ import {
 } from '../utils/calculations';
 import { FilamentSpool } from '../types/operation';
 import { OledSelect } from './OledSelect';
+import { SlidingSegmentedControl } from './SlidingSegmentedControl';
+
 
 interface PricingCalculatorViewProps {
   spools: FilamentSpool[];
@@ -67,7 +69,7 @@ export const PricingCalculatorView: React.FC<PricingCalculatorViewProps> = ({
       <div className="glass-card liquid-shimmer rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h2 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
-            <Calculator className="w-5 h-5 text-[#93c5fd] animate-liquid-float-slow" />
+            <Calculator className="w-5 h-5 text-theme-accent animate-liquid-float-slow" />
             <span>Calculadora de Costes y Estrategia de Precios 3D</span>
           </h2>
           <p className="text-xs text-zinc-400 mt-0.5">
@@ -92,36 +94,21 @@ export const PricingCalculatorView: React.FC<PricingCalculatorViewProps> = ({
             />
           </div>
 
-          {/* Mode Selector: Por Gramos vs Coste Directo */}
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-medium text-zinc-300">
-                Método de Cálculo de Filamento
-              </span>
-              <div className="flex items-center p-0.5 rounded-xl liquid-segmented">
-                <button
-                  type="button"
-                  onClick={() => setCalcMode('grams')}
-                  className={`px-3 py-1 rounded-lg text-xs font-medium transition-all duration-200 cursor-pointer ${
-                    calcMode === 'grams'
-                      ? 'liquid-btn-primary font-bold'
-                      : 'text-zinc-400 hover:text-white'
-                  }`}
-                >
-                  Por gramos (1000g)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setCalcMode('direct')}
-                  className={`px-3 py-1 rounded-lg text-xs font-medium transition-all duration-200 cursor-pointer ${
-                    calcMode === 'direct'
-                      ? 'liquid-btn-primary font-bold'
-                      : 'text-zinc-400 hover:text-white'
-                  }`}
-                >
-                  Coste directo (€)
-                </button>
-              </div>
+          {/* Calculation Mode Selector */}
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <label className="block text-xs font-medium text-zinc-300">
+                Modo de cálculo del material
+              </label>
+              <SlidingSegmentedControl
+                options={[
+                  { id: 'grams', label: 'Por gramos de pieza (báscula)' },
+                  { id: 'direct', label: 'Coste directo en euros (€)' },
+                ]}
+                value={calcMode}
+                onChange={(val) => setCalcMode(val as 'grams' | 'direct')}
+                className="w-full"
+              />
             </div>
 
             {calcMode === 'grams' ? (
@@ -152,7 +139,7 @@ export const PricingCalculatorView: React.FC<PricingCalculatorViewProps> = ({
                     Gramos de la pieza (g)
                   </label>
                   <div className="relative">
-                    <Scale className="w-3.5 h-3.5 text-[#93c5fd] absolute left-2.5 top-1/2 -translate-y-1/2" />
+                    <Scale className="w-3.5 h-3.5 text-theme-accent absolute left-2.5 top-1/2 -translate-y-1/2" />
                     <input
                       type="text"
                       inputMode="decimal"
@@ -186,7 +173,7 @@ export const PricingCalculatorView: React.FC<PricingCalculatorViewProps> = ({
                   <span className="text-zinc-400">
                     Coste de filamento ({Number(grams.toFixed(2))}g × {formatEuro(spoolPrice)} / 1000g):
                   </span>
-                  <span className="font-mono tabular-nums font-bold text-[#bae6fd]">
+                  <span className="font-mono tabular-nums font-bold text-theme-light">
                     {formatEuro(calculatedFilamentCost)}
                   </span>
                 </div>
@@ -212,11 +199,11 @@ export const PricingCalculatorView: React.FC<PricingCalculatorViewProps> = ({
           <div className="glass-card rounded-xl p-3.5 space-y-2.5">
             <div className="flex items-center justify-between">
               <span className="text-xs font-medium text-zinc-200 flex items-center gap-1.5">
-                <Wrench className="w-3.5 h-3.5 text-[#93c5fd]" />
+                <Wrench className="w-3.5 h-3.5 text-theme-accent" />
                 <span>Tornillería y Herrajes Adicionales</span>
               </span>
               {fastenersCost > 0 && (
-                <span className="text-xs font-mono tabular-nums text-[#bae6fd] font-semibold">
+                <span className="text-xs font-mono tabular-nums text-theme-light font-semibold">
                   +{formatEuro(fastenersCost)}
                 </span>
               )}
@@ -253,14 +240,14 @@ export const PricingCalculatorView: React.FC<PricingCalculatorViewProps> = ({
           {/* Total Cost Summary Bar */}
           <div className="glass-card-pastel flex items-center justify-between px-4 py-3 rounded-xl">
             <div>
-              <span className="text-xs font-semibold text-[#bae6fd] block">
+              <span className="text-xs font-semibold text-theme-light block">
                 Gasto Total de Producción de la Pieza
               </span>
               <span className="text-[11px] text-zinc-400">
                 Filamento ({formatEuro(calculatedFilamentCost)}) + Tornillería ({formatEuro(fastenersCost)})
               </span>
             </div>
-            <span className="text-lg sm:text-xl font-bold font-mono tabular-nums text-[#e0f2fe]">
+            <span className="text-lg sm:text-xl font-bold font-mono tabular-nums text-theme-frost">
               {formatEuro(totalMaterialCost)}
             </span>
           </div>
@@ -271,8 +258,8 @@ export const PricingCalculatorView: React.FC<PricingCalculatorViewProps> = ({
           {/* Recommended Price Card */}
           <div className="glass-card-pastel glass-card-hover rounded-2xl p-4 sm:p-5 space-y-3">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-[#bae6fd] flex items-center gap-1.5">
-                <Sparkles className="w-4 h-4 text-[#93c5fd] animate-liquid-float-slow" />
+              <span className="text-xs font-semibold text-theme-light flex items-center gap-1.5">
+                <Sparkles className="w-4 h-4 text-theme-accent animate-liquid-float-slow" />
                 <span>Precio Recomendado (Multiplicador ×{calc.multiplier})</span>
               </span>
             </div>
@@ -281,7 +268,7 @@ export const PricingCalculatorView: React.FC<PricingCalculatorViewProps> = ({
               <span className="text-3xl font-extrabold font-mono tabular-nums text-white">
                 {formatEuro(calc.recommendedPrice)}
               </span>
-              <span className="text-xs font-mono tabular-nums text-[#bae6fd] font-semibold">
+              <span className="text-xs font-mono tabular-nums text-theme-light font-semibold">
                 Beneficio: +{formatEuro(calc.profitRecommended)}
               </span>
             </div>
@@ -373,7 +360,7 @@ export const PricingCalculatorView: React.FC<PricingCalculatorViewProps> = ({
                 <span>Beneficio neto estimado:</span>
                 <span
                   className={`font-mono tabular-nums font-semibold ${
-                    customProfit >= 0 ? 'text-[#bae6fd]' : 'text-rose-400'
+                    customProfit >= 0 ? 'text-theme-light' : 'text-rose-400'
                   }`}
                 >
                   {formatEuro(customProfit)}
@@ -385,7 +372,7 @@ export const PricingCalculatorView: React.FC<PricingCalculatorViewProps> = ({
           {/* Business Rules Box */}
           <div className="glass-card rounded-xl p-3.5 text-[11px] text-zinc-400 space-y-1">
             <div className="font-semibold text-zinc-200 flex items-center gap-1.5 mb-1">
-              <CheckCircle2 className="w-3.5 h-3.5 text-[#93c5fd]" />
+              <CheckCircle2 className="w-3.5 h-3.5 text-theme-accent" />
               <span>Tabla de Multiplicadores Formare 3D</span>
             </div>
             <p>• Coste de producción &lt; 1,00 € → Multiplicador ×8</p>

@@ -31,7 +31,7 @@ export const RevenueSplitModal: React.FC<RevenueSplitModalProps> = ({
 
         <div className="flex items-center justify-between pb-3 border-b border-white/10 mb-4">
           <h2 className="text-base font-bold text-white flex items-center gap-2">
-            <PieChart className="w-4 h-4 text-[#93c5fd] animate-liquid-float-slow" />
+            <PieChart className="w-4 h-4 text-theme-accent animate-liquid-float-slow" />
             Calculadora de Reparto de Ingresos
           </h2>
           <button
@@ -80,7 +80,7 @@ export const RevenueSplitModal: React.FC<RevenueSplitModalProps> = ({
                 <span className="text-[10px] text-zinc-400 block font-medium">
                   Stock / Material (20%)
                 </span>
-                <span className="text-lg font-bold font-mono tabular-nums text-[#bae6fd] mt-1 block">
+                <span className="text-lg font-bold font-mono tabular-nums text-theme-light mt-1 block">
                   {formatEuro(split.stock)}
                 </span>
               </div>
@@ -97,10 +97,10 @@ export const RevenueSplitModal: React.FC<RevenueSplitModalProps> = ({
 
               {/* Beneficio Empresa */}
               <div className="glass-card-pastel glass-card-hover rounded-2xl p-3">
-                <span className="text-[10px] text-[#bae6fd] block font-semibold">
+                <span className="text-[10px] text-theme-light block font-semibold">
                   Beneficio Empresa (30%)
                 </span>
-                <span className="text-lg font-extrabold font-mono tabular-nums text-[#e0f2fe] mt-1 block">
+                <span className="text-lg font-extrabold font-mono tabular-nums text-theme-frost mt-1 block">
                   {formatEuro(split.empresa)}
                 </span>
               </div>

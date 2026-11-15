@@ -52,7 +52,7 @@ export const PricingCalculatorModal: React.FC<PricingCalculatorModalProps> = ({
 
         <div className="flex items-center justify-between pb-3 border-b border-white/10 mb-4">
           <h2 className="text-base font-bold text-white flex items-center gap-2">
-            <Calculator className="w-4 h-4 text-[#93c5fd] animate-liquid-float-slow" />
+            <Calculator className="w-4 h-4 text-theme-accent animate-liquid-float-slow" />
             Estrategia & Calculadora de Precios
           </h2>
           <button
@@ -125,7 +125,7 @@ export const PricingCalculatorModal: React.FC<PricingCalculatorModalProps> = ({
               </div>
             </div>
             {fastenersCost > 0 && (
-              <p className="text-[10px] text-[#bae6fd] font-mono tabular-nums text-right">
+              <p className="text-[10px] text-theme-light font-mono tabular-nums text-right">
                 + {formatEuro(fastenersCost)} tornillería
               </p>
             )}
@@ -141,13 +141,13 @@ export const PricingCalculatorModal: React.FC<PricingCalculatorModalProps> = ({
               {/* Recommended Price Card */}
               <div className="glass-card-pastel rounded-2xl p-3 flex flex-col justify-between">
                 <div>
-                  <span className="text-[10px] uppercase tracking-wider text-[#bae6fd] font-semibold block">
+                  <span className="text-[10px] uppercase tracking-wider text-theme-light font-semibold block">
                     Precio Recomendado (×{calc.multiplier})
                   </span>
-                  <span className="text-xl font-extrabold font-mono tabular-nums text-[#e0f2fe] mt-1 block">
+                  <span className="text-xl font-extrabold font-mono tabular-nums text-theme-frost mt-1 block">
                     {formatEuro(calc.recommendedPrice)}
                   </span>
-                  <span className="text-[10px] text-[#93c5fd]/85 block mt-1">
+                  <span className="text-[10px] text-theme-accent/85 block mt-1">
                     Beneficio: +{formatEuro(calc.profitRecommended)}
                   </span>
                 </div>

@@ -13,9 +13,23 @@ import { PricingCalculatorView } from './components/PricingCalculatorView';
 import { FilamentStockView } from './components/FilamentStockView';
 import { QrStorageView } from './components/QrStorageView';
 import { AccessCodeGate } from './components/AccessCodeGate';
-import { isDeviceAuthorized } from './utils/deviceAuth';
+import { SlidingSegmentedControl } from './components/SlidingSegmentedControl';
 import { Operation, Status, SortField, SortOrder } from './types/operation';
-import { calculateSandraCommission, formatEuro, parseDate } from './utils/calculations';
+import {
+  formatEuro,
+  parseDate,
+  calculateSandraCommission,
+} from './utils/calculations';
+import { isDeviceAuthorized } from './utils/deviceAuth';
+import {
+  ThemeId,
+  VisualStyleId,
+  getStoredThemeId,
+  getStoredStyleId,
+  applyThemeToDocument,
+  applyStyleToDocument,
+} from './utils/themes';
+
 import {
   Plus,
   CheckCircle2,
@@ -112,6 +126,32 @@ function FormareApp() {
   // Mobile Sidebar Drawer State
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
+  // Active Visual Theme & Style State (persisted & applied immediately)
+  const [currentTheme, setCurrentTheme] = useState<ThemeId>(() =>
+    getStoredThemeId()
+  );
+  const [currentStyle, setCurrentStyle] = useState<VisualStyleId>(() =>
+    getStoredStyleId()
+  );
+
+  useEffect(() => {
+    applyThemeToDocument(currentTheme);
+  }, [currentTheme]);
+
+  useEffect(() => {
+    applyStyleToDocument(currentStyle);
+  }, [currentStyle]);
+
+  const handleSelectTheme = (themeId: ThemeId) => {
+    setCurrentTheme(themeId);
+    applyThemeToDocument(themeId);
+  };
+
+  const handleSelectStyle = (styleId: VisualStyleId) => {
+    setCurrentStyle(styleId);
+    applyStyleToDocument(styleId);
+  };
+
   // Sub-filter for dedicated 'gastos' section
   const [gastosSubFilter, setGastosSubFilter] = useState<
     'all_gastos' | 'compras' | 'sandra15'
@@ -172,14 +212,7 @@ function FormareApp() {
     [rawOperations, selectedOpId]
   );
 
-  // Automatically dismiss save notification after 2.8 seconds
-  useEffect(() => {
-    if (!saveNotification) return;
-    const timer = setTimeout(() => {
-      clearNotification();
-    }, 2800);
-    return () => clearTimeout(timer);
-  }, [saveNotification, clearNotification]);
+
 
   const handleOpenNewOp = () => {
     setSelectedOpId(null);
@@ -275,6 +308,7 @@ function FormareApp() {
         (op) =>
           Boolean(op.fotoQr) &&
           op.estado !== 'Pendiente de cobro' &&
+          op.estado !== 'Cobrado' &&
           op.estado !== 'Cancelado'
       ).length,
     [rawOperations]
@@ -443,14 +477,9 @@ function FormareApp() {
   }, [rawOperations]);
 
   return (
-    <div className="min-h-screen w-full max-w-full bg-black text-zinc-100 flex font-sans selection:bg-[#93c5fd]/35 selection:text-[#e0f2fe] relative overflow-x-clip">
-      {/* Living iOS 27 OLED Liquid Glass Ambient Plasma & Prism Backdrop */}
-      <div className="liquid-ambient-stage" aria-hidden="true">
-        <div className="liquid-orb liquid-orb-1" />
-        <div className="liquid-orb liquid-orb-2" />
-        <div className="liquid-orb liquid-orb-3" />
-        <div className="liquid-prism-mesh" />
-      </div>
+    <div className="min-h-screen w-full max-w-full bg-black text-zinc-100 flex font-sans selection:bg-theme-accent/35 selection:text-theme-frost relative overflow-x-clip">
+      {/* Hardware-accelerated OLED Ambient Gradient Stage (0 blur layers = 120fps) */}
+      <div className="liquid-ambient-stage" aria-hidden="true" />
 
       {/* Left Navigation Sidebar (Desktop Fixed Rail + Mobile Drawer) */}
       <Sidebar
@@ -497,12 +526,16 @@ function FormareApp() {
           viewMode={viewMode}
           onViewModeChange={handleViewModeChange}
           onOpenMobileSidebar={() => setIsMobileSidebarOpen(true)}
+          currentTheme={currentTheme}
+          onSelectTheme={handleSelectTheme}
+          currentStyle={currentStyle}
+          onSelectStyle={handleSelectStyle}
         />
 
         {/* Instant Save / Sync Confirmation Toast */}
         {saveNotification && (
-          <div className="fixed bottom-16 lg:bottom-6 left-1/2 -translate-x-1/2 z-50 pointer-events-none flex items-center gap-2 px-4 py-2.5 rounded-full glass-card-pastel animate-spring-pop text-[#e0f2fe] text-xs font-semibold">
-            <CheckCircle2 className="w-4 h-4 text-[#93c5fd] shrink-0" />
+          <div className="fixed bottom-16 lg:bottom-6 left-1/2 -translate-x-1/2 z-50 pointer-events-none flex items-center gap-2 px-4 py-2.5 rounded-full glass-card-pastel animate-spring-pop text-theme-frost text-xs font-semibold">
+            <CheckCircle2 className="w-4 h-4 text-theme-accent shrink-0" />
             <span>{saveNotification}</span>
           </div>
         )}
@@ -570,9 +603,9 @@ function FormareApp() {
               <section className="px-2 sm:px-3 lg:px-4">
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-3">
                   <div className="glass-card glass-card-hover rounded-2xl p-3.5 sm:p-4">
-                    <span className="text-xs font-medium text-[#bae6fd] flex items-center justify-between">
+                    <span className="text-xs font-medium text-theme-light flex items-center justify-between">
                       <span>Pedidos en Producción</span>
-                      <Printer className="w-4 h-4 text-[#93c5fd] animate-liquid-float" />
+                      <Printer className="w-4 h-4 text-theme-accent animate-liquid-float" />
                     </span>
                     <span className="text-2xl font-bold font-mono tabular-nums text-white mt-1 block">
                       {prodStats.enProd}
@@ -585,7 +618,7 @@ function FormareApp() {
                   <div className="glass-card glass-card-hover rounded-2xl p-3.5 sm:p-4">
                     <span className="text-xs font-medium text-zinc-300 flex items-center justify-between">
                       <span>Unidades a Imprimir</span>
-                      <Layers className="w-4 h-4 text-[#93c5fd]" />
+                      <Layers className="w-4 h-4 text-theme-accent" />
                     </span>
                     <span className="text-2xl font-bold font-mono tabular-nums text-white mt-1 block">
                       {prodStats.unidadesEnProd}
@@ -596,11 +629,11 @@ function FormareApp() {
                   </div>
 
                   <div className="glass-card-pastel liquid-shimmer rounded-2xl p-3.5 sm:p-4">
-                    <span className="text-xs font-medium text-[#bae6fd] flex items-center justify-between">
+                    <span className="text-xs font-medium text-theme-light flex items-center justify-between">
                       <span>Importe en Producción</span>
-                      <Clock className="w-4 h-4 text-[#93c5fd]" />
+                      <Clock className="w-4 h-4 text-theme-accent" />
                     </span>
-                    <span className="text-2xl font-bold font-mono tabular-nums text-[#e0f2fe] mt-1 block">
+                    <span className="text-2xl font-bold font-mono tabular-nums text-theme-frost mt-1 block">
                       {formatEuro(prodStats.importeEnProd)}
                     </span>
                     <span className="text-[11px] text-zinc-400 mt-0.5 block">
@@ -613,61 +646,27 @@ function FormareApp() {
               {/* Action Bar for Production Queue */}
               <section className="px-2 sm:px-3 lg:px-4 flex flex-wrap items-center justify-between gap-2">
                 <div className="flex flex-wrap items-center gap-2">
-                  <div className="inline-flex items-center gap-2 px-3 py-1.5 glass-pill rounded-xl text-xs font-semibold text-[#bae6fd]">
-                    <span className="w-2 h-2 rounded-full bg-[#93c5fd] animate-liquid-dot" />
-                    <Printer className="w-3.5 h-3.5 text-[#93c5fd]" />
+                  <div className="inline-flex items-center gap-2 px-3 py-1.5 glass-pill rounded-xl text-xs font-semibold text-theme-light">
+                    <span className="w-2 h-2 rounded-full bg-theme-accent animate-liquid-dot" />
+                    <Printer className="w-3.5 h-3.5 text-theme-accent" />
                     <span>Solo productos en producción ({prodStats.enProd})</span>
                   </div>
 
-                  {/* Quick sort toggle for Fecha límite */}
-                  <div className="inline-flex items-center p-1 liquid-segmented rounded-xl text-xs">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setProdSort((prev) => ({
-                          sortBy: 'fechaLimite',
-                          sortOrder:
-                            prev.sortBy === 'fechaLimite' && prev.sortOrder === 'desc'
-                              ? 'asc'
-                              : 'desc',
-                        }))
-                      }
-                      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg font-medium transition-all cursor-pointer ${
-                        prodSort.sortBy === 'fechaLimite'
-                          ? 'bg-amber-400 text-black font-semibold shadow-[0_4px_16px_rgba(251,191,36,0.3)]'
-                          : 'text-zinc-400 hover:text-white'
-                      }`}
-                    >
-                      <Clock className="w-3.5 h-3.5 shrink-0" />
-                      <span>
-                        Fecha límite{' '}
-                        {prodSort.sortBy === 'fechaLimite'
-                          ? prodSort.sortOrder === 'desc'
-                            ? '↓ (Más reciente arriba)'
-                            : '↑ (Más antigua arriba)'
-                          : ''}
-                      </span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setProdSort((prev) => ({
-                          sortBy: 'fecha',
-                          sortOrder:
-                            prev.sortBy === 'fecha' && prev.sortOrder === 'desc'
-                              ? 'asc'
-                              : 'desc',
-                        }))
-                      }
-                      className={`px-2.5 py-1 rounded-lg font-medium transition-all cursor-pointer ${
-                        prodSort.sortBy === 'fecha'
-                          ? 'liquid-btn-primary font-semibold'
-                          : 'text-zinc-400 hover:text-white'
-                      }`}
-                    >
-                      Fecha venta {prodSort.sortBy === 'fecha' ? (prodSort.sortOrder === 'desc' ? '↓' : '↑') : ''}
-                    </button>
-                  </div>
+                  <SlidingSegmentedControl
+                    options={[
+                      { id: 'fechaLimite', label: 'Fecha límite' },
+                      { id: 'fecha', label: 'Más recientes' },
+                      { id: 'precio', label: 'Importe' },
+                    ]}
+                    value={prodSort.sortBy}
+                    onChange={(val) =>
+                      setProdSort({
+                        sortBy: val as SortField,
+                        sortOrder: val === 'fechaLimite' ? 'asc' : 'desc',
+                      })
+                    }
+                    size="sm"
+                  />
                 </div>
 
                 <button
@@ -728,7 +727,7 @@ function FormareApp() {
                   </div>
 
                   <div className="glass-card glass-card-hover rounded-2xl p-3.5 sm:p-4">
-                    <span className="text-xs font-medium text-[#bae6fd]">
+                    <span className="text-xs font-medium text-theme-light">
                       Compras de Bobinas (1000g)
                     </span>
                     <span className="text-2xl font-bold font-mono tabular-nums text-white mt-1 block">
@@ -765,50 +764,34 @@ function FormareApp() {
                 </div>
               </section>
 
-              {/* Filter & Action Bar for Gastos en General */}
+              {/* Gastos Sub-Filter Bar con Burbuja Deslizante */}
               <section className="px-2 sm:px-3 lg:px-4 flex flex-wrap items-center justify-between gap-2">
-                <div className="flex items-center p-1 liquid-segmented rounded-xl overflow-x-auto no-scrollbar">
-                  {[
+                <SlidingSegmentedControl
+                  options={[
                     {
                       id: 'all_gastos',
-                      label: `Todos los Gastos en General (${gastosBreakdown.totalCount})`,
+                      label: 'Todos los gastos',
+                      badge: gastosBreakdown.totalCount,
                     },
                     {
                       id: 'compras',
-                      label: `Solo Compras y Bobinas (${gastosBreakdown.comprasCount})`,
+                      label: 'Bobinas e inversiones',
+                      badge: gastosBreakdown.comprasCount,
                     },
                     {
                       id: 'sandra15',
-                      label: `Ventas con B. Sandra (${gastosBreakdown.sandraCount})`,
+                      label: 'B. Sandra (15%)',
+                      badge: gastosBreakdown.sandraCount,
                     },
-                  ].map((tab) => (
-                    <button
-                      key={tab.id}
-                      type="button"
-                      onClick={() =>
-                        setGastosSubFilter(
-                          tab.id as 'all_gastos' | 'compras' | 'sandra15'
-                        )
-                      }
-                      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap cursor-pointer ${
-                        gastosSubFilter === tab.id
-                          ? 'liquid-btn-primary font-semibold'
-                          : 'text-zinc-400 hover:text-white'
-                      }`}
-                    >
-                      {tab.label}
-                    </button>
-                  ))}
-                </div>
-
-                <button
-                  type="button"
-                  onClick={handleOpenNewPurchase}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 border border-rose-400/35 text-rose-200 text-xs font-semibold backdrop-blur-md transition-all cursor-pointer"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>Registrar Compra / Gasto</span>
-                </button>
+                  ]}
+                  value={gastosSubFilter}
+                  onChange={(val) =>
+                    setGastosSubFilter(
+                      val as 'all_gastos' | 'compras' | 'sandra15'
+                    )
+                  }
+                  size="sm"
+                />
               </section>
 
               <section className="px-2 sm:px-3 lg:px-4 py-1 w-full min-w-0 max-w-none">
@@ -870,12 +853,12 @@ function FormareApp() {
               <div className="glass-card-pastel liquid-shimmer rounded-3xl p-6 sm:p-8 relative overflow-hidden">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
                   <div className="space-y-2.5">
-                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full glass-pill border-[#93c5fd]/35 text-[#bae6fd] text-xs font-semibold">
-                      <span className="w-2 h-2 rounded-full bg-[#93c5fd] animate-liquid-dot" />
+                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full glass-pill border-theme-accent/35 text-theme-light text-xs font-semibold">
+                      <span className="w-2 h-2 rounded-full bg-theme-accent animate-liquid-dot" />
                       <span>Transmisión en Directo</span>
                     </div>
                     <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight flex items-center gap-3">
-                      <Camera className="w-7 h-7 text-[#93c5fd] animate-liquid-float-slow" />
+                      <Camera className="w-7 h-7 text-theme-accent animate-liquid-float-slow" />
                       <span>Cámara de la Impresora 3D</span>
                     </h2>
                     <p className="text-sm text-zinc-300 max-w-xl leading-relaxed">
@@ -902,7 +885,7 @@ function FormareApp() {
                       href="https://formare3d.octoeverywhere.com/network-device-manager/network/control"
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="px-2.5 py-1 rounded-xl liquid-btn-glass text-[#bae6fd] hover:text-[#e0f2fe] font-mono text-[11px] flex items-center gap-1.5"
+                      className="px-2.5 py-1 rounded-xl liquid-btn-glass text-theme-light hover:text-theme-frost font-mono text-[11px] flex items-center gap-1.5"
                     >
                       <span>https://formare3d.octoeverywhere.com/network-device-manager/network/control</span>
                       <ExternalLink className="w-3 h-3 shrink-0" />
@@ -916,52 +899,36 @@ function FormareApp() {
         </main>
       </div>
 
-      {/* Mobile Bottom Navigation Bar (< lg) — iOS 27 Floating Liquid Glass Dock */}
-      <nav className="lg:hidden fixed bottom-0 inset-x-0 z-30 h-14 bg-[#060a14]/80 backdrop-blur-2xl border-t border-white/15 shadow-[0_-10px_32px_rgba(0,0,0,0.7),inset_0_1px_0_rgba(255,255,255,0.16)] px-2 flex items-center justify-around">
-        {[
-          { id: 'ventas' as ActiveSection, label: 'General', icon: Table2 },
-          {
-            id: 'produccion' as ActiveSection,
-            label: 'Producción',
-            icon: Printer,
-            badge: inProductionCount > 0 ? inProductionCount : undefined,
-          },
-          { id: 'gastos' as ActiveSection, label: 'Gastos', icon: Receipt },
-          { id: 'filamentos' as ActiveSection, label: 'Stock 1kg', icon: Disc },
-          {
-            id: 'qr' as ActiveSection,
-            label: 'QR Envíos',
-            icon: QrCode,
-            badge: uploadedQrCount > 0 ? uploadedQrCount : undefined,
-          },
-        ].map((item) => {
-          const Icon = item.icon;
-          const isActive = activeSection === item.id;
-          return (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => handleSectionChange(item.id)}
-              className={`relative flex flex-col items-center justify-center py-1 px-2.5 rounded-xl transition-all duration-200 cursor-pointer min-w-[56px] ${
-                isActive
-                  ? 'bg-[#93c5fd]/18 text-[#e0f2fe] border border-[#93c5fd]/35 shadow-[inset_0_1px_0_rgba(255,255,255,0.22)]'
-                  : 'text-zinc-400 hover:text-zinc-200 border border-transparent'
-              }`}
-            >
-              <div className="relative">
-                <Icon className={`w-4 h-4 transition-transform ${isActive ? 'text-[#93c5fd] scale-110' : ''}`} />
-                {item.badge !== undefined && (
-                  <span className="absolute -top-1.5 -right-2.5 px-1 min-w-[14px] h-3.5 rounded-full bg-[#93c5fd] text-[#041427] text-[9px] font-bold font-mono tabular-nums flex items-center justify-center shadow-[0_0_10px_rgba(147,197,253,0.6)]">
-                    {item.badge}
-                  </span>
-                )}
-              </div>
-              <span className="text-[10px] font-medium mt-0.5 truncate">
-                {item.label}
-              </span>
-            </button>
-          );
-        })}
+      {/* Mobile Floating Liquid Dock Navigation con Burbuja Deslizante */}
+      <nav
+        className="lg:hidden fixed bottom-3 left-3 right-3 z-30 glass-header liquid-segmented rounded-2xl p-1.5 shadow-[0_14px_40px_rgba(0,0,0,0.9)]"
+        aria-label="Navegación rápida móvil"
+      >
+        <SlidingSegmentedControl
+          options={[
+            { id: 'ventas', label: 'Panel', icon: Table2 },
+            {
+              id: 'produccion',
+              label: 'Cola',
+              icon: Printer,
+              badge: inProductionCount > 0 ? inProductionCount : undefined,
+            },
+            { id: 'gastos', label: 'Gastos', icon: Receipt },
+            { id: 'filamentos', label: 'Bobinas', icon: Disc },
+            { id: 'qr', label: 'QR', icon: QrCode },
+          ]}
+          value={
+            (['ventas', 'produccion', 'gastos', 'filamentos', 'qr'].includes(
+              activeSection
+            )
+              ? activeSection
+              : 'ventas') as ActiveSection
+          }
+          onChange={(val) => handleSectionChange(val as ActiveSection)}
+          size="sm"
+          fullWidth
+          className="!bg-transparent !border-none !shadow-none"
+        />
       </nav>
 
       {/* Modals & Bottom Sheets */}
@@ -993,6 +960,11 @@ function FormareApp() {
 
 export default function App() {
   const [isAuthorized, setIsAuthorized] = useState<boolean>(() => isDeviceAuthorized());
+
+  useEffect(() => {
+    applyThemeToDocument(getStoredThemeId());
+    applyStyleToDocument(getStoredStyleId());
+  }, []);
 
   if (!isAuthorized) {
     return <AccessCodeGate onAuthorized={() => setIsAuthorized(true)} />;

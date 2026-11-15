@@ -184,15 +184,15 @@ export const FilamentStockView: React.FC<FilamentStockViewProps> = ({
     <section className="px-2 sm:px-3 lg:px-4 py-4 space-y-5 w-full max-w-none">
       {/* Toast notification */}
       {toastSuccess && (
-        <div className="p-3.5 rounded-2xl glass-card-pastel text-[#e0f2fe] text-xs flex items-center justify-between shadow-xl animate-spring-pop">
+        <div className="p-3.5 rounded-2xl glass-card-pastel text-theme-frost text-xs flex items-center justify-between shadow-xl animate-spring-pop">
           <div className="flex items-center gap-2.5">
-            <CheckCircle2 className="w-5 h-5 text-[#93c5fd] shrink-0" />
+            <CheckCircle2 className="w-5 h-5 text-theme-accent shrink-0" />
             <span className="font-semibold text-sm">{toastSuccess}</span>
           </div>
           <button
             type="button"
             onClick={() => setToastSuccess(null)}
-            className="text-[#bae6fd] hover:text-white p-1 cursor-pointer transition-colors"
+            className="text-theme-light hover:text-white p-1 cursor-pointer transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
@@ -203,12 +203,12 @@ export const FilamentStockView: React.FC<FilamentStockViewProps> = ({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 glass-card liquid-shimmer rounded-2xl p-4">
         <div>
           <h2 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
-            <Disc className="w-5 h-5 text-[#93c5fd] animate-liquid-float-slow" />
+            <Disc className="w-5 h-5 text-theme-accent animate-liquid-float-slow" />
             <span>Control de Stock de Filamentos</span>
           </h2>
           <p className="text-xs text-zinc-400 mt-0.5">
             Cada bobina nueva suma <strong className="text-zinc-200">1000 g</strong> al taller. Cada venta resta automáticamente los gramos usados mediante regla de tres:{' '}
-            <span className="font-mono text-[#bae6fd]">(Coste venta × 1000 g) / Precio bobina</span>. También puedes ajustar manualmente gramos restantes en cualquier momento.
+            <span className="font-mono text-theme-light">(Coste venta × 1000 g) / Precio bobina</span>. También puedes ajustar manualmente gramos restantes en cualquier momento.
           </p>
         </div>
 
@@ -230,8 +230,8 @@ export const FilamentStockView: React.FC<FilamentStockViewProps> = ({
         >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-[#bae6fd] animate-liquid-float" />
-              <h3 className="font-bold text-[#e0f2fe] text-sm">
+              <Sparkles className="w-4 h-4 text-theme-light animate-liquid-float" />
+              <h3 className="font-bold text-theme-frost text-sm">
                 Añadir Filamento / Bobina al Stock
               </h3>
             </div>
@@ -302,7 +302,7 @@ export const FilamentStockView: React.FC<FilamentStockViewProps> = ({
                   key={preset}
                   type="button"
                   onClick={() => setNewSpoolName(preset)}
-                  className="px-2.5 py-1 rounded-lg liquid-btn-glass hover:text-[#bae6fd] text-zinc-300 text-[11px] cursor-pointer"
+                  className="px-2.5 py-1 rounded-lg liquid-btn-glass hover:text-theme-light text-zinc-300 text-[11px] cursor-pointer"
                 >
                   {preset}
                 </button>
@@ -312,7 +312,7 @@ export const FilamentStockView: React.FC<FilamentStockViewProps> = ({
 
           <div className="flex items-center justify-between pt-2 border-t border-white/10">
             <span className="text-[11px] text-zinc-300">
-              Se sumará <strong className="text-[#bae6fd]">{(parseInt(newSpoolUnits, 10) || 1) * 1000}g</strong> al stock de filamentos y se registrará la compra.
+              Se sumará <strong className="text-theme-light">{(parseInt(newSpoolUnits, 10) || 1) * 1000}g</strong> al stock de filamentos y se registrará la compra.
             </span>
             <button
               type="submit"
@@ -338,7 +338,7 @@ export const FilamentStockView: React.FC<FilamentStockViewProps> = ({
 
         <div className="glass-card glass-card-hover rounded-2xl p-4">
           <span className="text-xs text-zinc-400">Consumido en Ventas</span>
-          <div className="mt-1 text-2xl font-bold font-mono tabular-nums text-[#bae6fd]">
+          <div className="mt-1 text-2xl font-bold font-mono tabular-nums text-theme-light">
             {totalConsumedGrams.toLocaleString('es-ES')} g
           </div>
           <span className="text-[11px] text-zinc-500">
@@ -347,11 +347,11 @@ export const FilamentStockView: React.FC<FilamentStockViewProps> = ({
         </div>
 
         <div className="glass-card-pastel glass-card-hover rounded-2xl p-4">
-          <span className="text-xs text-[#bae6fd] font-medium">Filamento Restante</span>
-          <div className="mt-1 text-2xl font-extrabold font-mono tabular-nums text-[#e0f2fe]">
+          <span className="text-xs text-theme-light font-medium">Filamento Restante</span>
+          <div className="mt-1 text-2xl font-extrabold font-mono tabular-nums text-theme-frost">
             {totalRemainingGrams.toLocaleString('es-ES')} g
           </div>
-          <span className="text-[11px] text-[#93c5fd]/80">
+          <span className="text-[11px] text-theme-accent/80">
             Disponible en taller (incluye ajustes manuales)
           </span>
         </div>
@@ -359,7 +359,7 @@ export const FilamentStockView: React.FC<FilamentStockViewProps> = ({
         {/* Rule of 3 Quick Calculator */}
         <div className="glass-card glass-card-hover rounded-2xl p-3.5 text-xs flex flex-col justify-between">
           <div className="flex items-center gap-1.5 text-zinc-200 font-semibold mb-1.5">
-            <Calculator className="w-3.5 h-3.5 text-[#93c5fd]" />
+            <Calculator className="w-3.5 h-3.5 text-theme-accent" />
             <span>Simulador Regla de 3 (Gramos)</span>
           </div>
           <div className="grid grid-cols-2 gap-2">
@@ -386,7 +386,7 @@ export const FilamentStockView: React.FC<FilamentStockViewProps> = ({
           </div>
           <div className="mt-2 pt-1.5 border-t border-white/10 flex items-center justify-between">
             <span className="text-[11px] text-zinc-400">Consumo pieza:</span>
-            <span className="font-mono tabular-nums font-bold text-[#bae6fd] text-sm">{sampleGrams} g</span>
+            <span className="font-mono tabular-nums font-bold text-theme-light text-sm">{sampleGrams} g</span>
           </div>
         </div>
       </div>
@@ -394,7 +394,7 @@ export const FilamentStockView: React.FC<FilamentStockViewProps> = ({
       {/* Spools Search & Counter Bar */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-1">
         <div className="relative flex-1 max-w-md">
-          <Search className="w-4 h-4 text-[#93c5fd]/75 absolute left-3 top-1/2 -translate-y-1/2" />
+          <Search className="w-4 h-4 text-theme-accent/75 absolute left-3 top-1/2 -translate-y-1/2" />
           <input
             type="text"
             value={searchQuery}
@@ -411,7 +411,7 @@ export const FilamentStockView: React.FC<FilamentStockViewProps> = ({
       {/* Filament Spools Grid */}
       {filteredSpools.length === 0 ? (
         <div className="glass-card rounded-2xl p-8 text-center space-y-3">
-          <Scale className="w-10 h-10 text-[#93c5fd]/70 mx-auto animate-liquid-float" />
+          <Scale className="w-10 h-10 text-theme-accent/70 mx-auto animate-liquid-float" />
           <h3 className="text-sm font-bold text-zinc-200">
             {searchQuery ? `No hay filamentos que coincidan con "${searchQuery}"` : 'No hay filamentos registrados'}
           </h3>
@@ -456,7 +456,7 @@ export const FilamentStockView: React.FC<FilamentStockViewProps> = ({
               <div className="flex items-start justify-between gap-2">
                 <div>
                   <h3 className="text-sm font-bold text-white flex items-center gap-1.5">
-                    <Scale className="w-4 h-4 text-[#93c5fd] shrink-0" />
+                    <Scale className="w-4 h-4 text-theme-accent shrink-0" />
                     <span>{spool.nombre}</span>
                   </h3>
                   <p className="text-[11px] text-zinc-400 mt-0.5 font-mono flex items-center gap-1 flex-wrap">
@@ -468,11 +468,11 @@ export const FilamentStockView: React.FC<FilamentStockViewProps> = ({
                           ? setEditingPriceSpoolName(null)
                           : handleStartEditPrice(spool)
                       }
-                      className="inline-flex items-center gap-1 text-zinc-100 font-bold hover:text-[#bae6fd] cursor-pointer underline decoration-dotted underline-offset-2 transition-colors"
+                      className="inline-flex items-center gap-1 text-zinc-100 font-bold hover:text-theme-light cursor-pointer underline decoration-dotted underline-offset-2 transition-colors"
                       title="Pulsar para editar el precio de la bobina"
                     >
                       <span>{formatEuro(spool.precioBobina)}</span>
-                      <Edit3 className="w-3 h-3 text-[#93c5fd] opacity-80" />
+                      <Edit3 className="w-3 h-3 text-theme-accent opacity-80" />
                     </button>
                     {spool.ultimaCompraFecha && (
                       <span className="text-zinc-500">
@@ -488,8 +488,8 @@ export const FilamentStockView: React.FC<FilamentStockViewProps> = ({
                     Stock bajo
                   </span>
                 ) : (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#93c5fd]/15 text-[#bae6fd] border border-[#93c5fd]/35 shrink-0">
-                    <CheckCircle2 className="w-3 h-3 text-[#93c5fd]" />
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-theme-accent/15 text-theme-light border border-theme-accent/35 shrink-0">
+                    <CheckCircle2 className="w-3 h-3 text-theme-accent" />
                     OK ({pct}%)
                   </span>
                 )}
@@ -502,7 +502,7 @@ export const FilamentStockView: React.FC<FilamentStockViewProps> = ({
                     className={`h-full rounded-full transition-all duration-500 animate-liquid-bar ${
                       isLow
                         ? 'bg-gradient-to-r from-amber-500 to-amber-300'
-                        : 'bg-gradient-to-r from-[#7dd3fc] via-[#93c5fd] to-[#bae6fd] shadow-[0_0_12px_rgba(147,197,253,0.6)]'
+                        : 'bg-gradient-to-r from-theme-deep via-theme-accent to-theme-light shadow-[0_0_12px_rgba(var(--theme-rgb),0.6)]'
                     }`}
                     style={{ width: `${pct}%` }}
                   />
@@ -514,16 +514,16 @@ export const FilamentStockView: React.FC<FilamentStockViewProps> = ({
                     <button
                       type="button"
                       onClick={() => handleStartEditInitial(spool)}
-                      className="inline-flex items-center gap-1 font-mono tabular-nums font-bold text-sm text-zinc-200 hover:text-[#bae6fd] cursor-pointer hover:underline"
+                      className="inline-flex items-center gap-1 font-mono tabular-nums font-bold text-sm text-zinc-200 hover:text-theme-light cursor-pointer hover:underline"
                       title="Editar gramos iniciales"
                     >
                       <span>{spool.gramosIniciales} g</span>
-                      <Edit3 className="w-3 h-3 opacity-75 text-[#93c5fd]" />
+                      <Edit3 className="w-3 h-3 opacity-75 text-theme-accent" />
                     </button>
                   </div>
                   <div className="text-center">
                     <span className="text-zinc-500 block">Gastado ventas</span>
-                    <span className="font-mono tabular-nums font-semibold text-[#bae6fd]">-{spool.gramosConsumidos} g</span>
+                    <span className="font-mono tabular-nums font-semibold text-theme-light">-{spool.gramosConsumidos} g</span>
                   </div>
                   <div className="text-right">
                     <span className="text-zinc-500 block">Restante</span>
@@ -531,7 +531,7 @@ export const FilamentStockView: React.FC<FilamentStockViewProps> = ({
                       type="button"
                       onClick={() => handleStartEditRemaining(spool)}
                       className={`inline-flex items-center gap-1 font-mono tabular-nums font-bold text-sm cursor-pointer hover:underline ${
-                        isLow ? 'text-amber-300' : 'text-[#e0f2fe]'
+                        isLow ? 'text-amber-300' : 'text-theme-frost'
                       }`}
                       title="Editar gramos restantes"
                     >
@@ -545,7 +545,7 @@ export const FilamentStockView: React.FC<FilamentStockViewProps> = ({
                   <div className="text-[10px] text-zinc-400 font-mono flex items-center justify-between pt-0.5">
                     <span>
                       Ajuste manual/desgaste:{' '}
-                      <strong className={spool.ajusteManualGramos! >= 0 ? 'text-[#bae6fd]' : 'text-amber-300'}>
+                      <strong className={spool.ajusteManualGramos! >= 0 ? 'text-theme-light' : 'text-amber-300'}>
                         {spool.ajusteManualGramos! > 0 ? `+${spool.ajusteManualGramos}` : spool.ajusteManualGramos} g
                       </strong>
                     </span>
@@ -557,7 +557,7 @@ export const FilamentStockView: React.FC<FilamentStockViewProps> = ({
               {isEditingInitialThis && (
                 <div className="p-3 rounded-xl glass-card-pastel space-y-2.5 animate-spring-pop">
                   <div className="flex items-center justify-between">
-                    <label className="text-[11px] font-semibold text-[#bae6fd]">
+                    <label className="text-[11px] font-semibold text-theme-light">
                       Actualizar gramos iniciales (g)
                     </label>
                     <button
@@ -618,7 +618,7 @@ export const FilamentStockView: React.FC<FilamentStockViewProps> = ({
               {isEditingThis && (
                 <div className="p-3 rounded-xl glass-card-pastel space-y-2.5 animate-spring-pop">
                   <div className="flex items-center justify-between">
-                    <label className="text-[11px] font-semibold text-[#bae6fd]">
+                    <label className="text-[11px] font-semibold text-theme-light">
                       Actualizar filamento restante (g)
                     </label>
                     <button
@@ -679,7 +679,7 @@ export const FilamentStockView: React.FC<FilamentStockViewProps> = ({
               {isEditingPriceThis && (
                 <div className="p-3 rounded-xl glass-card-pastel space-y-2.5 animate-spring-pop">
                   <div className="flex items-center justify-between">
-                    <label className="text-[11px] font-semibold text-[#bae6fd]">
+                    <label className="text-[11px] font-semibold text-theme-light">
                       Actualizar precio bobina 1000g (€)
                     </label>
                     <button
@@ -780,7 +780,7 @@ export const FilamentStockView: React.FC<FilamentStockViewProps> = ({
                     className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg liquid-btn-glass text-zinc-200 text-[11px] font-medium cursor-pointer"
                     title="Editar precio de la bobina"
                   >
-                    <Edit3 className="w-3 h-3 text-[#93c5fd]" />
+                    <Edit3 className="w-3 h-3 text-theme-accent" />
                     <span>Editar precio</span>
                   </button>
                   <button
@@ -793,7 +793,7 @@ export const FilamentStockView: React.FC<FilamentStockViewProps> = ({
                     className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg liquid-btn-glass text-zinc-200 text-[11px] font-medium cursor-pointer"
                     title="Editar gramos iniciales"
                   >
-                    <Edit3 className="w-3 h-3 text-[#bae6fd]" />
+                    <Edit3 className="w-3 h-3 text-theme-light" />
                     <span>Editar inicial</span>
                   </button>
                   <button
@@ -804,7 +804,7 @@ export const FilamentStockView: React.FC<FilamentStockViewProps> = ({
                     className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg liquid-btn-glass text-zinc-200 text-[11px] font-medium cursor-pointer"
                     title="Editar gramos restantes"
                   >
-                    <Edit3 className="w-3 h-3 text-[#93c5fd]" />
+                    <Edit3 className="w-3 h-3 text-theme-accent" />
                     <span>Editar restante</span>
                   </button>
                   <button

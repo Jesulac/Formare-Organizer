@@ -196,7 +196,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <button
               type="button"
               onClick={onCloseMobile}
-              className="p-2 rounded-xl text-zinc-300 hover:text-white liquid-btn-glass cursor-pointer"
+              className="p-2 rounded-xl text-zinc-300 hover:text-white liquid-btn-glass cursor-pointer shrink-0"
               aria-label="Cerrar menú"
             >
               <X className="w-5 h-5" />
@@ -205,19 +205,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <button
               type="button"
               onClick={onToggleCollapse}
-              className="group flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-zinc-300 hover:text-white liquid-btn-glass cursor-pointer"
+              className="group flex items-center gap-1.5 px-2.5 py-2 rounded-xl text-xs font-semibold text-zinc-300 hover:text-white liquid-btn-glass cursor-pointer shrink-0"
               title={isCollapsed ? 'Expandir menú' : 'Contraer menú'}
               aria-label={isCollapsed ? 'Expandir menú' : 'Contraer menú'}
             >
               {isCollapsed ? (
                 <>
                   {!collapsed && <span className="whitespace-nowrap">Expandir</span>}
-                  <PanelLeftOpen className="w-5 h-5 text-[#93c5fd] transition-transform duration-300 group-hover:rotate-12" />
+                  <PanelLeftOpen className="w-5 h-5 text-theme-accent transition-transform duration-300 group-hover:rotate-12" />
                 </>
               ) : (
                 <>
                   <span className="whitespace-nowrap">Contraer</span>
-                  <PanelLeftClose className="w-5 h-5 text-[#bae6fd] transition-transform duration-300 group-hover:-rotate-12" />
+                  <PanelLeftClose className="w-4 h-4 text-theme-light transition-transform duration-300 group-hover:-rotate-12" />
                 </>
               )}
             </button>
@@ -261,7 +261,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           {navGroups.map((group) => (
             <div key={group.label} className="space-y-2">
               {!collapsed && (
-                <div className="px-3 pb-1.5 text-[11px] font-bold text-[#93c5fd]/65 tracking-wider uppercase">
+                <div className="px-3 pb-1.5 text-[11px] font-bold text-theme-accent/65 tracking-wider uppercase">
                   {group.label}
                 </div>
               )}
@@ -273,20 +273,23 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
                   const badgeColor =
                     item.badgeTone === 'sky'
-                      ? 'text-[#bae6fd]'
+                      ? 'text-theme-light'
                       : item.badgeTone === 'rose'
                       ? 'text-rose-300'
                       : item.badgeTone === 'amber'
                       ? 'text-amber-300'
                       : item.badgeTone === 'emerald'
-                      ? 'text-[#bae6fd]'
+                      ? 'text-theme-light'
                       : 'text-zinc-400';
 
                   const itemContent = (
                     <>
                       {/* Left active glowing glass indicator bar */}
                       {isActive && (
-                        <span className="absolute left-0 top-2.5 bottom-2.5 w-1 rounded-r-full bg-[#93c5fd] shadow-[0_0_12px_rgba(147,197,253,0.9)]" />
+                        <span
+                          className="absolute left-0 top-2.5 bottom-2.5 w-1 rounded-r-full bg-theme-accent"
+                          style={{ boxShadow: '0 0 12px rgba(var(--theme-rgb), 0.9)' }}
+                        />
                       )}
 
                       <div className="flex items-center gap-3 min-w-0">
@@ -294,8 +297,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                           <Icon
                             className={`w-5 h-5 transition-all duration-300 ${
                               isActive
-                                ? 'text-[#bae6fd] scale-110 drop-shadow-[0_0_8px_rgba(147,197,253,0.65)]'
-                                : 'text-zinc-400 group-hover:text-[#bae6fd] group-hover:scale-110'
+                                ? 'text-theme-light scale-110'
+                                : 'text-zinc-400 group-hover:text-theme-light group-hover:scale-110'
                             }`}
                           />
                           {item.alertDot && (
@@ -321,14 +324,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
                       {!collapsed && (
                         item.externalUrl ? (
-                          <span className="text-zinc-500 group-hover:text-[#bae6fd] transition-colors shrink-0">
+                          <span className="text-zinc-500 group-hover:text-theme-light transition-colors shrink-0">
                             <ExternalLink className="w-4 h-4" />
                           </span>
                         ) : item.badge ? (
                           <span
                             className={`text-xs font-mono tabular-nums font-bold shrink-0 px-2 py-1 rounded-lg border ${
                               isActive
-                                ? 'bg-[#93c5fd]/20 border-[#93c5fd]/35 text-[#e0f2fe]'
+                                ? 'bg-theme-accent/20 border-theme-accent/35 text-theme-frost'
                                 : `bg-white/[0.05] border-white/[0.08] ${badgeColor}`
                             }`}
                           >
@@ -352,7 +355,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         title={collapsed ? `${item.label} — ${item.description}` : undefined}
                         className={`w-full group flex items-center justify-between gap-3 rounded-2xl cursor-pointer text-left relative transition-all duration-300 ${
                           collapsed ? 'p-3 justify-center' : 'px-4 py-3'
-                        } text-zinc-300 hover:text-white hover:bg-[#93c5fd]/12 border border-transparent hover:border-[#93c5fd]/30 hover:scale-[1.015]`}
+                        } text-zinc-300 hover:text-white hover:bg-theme-accent/12 border border-transparent hover:border-theme-accent/30 hover:scale-[1.015]`}
                       >
                         {itemContent}
                       </a>
@@ -390,7 +393,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <span className="text-xs text-zinc-400 block font-medium">Beneficio Neto (Vista)</span>
                 <span
                   className={`text-base font-bold font-mono tabular-nums mt-1 block ${
-                    counts.beneficioNeto >= 0 ? 'text-[#bae6fd]' : 'text-rose-400'
+                    counts.beneficioNeto >= 0 ? 'text-theme-light' : 'text-rose-400'
                   }`}
                 >
                   {formatEuro(counts.beneficioNeto)}
@@ -422,7 +425,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               collapsed ? 'p-3 justify-center' : 'px-4 py-2.5'
             }`}
           >
-            <FileText className="w-5 h-5 text-[#bae6fd] shrink-0" />
+            <FileText className="w-5 h-5 text-theme-light shrink-0" />
             {!collapsed && <span className="truncate">Descargar Resumen PDF</span>}
           </button>
 
@@ -438,7 +441,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 className="w-full flex items-center justify-between px-4 py-2.5 rounded-2xl text-sm font-semibold text-zinc-400 hover:text-zinc-100 hover:bg-white/[0.06] transition-all duration-200 cursor-pointer hover:scale-[1.01]"
               >
                 <span className="flex items-center gap-2.5">
-                  <Database className="w-4 h-4 text-[#93c5fd]/70" />
+                  <Database className="w-4 h-4 text-theme-accent/70" />
                   <span>Copia de Seguridad y Datos</span>
                 </span>
                 <div
@@ -462,12 +465,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     onClick={onExportJSON}
                     className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-zinc-200 hover:bg-white/10 transition-all duration-200 text-left cursor-pointer hover:scale-[1.02]"
                   >
-                    <Download className="w-4 h-4 text-[#93c5fd] shrink-0" />
+                    <Download className="w-4 h-4 text-theme-accent shrink-0" />
                     <span>Exportar Copia (JSON)</span>
                   </button>
 
                   <label className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-zinc-200 hover:bg-white/10 transition-all duration-200 cursor-pointer text-left hover:scale-[1.02]">
-                    <Upload className="w-4 h-4 text-[#93c5fd] shrink-0" />
+                    <Upload className="w-4 h-4 text-theme-accent shrink-0" />
                     <span>Importar Copia (JSON)</span>
                     <input
                       type="file"

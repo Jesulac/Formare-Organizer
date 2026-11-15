@@ -1,13 +1,8 @@
 import React from 'react';
-import {
-  Plus,
-  Smartphone,
-  Monitor,
-  FileText,
-  Menu,
-  Calculator,
-  Camera,
-} from 'lucide-react';
+import { Menu, Calculator, Camera, FileText, Plus, LayoutGrid, Table } from 'lucide-react';
+import { SlidingSegmentedControl } from './SlidingSegmentedControl';
+import { ThemeSelector, StyleSelector } from './ThemeSelector';
+import { ThemeId, VisualStyleId } from '../utils/themes';
 
 export type ViewMode = 'iphone' | 'desktop' | 'auto';
 export type ActiveSection =
@@ -28,6 +23,10 @@ interface HeaderProps {
   viewMode: ViewMode;
   onViewModeChange: (mode: ViewMode) => void;
   onOpenMobileSidebar: () => void;
+  currentTheme: ThemeId;
+  onSelectTheme: (themeId: ThemeId) => void;
+  currentStyle: VisualStyleId;
+  onSelectStyle: (styleId: VisualStyleId) => void;
 }
 
 const SECTION_META: Record<
@@ -72,6 +71,10 @@ export const Header: React.FC<HeaderProps> = ({
   viewMode,
   onViewModeChange,
   onOpenMobileSidebar,
+  currentTheme,
+  onSelectTheme,
+  currentStyle,
+  onSelectStyle,
 }) => {
   const currentMeta = SECTION_META[activeSection] || SECTION_META.ventas;
   const showViewSwitcher =
@@ -102,36 +105,42 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
       </div>
 
-      {/* Zone 3: Contextual Controls & Primary Actions (No "Reparto" button) */}
+      {/* Zone 3: Contextual Controls & Primary Actions */}
       <div className="flex items-center gap-2 shrink-0">
+        {/* Color Theme Circles + Visual Style Selector (al lado de Tarjetas / Tabla) */}
+        <div className="flex items-center gap-1.5">
+          <ThemeSelector
+            currentTheme={currentTheme}
+            onSelectTheme={onSelectTheme}
+            variant="dots"
+            size="sm"
+            className="hidden xl:inline-flex"
+          />
+          <ThemeSelector
+            currentTheme={currentTheme}
+            onSelectTheme={onSelectTheme}
+            variant="compact"
+            className="xl:hidden"
+          />
+
+          <StyleSelector
+            currentStyle={currentStyle}
+            onSelectStyle={onSelectStyle}
+          />
+        </div>
+
+        {/* View Mode Switcher (Tarjetas / Tabla) con Burbuja Deslizante */}
         {showViewSwitcher && (
-          <div className="flex items-center p-0.5 rounded-xl liquid-segmented">
-            <button
-              type="button"
-              onClick={() => onViewModeChange('iphone')}
-              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all duration-300 cursor-pointer whitespace-nowrap ${
-                viewMode === 'iphone'
-                  ? 'liquid-btn-primary font-bold'
-                  : 'text-zinc-400 hover:text-white'
-              }`}
-              title="Ver en formato tarjetas móviles"
-            >
-              <Smartphone className="w-3.5 h-3.5 shrink-0" />
-              <span className="hidden md:inline">Tarjetas</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => onViewModeChange('desktop')}
-              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all duration-300 cursor-pointer whitespace-nowrap ${
-                viewMode === 'desktop'
-                  ? 'liquid-btn-primary font-bold'
-                  : 'text-zinc-400 hover:text-white'
-              }`}
-              title="Ver tabla completa"
-            >
-              <Monitor className="w-3.5 h-3.5 shrink-0" />
-              <span className="hidden md:inline">Tabla</span>
-            </button>
+          <div className="hidden sm:block">
+            <SlidingSegmentedControl
+              options={[
+                { id: 'iphone', label: 'Tarjetas', icon: LayoutGrid },
+                { id: 'desktop', label: 'Tabla', icon: Table },
+              ]}
+              value={viewMode === 'desktop' ? 'desktop' : 'iphone'}
+              onChange={(val) => onViewModeChange(val as ViewMode)}
+              size="sm"
+            />
           </div>
         )}
 
@@ -143,7 +152,7 @@ export const Header: React.FC<HeaderProps> = ({
             className="hidden sm:inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium text-zinc-100 liquid-btn-glass cursor-pointer whitespace-nowrap"
             title="Abrir calculadora rápida de precios"
           >
-            <Calculator className="w-3.5 h-3.5 text-[#93c5fd] shrink-0" />
+            <Calculator className="w-3.5 h-3.5 text-theme-accent shrink-0" />
             <span className="hidden xl:inline">Calcular precio</span>
           </button>
         )}
@@ -156,7 +165,7 @@ export const Header: React.FC<HeaderProps> = ({
           className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium liquid-btn-pastel-glass cursor-pointer whitespace-nowrap"
           title="Ver cámara de la impresora (OctoEverywhere)"
         >
-          <Camera className="w-3.5 h-3.5 text-[#bae6fd] shrink-0 animate-liquid-float-slow" />
+          <Camera className="w-3.5 h-3.5 text-theme-light shrink-0 animate-liquid-float-slow" />
           <span className="hidden md:inline">Ver cámara</span>
         </a>
 
@@ -168,7 +177,7 @@ export const Header: React.FC<HeaderProps> = ({
             className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium liquid-btn-pastel-glass cursor-pointer whitespace-nowrap"
             title="Descargar resumen mensual en PDF"
           >
-            <FileText className="w-3.5 h-3.5 text-[#93c5fd] shrink-0" />
+            <FileText className="w-3.5 h-3.5 text-theme-accent shrink-0" />
             <span className="hidden sm:inline">Resumen PDF</span>
           </button>
         )}

@@ -12,8 +12,8 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
 }) => {
   return (
     <div className="glass-card liquid-shimmer rounded-3xl p-8 lg:p-12 text-center flex flex-col items-center justify-center my-6 max-w-md mx-auto animate-spring-pop">
-      <div className="w-14 h-14 rounded-2xl glass-card-pastel flex items-center justify-center text-[#bae6fd] mb-4 animate-liquid-float">
-        <PackageX className="w-6 h-6 text-[#93c5fd]" />
+      <div className="w-14 h-14 rounded-2xl glass-card-pastel flex items-center justify-center text-theme-light mb-4 animate-liquid-float">
+        <PackageX className="w-6 h-6 text-theme-accent" />
       </div>
 
       <h3 className="text-base font-bold text-white mb-1 tracking-tight">

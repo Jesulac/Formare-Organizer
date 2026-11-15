@@ -161,7 +161,7 @@ export const OperationsList: React.FC<OperationsListProps> = ({
                 onClick={() => onSelectOperation(op)}
                 className={`rounded-2xl p-3.5 relative cursor-pointer active:scale-[0.985] transition-all flex flex-col gap-2 ${
                   isHighlighted
-                    ? 'glass-card-pastel ring-1 ring-[#93c5fd]/55'
+                    ? 'glass-card-pastel ring-1 ring-theme-accent/55'
                     : 'glass-card glass-card-hover'
                 }`}
               >
@@ -173,12 +173,12 @@ export const OperationsList: React.FC<OperationsListProps> = ({
                         className={`text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded-md border backdrop-blur-md ${
                           isCompra
                             ? 'bg-rose-500/15 text-rose-200 border-rose-400/35'
-                            : 'bg-[#93c5fd]/15 text-[#bae6fd] border-[#93c5fd]/35'
+                            : 'bg-theme-accent/15 text-theme-light border-theme-accent/35'
                         }`}
                       >
                         {isCompra ? 'Compra' : 'Venta'}
                       </span>
-                      <span className="text-[10px] font-mono tabular-nums font-semibold bg-[#93c5fd]/12 text-[#bae6fd] border border-[#93c5fd]/30 px-1.5 py-0.5 rounded-md">
+                      <span className="text-[10px] font-mono tabular-nums font-semibold bg-theme-accent/12 text-theme-light border border-theme-accent/30 px-1.5 py-0.5 rounded-md">
                         {op.unidades || 1} {(op.unidades || 1) === 1 ? 'ud.' : 'uds.'}
                       </span>
                     </div>
@@ -291,7 +291,7 @@ export const OperationsList: React.FC<OperationsListProps> = ({
                     <span
                       className={`font-mono tabular-nums font-bold ${
                         op.beneficio > 0
-                          ? 'text-[#bae6fd]'
+                          ? 'text-theme-light'
                           : op.beneficio < 0
                           ? 'text-rose-400'
                           : 'text-zinc-400'
@@ -344,8 +344,8 @@ export const OperationsList: React.FC<OperationsListProps> = ({
               {monthSummary && (
                 <div className="glass-card-pastel liquid-shimmer rounded-2xl p-3.5 space-y-2">
                   <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-1.5 text-[#bae6fd] font-bold text-xs uppercase tracking-wider">
-                      <BarChart3 className="w-4 h-4 text-[#93c5fd]" />
+                    <div className="flex items-center gap-1.5 text-theme-light font-bold text-xs uppercase tracking-wider">
+                      <BarChart3 className="w-4 h-4 text-theme-accent" />
                       <span>Cierre Mensual: {monthSummary.monthLabel}</span>
                     </div>
                     <div className="flex items-center gap-2">
@@ -365,7 +365,7 @@ export const OperationsList: React.FC<OperationsListProps> = ({
                       )}
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-6 gap-2 pt-1.5 border-t border-[#93c5fd]/20 text-[11px]">
+                  <div className="grid grid-cols-2 sm:grid-cols-6 gap-2 pt-1.5 border-t border-theme-accent/20 text-[11px]">
                     <div>
                       <span className="text-zinc-400 block">Bruto generado</span>
                       <span className="font-mono tabular-nums font-semibold text-white">
@@ -374,7 +374,7 @@ export const OperationsList: React.FC<OperationsListProps> = ({
                     </div>
                     <div>
                       <span className="text-zinc-400 block">Gastos producción</span>
-                      <span className="font-mono tabular-nums font-semibold text-[#bae6fd]">
+                      <span className="font-mono tabular-nums font-semibold text-theme-light">
                         {formatEuro(monthSummary.costesVentas)}
                       </span>
                     </div>
@@ -394,7 +394,7 @@ export const OperationsList: React.FC<OperationsListProps> = ({
                       <span className="text-zinc-400 block">Neto generado</span>
                       <span
                         className={`font-mono tabular-nums font-bold ${
-                          monthSummary.dineroNeto >= 0 ? 'text-[#e0f2fe]' : 'text-rose-400'
+                          monthSummary.dineroNeto >= 0 ? 'text-theme-frost' : 'text-rose-400'
                         }`}
                       >
                         {formatEuro(monthSummary.dineroNeto)}
@@ -402,7 +402,7 @@ export const OperationsList: React.FC<OperationsListProps> = ({
                     </div>
                     <div>
                       <span className="text-zinc-400 block">Filamento consumido</span>
-                      <span className="font-mono tabular-nums font-semibold text-[#bae6fd]">
+                      <span className="font-mono tabular-nums font-semibold text-theme-light">
                         {formatGramsMaxTwoDecimals(monthSummary.gramosConsumidos)} g
                       </span>
                     </div>
@@ -426,7 +426,7 @@ export const OperationsList: React.FC<OperationsListProps> = ({
                   onClick={() => handleHeaderSort('fecha')}
                   className={`py-3 px-2.5 whitespace-nowrap select-none ${
                     onSortChange ? 'cursor-pointer hover:text-white transition-colors' : ''
-                  } ${sortBy === 'fecha' ? 'text-[#bae6fd]' : ''}`}
+                  } ${sortBy === 'fecha' ? 'text-theme-light' : ''}`}
                   title="Ordenar por Fecha"
                 >
                   <span className="inline-flex items-center gap-1">
@@ -443,7 +443,7 @@ export const OperationsList: React.FC<OperationsListProps> = ({
                   onClick={() => handleHeaderSort('producto')}
                   className={`py-3 px-2.5 min-w-[150px] select-none ${
                     onSortChange ? 'cursor-pointer hover:text-white transition-colors' : ''
-                  } ${sortBy === 'producto' ? 'text-[#bae6fd]' : ''}`}
+                  } ${sortBy === 'producto' ? 'text-theme-light' : ''}`}
                   title="Ordenar por Producto"
                 >
                   <span className="inline-flex items-center gap-1">
@@ -461,7 +461,7 @@ export const OperationsList: React.FC<OperationsListProps> = ({
                   onClick={() => handleHeaderSort('precio')}
                   className={`py-3 px-2 text-right whitespace-nowrap select-none ${
                     onSortChange ? 'cursor-pointer hover:text-white transition-colors' : ''
-                  } ${sortBy === 'precio' ? 'text-[#bae6fd]' : ''}`}
+                  } ${sortBy === 'precio' ? 'text-theme-light' : ''}`}
                   title="Ordenar por Precio"
                 >
                   <span className="inline-flex items-center justify-end gap-1">
@@ -483,7 +483,7 @@ export const OperationsList: React.FC<OperationsListProps> = ({
                   onClick={() => handleHeaderSort('costes')}
                   className={`py-3 px-2 text-right whitespace-nowrap select-none ${
                     onSortChange ? 'cursor-pointer hover:text-white transition-colors' : ''
-                  } ${sortBy === 'costes' ? 'text-[#bae6fd]' : ''}`}
+                  } ${sortBy === 'costes' ? 'text-theme-light' : ''}`}
                   title="Ordenar por Costes"
                 >
                   <span className="inline-flex items-center justify-end gap-1">
@@ -499,7 +499,7 @@ export const OperationsList: React.FC<OperationsListProps> = ({
                   onClick={() => handleHeaderSort('beneficio')}
                   className={`py-3 px-2 text-right whitespace-nowrap select-none ${
                     onSortChange ? 'cursor-pointer hover:text-white transition-colors' : ''
-                  } ${sortBy === 'beneficio' ? 'text-[#bae6fd]' : ''}`}
+                  } ${sortBy === 'beneficio' ? 'text-theme-light' : ''}`}
                   title="Ordenar por Beneficio"
                 >
                   <span className="inline-flex items-center justify-end gap-1">
@@ -557,8 +557,8 @@ export const OperationsList: React.FC<OperationsListProps> = ({
                       onClick={() => onSelectOperation(op)}
                       className={`transition-colors duration-200 group cursor-pointer ${
                         isHighlighted
-                          ? 'bg-[#93c5fd]/15 hover:bg-[#93c5fd]/22'
-                          : 'hover:bg-[#93c5fd]/[0.05]'
+                          ? 'bg-theme-accent/15 hover:bg-theme-accent/22'
+                          : 'hover:bg-theme-accent/[0.05]'
                       }`}
                     >
                       {/* 1. Fecha */}
@@ -572,7 +572,7 @@ export const OperationsList: React.FC<OperationsListProps> = ({
                           className={`inline-block text-[10.5px] font-semibold px-2 py-0.5 rounded-lg border backdrop-blur-md ${
                             isCompra
                               ? 'bg-rose-500/15 text-rose-200 border-rose-400/35'
-                              : 'bg-[#93c5fd]/15 text-[#bae6fd] border-[#93c5fd]/35'
+                              : 'bg-theme-accent/15 text-theme-light border-theme-accent/35'
                           }`}
                         >
                           {isCompra ? 'Compra' : 'Venta'}
@@ -605,7 +605,7 @@ export const OperationsList: React.FC<OperationsListProps> = ({
                               <Minus className="w-3 h-3" />
                             </button>
                           )}
-                          <span className="font-mono tabular-nums font-bold text-[#bae6fd] text-xs min-w-[18px] text-center">
+                          <span className="font-mono tabular-nums font-bold text-theme-light text-xs min-w-[18px] text-center">
                             {op.unidades || 1}
                           </span>
                           {onUnitsChange && (
@@ -655,7 +655,7 @@ export const OperationsList: React.FC<OperationsListProps> = ({
                         <span
                           className={
                             op.beneficio > 0
-                              ? 'text-[#bae6fd]'
+                              ? 'text-theme-light'
                               : op.beneficio < 0
                               ? 'text-rose-400'
                               : 'text-zinc-400'
@@ -784,13 +784,13 @@ export const OperationsList: React.FC<OperationsListProps> = ({
 
                     {/* Fila de Cierre Mensual automático al final de cada mes */}
                     {monthSummary && (
-                      <tr className="bg-[#93c5fd]/[0.08] border-y border-[#93c5fd]/30 backdrop-blur-md text-xs">
+                      <tr className="bg-theme-accent/[0.08] border-y border-theme-accent/30 backdrop-blur-md text-xs">
                         <td colSpan={16} className="py-3 px-4">
                           <div className="flex flex-wrap items-center justify-between gap-4">
                             {/* Left: Month Title & Counts */}
                             <div className="flex items-center gap-2.5">
-                              <div className="flex items-center gap-1.5 font-bold text-[#bae6fd] uppercase tracking-wider">
-                                <Layers className="w-4 h-4 text-[#93c5fd] shrink-0" />
+                              <div className="flex items-center gap-1.5 font-bold text-theme-light uppercase tracking-wider">
+                                <Layers className="w-4 h-4 text-theme-accent shrink-0" />
                                 <span>Cierre Mensual: {monthSummary.monthLabel}</span>
                               </div>
                               <span className="text-zinc-400 font-mono tabular-nums text-[11px]">
@@ -813,7 +813,7 @@ export const OperationsList: React.FC<OperationsListProps> = ({
                                 <span className="text-[10px] font-sans text-zinc-400 block uppercase">
                                   Gastos Producción
                                 </span>
-                                <span className="font-semibold text-[#bae6fd]">
+                                <span className="font-semibold text-theme-light">
                                   {formatEuro(monthSummary.costesVentas)}
                                 </span>
                               </div>
@@ -843,7 +843,7 @@ export const OperationsList: React.FC<OperationsListProps> = ({
                                 <span
                                   className={`font-extrabold ${
                                     monthSummary.dineroNeto >= 0
-                                      ? 'text-[#e0f2fe]'
+                                      ? 'text-theme-frost'
                                       : 'text-rose-400'
                                   }`}
                                 >
@@ -855,7 +855,7 @@ export const OperationsList: React.FC<OperationsListProps> = ({
                                 <span className="text-[10px] font-sans text-zinc-400 block uppercase">
                                   Filamento Consumido
                                 </span>
-                                <span className="font-bold text-[#bae6fd]">
+                                <span className="font-bold text-theme-light">
                                   {formatGramsMaxTwoDecimals(monthSummary.gramosConsumidos)} g
                                 </span>
                               </div>
