@@ -146,7 +146,7 @@ export const OperationsList: React.FC<OperationsListProps> = ({
       />
 
       {/* 1. VISTA MÓVIL (Compact Cards + Monthly Summary Cards) */}
-      <div className={`${showMobileCards} space-y-2.5 max-w-lg mx-auto`}>
+      <div className={`${showMobileCards} w-full space-y-2.5 sm:max-w-lg sm:mx-auto`}>
         {operations.map((op, index) => {
           const isCompra = op.tipo === 'compra' || op.tipo === 'inversion';
           const isHighlighted = lastModifiedId === op.id;
@@ -159,7 +159,7 @@ export const OperationsList: React.FC<OperationsListProps> = ({
             <React.Fragment key={op.id}>
               <div
                 onClick={() => onSelectOperation(op)}
-                className={`rounded-2xl p-3.5 relative cursor-pointer active:scale-[0.985] transition-all flex flex-col gap-2 ${
+                className={`rounded-2xl p-3.5 sm:p-4 relative cursor-pointer active:scale-[0.99] transition-all flex flex-col gap-2.5 ${
                   isHighlighted
                     ? 'glass-card-pastel ring-1 ring-theme-accent/55'
                     : 'glass-card glass-card-hover'
@@ -168,9 +168,9 @@ export const OperationsList: React.FC<OperationsListProps> = ({
                 {/* Card Top Row: Type badge, Units, Product Title & Status */}
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5 mb-0.5">
+                    <div className="flex flex-wrap items-center gap-1.5 mb-1">
                       <span
-                        className={`text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded-md border backdrop-blur-md ${
+                        className={`text-[10px] font-semibold uppercase px-2 py-0.5 rounded-md border backdrop-blur-md ${
                           isCompra
                             ? 'bg-rose-500/15 text-rose-200 border-rose-400/35'
                             : 'bg-theme-accent/15 text-theme-light border-theme-accent/35'
@@ -178,17 +178,22 @@ export const OperationsList: React.FC<OperationsListProps> = ({
                       >
                         {isCompra ? 'Compra' : 'Venta'}
                       </span>
-                      <span className="text-[10px] font-mono tabular-nums font-semibold bg-theme-accent/12 text-theme-light border border-theme-accent/30 px-1.5 py-0.5 rounded-md">
+                      <span className="text-[10px] font-mono tabular-nums font-semibold bg-theme-accent/12 text-theme-light border border-theme-accent/30 px-2 py-0.5 rounded-md">
                         {op.unidades || 1} {(op.unidades || 1) === 1 ? 'ud.' : 'uds.'}
                       </span>
+                      {comisionSandra > 0 && (
+                        <span className="text-[10px] font-mono tabular-nums font-semibold bg-purple-500/15 text-purple-200 border border-purple-400/30 px-2 py-0.5 rounded-md">
+                          Sandra: {formatEuro(comisionSandra)}
+                        </span>
+                      )}
                     </div>
 
-                    <h4 className="text-sm font-semibold text-white truncate">
+                    <h4 className="text-[15px] sm:text-sm font-semibold text-white leading-snug line-clamp-2">
                       {op.producto}
                     </h4>
 
                     {/* Subtitle: Platform · Date · Seller */}
-                    <div className="flex flex-wrap items-center gap-1.5 text-xs text-zinc-400 mt-0.5">
+                    <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-zinc-400 mt-1">
                       <span className="text-zinc-300 font-medium">{op.lugarVenta}</span>
                       <span>·</span>
                       <span>{formatDateDisplay(op.fecha)}</span>
@@ -205,109 +210,99 @@ export const OperationsList: React.FC<OperationsListProps> = ({
                   </div>
 
                   {/* Interactive Clean Status Pill */}
-                  <StatusPill
-                    status={op.estado}
-                    onStatusChange={(newStatus) => onStatusChange(op.id, newStatus)}
-                  />
+                  <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
+                    <StatusPill
+                      status={op.estado}
+                      onStatusChange={(newStatus) => onStatusChange(op.id, newStatus)}
+                    />
+                  </div>
                 </div>
 
                 {/* Material or Comments */}
                 {(op.material || op.comentarios) && (
-                  <p className="text-[11px] text-zinc-400 line-clamp-1">
+                  <p className="text-xs sm:text-[11px] text-zinc-400 line-clamp-1">
                     {op.material && <span className="text-zinc-300">{op.material}</span>}
                     {op.material && op.comentarios && <span className="text-zinc-600"> · </span>}
                     {op.comentarios && <span className="italic">{op.comentarios}</span>}
                   </p>
                 )}
 
-                {/* Card Bottom Row: Financial Values & Units Stepper */}
-                <div
-                  className={`grid ${
-                    comisionSandra > 0 ? 'grid-cols-5' : 'grid-cols-4'
-                  } items-center gap-2 pt-2 border-t border-white/5 text-xs`}
-                >
-                  <div>
-                    <span className="text-[10px] text-zinc-500 uppercase tracking-wider block">
-                      Precio
-                    </span>
-                    <span className="font-mono font-semibold text-zinc-100">
-                      {op.precio !== null ? formatEuro(op.precio) : '—'}
-                    </span>
-                  </div>
-
-                  <div>
-                    <span className="text-[10px] text-zinc-500 uppercase tracking-wider block">
-                      Costes
-                    </span>
-                    <span className="font-mono text-zinc-400">
-                      {formatEuro(op.costes)}
-                    </span>
-                  </div>
-
-                  {comisionSandra > 0 && (
-                    <div>
-                      <span className="text-[10px] text-purple-300/90 uppercase tracking-wider block">
-                        B. Sandra
+                {/* Card Financial Row (Uncluttered 3-column metrics + comfortable Units Stepper) */}
+                <div className="flex items-center justify-between gap-2 pt-2.5 border-t border-white/10 text-xs">
+                  <div className="grid grid-cols-3 gap-3 flex-1 min-w-0">
+                    <div className="min-w-0">
+                      <span className="text-[10px] text-zinc-500 uppercase tracking-wider block">
+                        Precio
                       </span>
-                      <span className="font-mono font-semibold text-purple-300">
-                        {formatEuro(comisionSandra)}
+                      <span className="font-mono tabular-nums font-semibold text-zinc-100 truncate block">
+                        {op.precio !== null ? formatEuro(op.precio) : '—'}
                       </span>
                     </div>
-                  )}
 
-                  <div onClick={(e) => e.stopPropagation()}>
-                    <span className="text-[10px] text-zinc-500 uppercase tracking-wider block">
-                      Unidades
-                    </span>
-                    <div className="inline-flex items-center gap-1 mt-0.5">
-                      {onUnitsChange && (
-                        <button
-                          type="button"
-                          onClick={() => onUnitsChange(op.id, Math.max(1, (op.unidades || 1) - 1))}
-                          className="w-4 h-4 rounded bg-white/10 hover:bg-white/20 text-zinc-300 flex items-center justify-center cursor-pointer"
-                        >
-                          <Minus className="w-2.5 h-2.5" />
-                        </button>
-                      )}
-                      <span className="font-mono text-zinc-100 font-bold px-0.5">
-                        {op.unidades || 1}
+                    <div className="min-w-0">
+                      <span className="text-[10px] text-zinc-500 uppercase tracking-wider block">
+                        Costes
                       </span>
-                      {onUnitsChange && (
-                        <button
-                          type="button"
-                          onClick={() => onUnitsChange(op.id, (op.unidades || 1) + 1)}
-                          className="w-4 h-4 rounded bg-white/10 hover:bg-white/20 text-zinc-300 flex items-center justify-center cursor-pointer"
-                        >
-                          <Plus className="w-2.5 h-2.5" />
-                        </button>
-                      )}
+                      <span className="font-mono tabular-nums text-zinc-400 truncate block">
+                        {formatEuro(op.costes)}
+                      </span>
+                    </div>
+
+                    <div className="min-w-0">
+                      <span className="text-[10px] text-zinc-500 uppercase tracking-wider block">
+                        Beneficio
+                      </span>
+                      <span
+                        className={`font-mono tabular-nums font-bold truncate block ${
+                          op.beneficio > 0
+                            ? 'text-theme-light'
+                            : op.beneficio < 0
+                            ? 'text-rose-400'
+                            : 'text-zinc-400'
+                        }`}
+                      >
+                        {op.beneficio > 0 ? `+${formatEuro(op.beneficio)}` : formatEuro(op.beneficio)}
+                      </span>
                     </div>
                   </div>
 
-                  <div className="text-right">
-                    <span className="text-[10px] text-zinc-500 uppercase tracking-wider block">
-                      Beneficio
+                  {/* Ergonomic Units Stepper */}
+                  <div
+                    onClick={(e) => e.stopPropagation()}
+                    className="inline-flex items-center gap-1 glass-pill rounded-xl p-1 shrink-0"
+                  >
+                    {onUnitsChange && (
+                      <button
+                        type="button"
+                        onClick={() => onUnitsChange(op.id, Math.max(1, (op.unidades || 1) - 1))}
+                        className="w-7 h-7 rounded-lg bg-white/10 active:bg-white/25 hover:bg-white/20 text-zinc-200 flex items-center justify-center cursor-pointer transition-colors"
+                        aria-label="Restar unidad"
+                      >
+                        <Minus className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                    <span className="font-mono tabular-nums text-zinc-100 font-bold text-xs min-w-[20px] text-center">
+                      {op.unidades || 1}
                     </span>
-                    <span
-                      className={`font-mono tabular-nums font-bold ${
-                        op.beneficio > 0
-                          ? 'text-theme-light'
-                          : op.beneficio < 0
-                          ? 'text-rose-400'
-                          : 'text-zinc-400'
-                      }`}
-                    >
-                      {op.beneficio > 0 ? `+${formatEuro(op.beneficio)}` : formatEuro(op.beneficio)}
-                    </span>
+                    {onUnitsChange && (
+                      <button
+                        type="button"
+                        onClick={() => onUnitsChange(op.id, (op.unidades || 1) + 1)}
+                        className="w-7 h-7 rounded-lg bg-white/10 active:bg-white/25 hover:bg-white/20 text-zinc-200 flex items-center justify-center cursor-pointer transition-colors"
+                        aria-label="Sumar unidad"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                   </div>
                 </div>
 
                 {/* Extra Footer: Fecha Límite & Adjuntar Foto/QR */}
-                <div className="flex items-center justify-between pt-1.5 border-t border-white/10 text-[11px]">
-                  <div className="flex items-center gap-1.5 text-zinc-400">
+                <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-white/10 text-xs">
+                  <div className="flex items-center gap-1.5 text-zinc-400 min-w-0">
                     <CalendarClock className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                    <span>
-                      Fecha límite:{' '}
+                    <span className="truncate">
+                      Límite:{' '}
                       <strong className="text-amber-300 font-mono tabular-nums">
                         {op.tipo === 'venta' && op.fechaLimite
                           ? formatDateDisplay(op.fechaLimite)
@@ -316,12 +311,12 @@ export const OperationsList: React.FC<OperationsListProps> = ({
                     </span>
                   </div>
 
-                  <div onClick={(e) => e.stopPropagation()}>
+                  <div onClick={(e) => e.stopPropagation()} className="shrink-0">
                     {op.fotoQr ? (
                       <button
                         type="button"
                         onClick={() => setPreviewQrOpId(op.id)}
-                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl liquid-btn-pastel-glass text-[11px] font-medium cursor-pointer"
+                        className="inline-flex items-center gap-1.5 px-3 min-h-[36px] rounded-xl liquid-btn-pastel-glass text-xs font-medium cursor-pointer"
                       >
                         <QrCode className="w-3.5 h-3.5" />
                         <span>Ver Foto / QR</span>
@@ -330,7 +325,7 @@ export const OperationsList: React.FC<OperationsListProps> = ({
                       <button
                         type="button"
                         onClick={(e) => handleTriggerPhotoUpload(op.id, e)}
-                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl liquid-btn-glass text-[11px] cursor-pointer"
+                        className="inline-flex items-center gap-1.5 px-3 min-h-[36px] rounded-xl liquid-btn-glass text-xs cursor-pointer"
                       >
                         <ImageIcon className="w-3.5 h-3.5 text-zinc-400" />
                         <span>Adjuntar Foto</span>
@@ -342,67 +337,67 @@ export const OperationsList: React.FC<OperationsListProps> = ({
 
               {/* Monthly Summary Card at end of each month */}
               {monthSummary && (
-                <div className="glass-card-pastel liquid-shimmer rounded-2xl p-3.5 space-y-2">
-                  <div className="flex items-center justify-between gap-2">
+                <div className="glass-card-pastel liquid-shimmer rounded-2xl p-3.5 sm:p-4 space-y-2.5">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
                     <div className="flex items-center gap-1.5 text-theme-light font-bold text-xs uppercase tracking-wider">
-                      <BarChart3 className="w-4 h-4 text-theme-accent" />
-                      <span>Cierre Mensual: {monthSummary.monthLabel}</span>
+                      <BarChart3 className="w-4 h-4 text-theme-accent shrink-0" />
+                      <span>Cierre: {monthSummary.monthLabel}</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <span className="text-[11px] font-mono tabular-nums text-zinc-300">
-                        {monthSummary.numVentas} ventas · {monthSummary.numPedidos} pedidos
+                        {monthSummary.numVentas} vtas · {monthSummary.numPedidos} ped.
                       </span>
                       {onExportMonthPDF && (
                         <button
                           type="button"
                           onClick={() => onExportMonthPDF(monthSummary.monthKey)}
-                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg liquid-btn-pastel-glass text-[10px] font-semibold cursor-pointer"
+                          className="inline-flex items-center gap-1 px-2.5 min-h-[32px] rounded-lg liquid-btn-pastel-glass text-[11px] font-semibold cursor-pointer"
                           title={`Descargar resumen de ${monthSummary.monthLabel} en PDF`}
                         >
-                          <FileText className="w-3 h-3" />
+                          <FileText className="w-3.5 h-3.5" />
                           <span>PDF</span>
                         </button>
                       )}
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-6 gap-2 pt-1.5 border-t border-theme-accent/20 text-[11px]">
-                    <div>
-                      <span className="text-zinc-400 block">Bruto generado</span>
-                      <span className="font-mono tabular-nums font-semibold text-white">
+                  <div className="grid grid-cols-2 sm:grid-cols-6 gap-2.5 pt-2 border-t border-theme-accent/20 text-xs sm:text-[11px]">
+                    <div className="min-w-0">
+                      <span className="text-zinc-400 text-[10px] block">Bruto generado</span>
+                      <span className="font-mono tabular-nums font-semibold text-white truncate block">
                         {formatEuro(monthSummary.dineroBruto)}
                       </span>
                     </div>
-                    <div>
-                      <span className="text-zinc-400 block">Gastos producción</span>
-                      <span className="font-mono tabular-nums font-semibold text-theme-light">
+                    <div className="min-w-0">
+                      <span className="text-zinc-400 text-[10px] block">Gastos producción</span>
+                      <span className="font-mono tabular-nums font-semibold text-theme-light truncate block">
                         {formatEuro(monthSummary.costesVentas)}
                       </span>
                     </div>
-                    <div>
-                      <span className="text-purple-300/90 block">B. Sandra</span>
-                      <span className="font-mono tabular-nums font-semibold text-purple-300">
+                    <div className="min-w-0">
+                      <span className="text-purple-300/90 text-[10px] block">B. Sandra</span>
+                      <span className="font-mono tabular-nums font-semibold text-purple-300 truncate block">
                         {formatEuro(monthSummary.beneficioSandra || 0)}
                       </span>
                     </div>
-                    <div>
-                      <span className="text-zinc-400 block">Gastos en general</span>
-                      <span className="font-mono tabular-nums font-semibold text-rose-300">
+                    <div className="min-w-0">
+                      <span className="text-zinc-400 text-[10px] block">Gastos en general</span>
+                      <span className="font-mono tabular-nums font-semibold text-rose-300 truncate block">
                         {formatEuro(monthSummary.dineroGastadoCompras)}
                       </span>
                     </div>
-                    <div>
-                      <span className="text-zinc-400 block">Neto generado</span>
+                    <div className="min-w-0">
+                      <span className="text-zinc-400 text-[10px] block">Neto generado</span>
                       <span
-                        className={`font-mono tabular-nums font-bold ${
+                        className={`font-mono tabular-nums font-bold truncate block ${
                           monthSummary.dineroNeto >= 0 ? 'text-theme-frost' : 'text-rose-400'
                         }`}
                       >
                         {formatEuro(monthSummary.dineroNeto)}
                       </span>
                     </div>
-                    <div>
-                      <span className="text-zinc-400 block">Filamento consumido</span>
-                      <span className="font-mono tabular-nums font-semibold text-theme-light">
+                    <div className="min-w-0">
+                      <span className="text-zinc-400 text-[10px] block">Filamento consumido</span>
+                      <span className="font-mono tabular-nums font-semibold text-theme-light truncate block">
                         {formatGramsMaxTwoDecimals(monthSummary.gramosConsumidos)} g
                       </span>
                     </div>
@@ -886,15 +881,16 @@ export const OperationsList: React.FC<OperationsListProps> = ({
 
       {/* Modal Lightbox para ver / gestionar la Foto o Código QR enlazado al pedido */}
       {previewQrOp && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
           <div
             className="fixed inset-0 bg-black/75 backdrop-blur-md animate-backdrop-fade"
             onClick={() => setPreviewQrOpId(null)}
           />
-          <div className="relative z-10 w-full max-w-md glass-modal rounded-3xl p-5 space-y-4">
-            <div className="flex items-center justify-between border-b border-white/10 pb-3">
-              <div>
-                <h3 className="text-sm font-bold text-white">{previewQrOp.producto}</h3>
+          <div className="relative z-10 w-full max-w-md glass-modal rounded-t-3xl sm:rounded-3xl p-4 sm:p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] space-y-4 max-h-[90dvh] overflow-y-auto">
+            <div className="w-10 h-1 bg-white/25 rounded-full mx-auto -mt-1 mb-2 sm:hidden" />
+            <div className="flex items-center justify-between border-b border-white/10 pb-3 gap-2">
+              <div className="min-w-0">
+                <h3 className="text-sm font-bold text-white truncate">{previewQrOp.producto}</h3>
                 <p className="text-[11px] text-zinc-400">
                   {previewQrOp.lugarVenta} · Fecha límite:{' '}
                   {previewQrOp.fechaLimite
@@ -905,7 +901,8 @@ export const OperationsList: React.FC<OperationsListProps> = ({
               <button
                 type="button"
                 onClick={() => setPreviewQrOpId(null)}
-                className="p-1.5 rounded-full text-zinc-400 hover:text-white hover:bg-white/10 transition-all cursor-pointer"
+                className="w-9 h-9 flex items-center justify-center rounded-full text-zinc-400 hover:text-white hover:bg-white/10 transition-all cursor-pointer shrink-0"
+                aria-label="Cerrar"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -916,12 +913,12 @@ export const OperationsList: React.FC<OperationsListProps> = ({
                 <img
                   src={previewQrOp.fotoQr}
                   alt={`QR / Foto de ${previewQrOp.producto}`}
-                  className="max-h-80 w-auto object-contain rounded-lg"
+                  className="max-h-72 sm:max-h-80 w-auto object-contain rounded-lg"
                 />
               </div>
             )}
 
-            <div className="flex items-center justify-between gap-3 text-xs">
+            <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 text-xs">
               <div className="flex-1">
                 <label className="block text-zinc-400 text-[11px] mb-1">Empresa de envío</label>
                 <OledSelect
@@ -933,11 +930,11 @@ export const OperationsList: React.FC<OperationsListProps> = ({
                 />
               </div>
 
-              <div className="flex items-end gap-2 pt-4">
+              <div className="flex items-center gap-2">
                 <button
                   type="button"
                   onClick={(e) => handleTriggerPhotoUpload(previewQrOp.id, e)}
-                  className="px-3 py-2 rounded-xl liquid-btn-glass text-xs font-medium cursor-pointer"
+                  className="flex-1 sm:flex-initial px-3 min-h-[42px] sm:min-h-0 sm:py-2 rounded-xl liquid-btn-glass text-xs font-medium cursor-pointer"
                 >
                   Cambiar foto
                 </button>
@@ -947,7 +944,7 @@ export const OperationsList: React.FC<OperationsListProps> = ({
                     onAttachQr(previewQrOp.id, undefined, undefined);
                     setPreviewQrOpId(null);
                   }}
-                  className="px-3 py-2 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 border border-rose-400/30 text-rose-200 text-xs font-medium transition-all cursor-pointer"
+                  className="flex-1 sm:flex-initial px-3 min-h-[42px] sm:min-h-0 sm:py-2 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 border border-rose-400/30 text-rose-200 text-xs font-medium transition-all cursor-pointer"
                 >
                   Borrar foto
                 </button>

@@ -46,7 +46,7 @@ export const PricingCalculatorModal: React.FC<PricingCalculatorModalProps> = ({
         onClick={onClose}
       />
 
-      <div className="relative w-full max-w-lg glass-modal rounded-t-3xl sm:rounded-3xl p-5 sm:p-6 shadow-2xl z-10 max-h-[92vh] overflow-y-auto">
+      <div className="relative w-full max-w-lg glass-modal rounded-t-3xl sm:rounded-3xl p-4 sm:p-6 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-2xl z-10 max-h-[92dvh] overflow-y-auto">
         {/* Grab Handle */}
         <div className="w-10 h-1 bg-white/25 rounded-full mx-auto -mt-1 mb-4 sm:hidden" />
 
@@ -137,9 +137,9 @@ export const PricingCalculatorModal: React.FC<PricingCalculatorModalProps> = ({
               Resultado según Reglas de Negocio
             </div>
 
-            <div className="grid grid-cols-2 gap-2.5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-2.5">
               {/* Recommended Price Card */}
-              <div className="glass-card-pastel rounded-2xl p-3 flex flex-col justify-between">
+              <div className="glass-card-pastel rounded-2xl p-3.5 sm:p-3 flex flex-col justify-between">
                 <div>
                   <span className="text-[10px] uppercase tracking-wider text-theme-light font-semibold block">
                     Precio Recomendado (×{calc.multiplier})
@@ -154,7 +154,7 @@ export const PricingCalculatorModal: React.FC<PricingCalculatorModalProps> = ({
 
                 <button
                   onClick={() => handleCreate(calc.recommendedPrice)}
-                  className="mt-3 w-full py-1.5 px-2 rounded-xl liquid-btn-primary font-bold text-[11px] flex items-center justify-center gap-1 cursor-pointer"
+                  className="mt-3 w-full min-h-[40px] sm:min-h-0 sm:py-1.5 px-2.5 rounded-xl liquid-btn-primary font-bold text-xs sm:text-[11px] flex items-center justify-center gap-1 cursor-pointer"
                 >
                   <Plus className="w-3.5 h-3.5" />
                   <span>Crear con este precio</span>
@@ -162,7 +162,7 @@ export const PricingCalculatorModal: React.FC<PricingCalculatorModalProps> = ({
               </div>
 
               {/* Max Discount Price Card */}
-              <div className="glass-card rounded-2xl p-3 flex flex-col justify-between">
+              <div className="glass-card rounded-2xl p-3.5 sm:p-3 flex flex-col justify-between">
                 <div>
                   <span className="text-[10px] uppercase tracking-wider text-zinc-400 font-semibold block">
                     Descuento Máximo (×5)
@@ -177,7 +177,7 @@ export const PricingCalculatorModal: React.FC<PricingCalculatorModalProps> = ({
 
                 <button
                   onClick={() => handleCreate(calc.maxDiscountPrice)}
-                  className="mt-3 w-full py-1.5 px-2 rounded-xl liquid-btn-glass text-zinc-200 font-semibold text-[11px] flex items-center justify-center gap-1 cursor-pointer"
+                  className="mt-3 w-full min-h-[40px] sm:min-h-0 sm:py-1.5 px-2.5 rounded-xl liquid-btn-glass text-zinc-200 font-semibold text-xs sm:text-[11px] flex items-center justify-center gap-1 cursor-pointer"
                 >
                   <Plus className="w-3.5 h-3.5" />
                   <span>Crear con rebaja</span>

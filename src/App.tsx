@@ -509,7 +509,7 @@ function FormareApp() {
 
       {/* Right Workspace Column (Contextual Header + Main Content Viewport) */}
       <div
-        className={`relative z-10 flex-1 flex flex-col min-w-0 pb-20 lg:pb-10 ${
+        className={`relative z-10 flex-1 flex flex-col min-w-0 pb-[calc(6.25rem+env(safe-area-inset-bottom))] lg:pb-10 ${
           isSidebarCollapsed ? 'lg:pl-[72px]' : 'lg:pl-72'
         }`}
         style={{
@@ -534,9 +534,9 @@ function FormareApp() {
 
         {/* Instant Save / Sync Confirmation Toast */}
         {saveNotification && (
-          <div className="fixed bottom-16 lg:bottom-6 left-1/2 -translate-x-1/2 z-50 pointer-events-none flex items-center gap-2 px-4 py-2.5 rounded-full glass-card-pastel animate-spring-pop text-theme-frost text-xs font-semibold">
+          <div className="fixed bottom-[calc(5.75rem+env(safe-area-inset-bottom))] lg:bottom-6 left-1/2 -translate-x-1/2 z-50 pointer-events-none flex items-center gap-2 px-4 py-2.5 rounded-full glass-card-pastel animate-spring-pop text-theme-frost text-xs font-semibold w-max max-w-[calc(100vw-1.5rem)]">
             <CheckCircle2 className="w-4 h-4 text-theme-accent shrink-0" />
-            <span>{saveNotification}</span>
+            <span className="truncate">{saveNotification}</span>
           </div>
         )}
 
@@ -548,7 +548,7 @@ function FormareApp() {
             (activeSection === 'ventas' ||
               activeSection === 'produccion' ||
               activeSection === 'gastos')
-              ? 'max-w-md mx-auto'
+              ? 'w-full sm:max-w-md sm:mx-auto'
               : 'max-w-none'
           }`}
           style={{
@@ -564,9 +564,11 @@ function FormareApp() {
                 filters={filters}
                 onFilterChange={setFilters}
                 uniqueSellers={uniqueSellers}
+                viewMode={viewMode}
+                onViewModeChange={handleViewModeChange}
               />
 
-              <section className="px-2 sm:px-3 lg:px-4 py-2 w-full min-w-0 max-w-none">
+              <section className="px-2.5 sm:px-3 lg:px-4 py-2 w-full min-w-0 max-w-none">
                 {operations.length > 0 ? (
                   <OperationsList
                     operations={operations}
@@ -600,43 +602,43 @@ function FormareApp() {
           {activeSection === 'produccion' && (
             <div className="space-y-3 pt-3 w-full max-w-none">
               {/* Production Overview Cards */}
-              <section className="px-2 sm:px-3 lg:px-4">
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-3">
-                  <div className="glass-card glass-card-hover rounded-2xl p-3.5 sm:p-4">
-                    <span className="text-xs font-medium text-theme-light flex items-center justify-between">
-                      <span>Pedidos en Producción</span>
-                      <Printer className="w-4 h-4 text-theme-accent animate-liquid-float" />
+              <section className="px-2.5 sm:px-3 lg:px-4">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3">
+                  <div className="glass-card glass-card-hover rounded-2xl p-3 sm:p-4 min-w-0">
+                    <span className="text-[11px] sm:text-xs font-medium text-theme-light flex items-center justify-between gap-1">
+                      <span className="truncate">En Producción</span>
+                      <Printer className="w-4 h-4 text-theme-accent animate-liquid-float shrink-0" />
                     </span>
-                    <span className="text-2xl font-bold font-mono tabular-nums text-white mt-1 block">
+                    <span className="text-xl sm:text-2xl font-bold font-mono tabular-nums text-white mt-1 block">
                       {prodStats.enProd}
                     </span>
-                    <span className="text-[11px] text-zinc-400 mt-0.5 block">
-                      Pedidos actualmente en cola de fabricación
+                    <span className="text-[10px] sm:text-[11px] text-zinc-400 mt-0.5 block truncate">
+                      Pedidos en cola
                     </span>
                   </div>
 
-                  <div className="glass-card glass-card-hover rounded-2xl p-3.5 sm:p-4">
-                    <span className="text-xs font-medium text-zinc-300 flex items-center justify-between">
-                      <span>Unidades a Imprimir</span>
-                      <Layers className="w-4 h-4 text-theme-accent" />
+                  <div className="glass-card glass-card-hover rounded-2xl p-3 sm:p-4 min-w-0">
+                    <span className="text-[11px] sm:text-xs font-medium text-zinc-300 flex items-center justify-between gap-1">
+                      <span className="truncate">Unidades</span>
+                      <Layers className="w-4 h-4 text-theme-accent shrink-0" />
                     </span>
-                    <span className="text-2xl font-bold font-mono tabular-nums text-white mt-1 block">
+                    <span className="text-xl sm:text-2xl font-bold font-mono tabular-nums text-white mt-1 block">
                       {prodStats.unidadesEnProd}
                     </span>
-                    <span className="text-[11px] text-zinc-400 mt-0.5 block">
-                      Total de piezas pendientes de imprimir
+                    <span className="text-[10px] sm:text-[11px] text-zinc-400 mt-0.5 block truncate">
+                      Piezas a imprimir
                     </span>
                   </div>
 
-                  <div className="glass-card-pastel liquid-shimmer rounded-2xl p-3.5 sm:p-4">
-                    <span className="text-xs font-medium text-theme-light flex items-center justify-between">
-                      <span>Importe en Producción</span>
-                      <Clock className="w-4 h-4 text-theme-accent" />
+                  <div className="glass-card-pastel liquid-shimmer rounded-2xl p-3 sm:p-4 col-span-2 sm:col-span-1 min-w-0">
+                    <span className="text-xs font-medium text-theme-light flex items-center justify-between gap-1">
+                      <span className="truncate">Importe en Producción</span>
+                      <Clock className="w-4 h-4 text-theme-accent shrink-0" />
                     </span>
-                    <span className="text-2xl font-bold font-mono tabular-nums text-theme-frost mt-1 block">
+                    <span className="text-xl sm:text-2xl font-bold font-mono tabular-nums text-theme-frost mt-1 block truncate">
                       {formatEuro(prodStats.importeEnProd)}
                     </span>
-                    <span className="text-[11px] text-zinc-400 mt-0.5 block">
+                    <span className="text-[11px] text-zinc-400 mt-0.5 block truncate">
                       Valor de los pedidos en fabricación
                     </span>
                   </div>
@@ -644,9 +646,9 @@ function FormareApp() {
               </section>
 
               {/* Action Bar for Production Queue */}
-              <section className="px-2 sm:px-3 lg:px-4 flex flex-wrap items-center justify-between gap-2">
-                <div className="flex flex-wrap items-center gap-2">
-                  <div className="inline-flex items-center gap-2 px-3 py-1.5 glass-pill rounded-xl text-xs font-semibold text-theme-light">
+              <section className="px-2.5 sm:px-3 lg:px-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-0.5 max-w-full">
+                  <div className="hidden sm:inline-flex items-center gap-2 px-3 py-1.5 glass-pill rounded-xl text-xs font-semibold text-theme-light shrink-0">
                     <span className="w-2 h-2 rounded-full bg-theme-accent animate-liquid-dot" />
                     <Printer className="w-3.5 h-3.5 text-theme-accent" />
                     <span>Solo productos en producción ({prodStats.enProd})</span>
@@ -655,7 +657,7 @@ function FormareApp() {
                   <SlidingSegmentedControl
                     options={[
                       { id: 'fechaLimite', label: 'Fecha límite' },
-                      { id: 'fecha', label: 'Más recientes' },
+                      { id: 'fecha', label: 'Recientes' },
                       { id: 'precio', label: 'Importe' },
                     ]}
                     value={prodSort.sortBy}
@@ -666,13 +668,14 @@ function FormareApp() {
                       })
                     }
                     size="sm"
+                    className="shrink-0"
                   />
                 </div>
 
                 <button
                   type="button"
                   onClick={handleOpenNewOp}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl liquid-btn-pastel-glass text-xs font-semibold cursor-pointer"
+                  className="inline-flex items-center justify-center gap-1.5 px-3.5 min-h-[40px] sm:min-h-0 sm:py-1.5 rounded-xl liquid-btn-pastel-glass text-xs font-semibold cursor-pointer shrink-0"
                 >
                   <Plus className="w-3.5 h-3.5" />
                   <span>Añadir pedido a producción</span>
@@ -712,75 +715,85 @@ function FormareApp() {
           {activeSection === 'gastos' && (
             <div className="space-y-3 pt-3 w-full max-w-none">
               {/* Gastos en General KPI Breakdown */}
-              <section className="px-2 sm:px-3 lg:px-4">
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3">
-                  <div className="glass-card glass-card-hover rounded-2xl p-3.5 sm:p-4 border-rose-400/30 bg-rose-500/[0.06]">
-                    <span className="text-xs font-medium text-rose-200">
-                      Total Gastos en General
+              <section className="px-2.5 sm:px-3 lg:px-4">
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
+                  <div className="glass-card glass-card-hover rounded-2xl p-3 sm:p-4 border-rose-400/30 bg-rose-500/[0.06] min-w-0">
+                    <span className="text-[11px] sm:text-xs font-medium text-rose-200 block truncate">
+                      Total Gastos
                     </span>
-                    <span className="text-2xl font-bold font-mono tabular-nums text-rose-300 mt-1 block">
+                    <span className="text-lg sm:text-2xl font-bold font-mono tabular-nums text-rose-300 mt-1 block truncate">
                       {formatEuro(gastosBreakdown.totalGastosGenerales)}
                     </span>
-                    <span className="text-[11px] text-zinc-400 mt-0.5 block">
-                      Bobinas + compras + B. Sandra
+                    <span className="text-[10px] sm:text-[11px] text-zinc-400 mt-0.5 block truncate">
+                      Bobinas + compras + Sandra
                     </span>
                   </div>
 
-                  <div className="glass-card glass-card-hover rounded-2xl p-3.5 sm:p-4">
-                    <span className="text-xs font-medium text-theme-light">
-                      Compras de Bobinas (1000g)
+                  <div className="glass-card glass-card-hover rounded-2xl p-3 sm:p-4 min-w-0">
+                    <span className="text-[11px] sm:text-xs font-medium text-theme-light block truncate">
+                      Bobinas (1000g)
                     </span>
-                    <span className="text-2xl font-bold font-mono tabular-nums text-white mt-1 block">
+                    <span className="text-lg sm:text-2xl font-bold font-mono tabular-nums text-white mt-1 block truncate">
                       {formatEuro(gastosBreakdown.comprasBobinas)}
                     </span>
-                    <span className="text-[11px] text-zinc-400 mt-0.5 block">
-                      Reposición de stock de filamento
+                    <span className="text-[10px] sm:text-[11px] text-zinc-400 mt-0.5 block truncate">
+                      Stock de filamento
                     </span>
                   </div>
 
-                  <div className="glass-card glass-card-hover rounded-2xl p-3.5 sm:p-4">
-                    <span className="text-xs font-medium text-purple-300">
-                      B. Sandra (Beneficio Sandra)
+                  <div className="glass-card glass-card-hover rounded-2xl p-3 sm:p-4 min-w-0">
+                    <span className="text-[11px] sm:text-xs font-medium text-purple-300 block truncate">
+                      B. Sandra (15%)
                     </span>
-                    <span className="text-2xl font-bold font-mono tabular-nums text-purple-300 mt-1 block">
+                    <span className="text-lg sm:text-2xl font-bold font-mono tabular-nums text-purple-300 mt-1 block truncate">
                       {formatEuro(gastosBreakdown.totalSandra15)}
                     </span>
-                    <span className="text-[11px] text-zinc-400 mt-0.5 block">
-                      Acumulado de ventas de Sandra
+                    <span className="text-[10px] sm:text-[11px] text-zinc-400 mt-0.5 block truncate">
+                      Ventas de Sandra
                     </span>
                   </div>
 
-                  <div className="glass-card glass-card-hover rounded-2xl p-3.5 sm:p-4">
-                    <span className="text-xs font-medium text-zinc-300">
-                      Otros Gastos e Inversiones
+                  <div className="glass-card glass-card-hover rounded-2xl p-3 sm:p-4 min-w-0">
+                    <span className="text-[11px] sm:text-xs font-medium text-zinc-300 block truncate">
+                      Otros Gastos
                     </span>
-                    <span className="text-2xl font-bold font-mono tabular-nums text-zinc-200 mt-1 block">
+                    <span className="text-lg sm:text-2xl font-bold font-mono tabular-nums text-zinc-200 mt-1 block truncate">
                       {formatEuro(gastosBreakdown.otrosGastos)}
                     </span>
-                    <span className="text-[11px] text-zinc-400 mt-0.5 block">
-                      Recambios, accesorios y otros
+                    <span className="text-[10px] sm:text-[11px] text-zinc-400 mt-0.5 block truncate">
+                      Recambios y otros
                     </span>
                   </div>
                 </div>
               </section>
 
               {/* Gastos Sub-Filter Bar con Burbuja Deslizante */}
-              <section className="px-2 sm:px-3 lg:px-4 flex flex-wrap items-center justify-between gap-2">
+              <section className="px-2.5 sm:px-3 lg:px-4 overflow-x-auto no-scrollbar">
                 <SlidingSegmentedControl
                   options={[
                     {
                       id: 'all_gastos',
-                      label: 'Todos los gastos',
+                      label: (
+                        <>
+                          <span className="sm:hidden">Todos</span>
+                          <span className="hidden sm:inline">Todos los gastos</span>
+                        </>
+                      ),
                       badge: gastosBreakdown.totalCount,
                     },
                     {
                       id: 'compras',
-                      label: 'Bobinas e inversiones',
+                      label: (
+                        <>
+                          <span className="sm:hidden">Bobinas</span>
+                          <span className="hidden sm:inline">Bobinas e inversiones</span>
+                        </>
+                      ),
                       badge: gastosBreakdown.comprasCount,
                     },
                     {
                       id: 'sandra15',
-                      label: 'B. Sandra (15%)',
+                      label: 'B. Sandra',
                       badge: gastosBreakdown.sandraCount,
                     },
                   ]}
@@ -791,10 +804,11 @@ function FormareApp() {
                     )
                   }
                   size="sm"
+                  className="shrink-0"
                 />
               </section>
 
-              <section className="px-2 sm:px-3 lg:px-4 py-1 w-full min-w-0 max-w-none">
+              <section className="px-2.5 sm:px-3 lg:px-4 py-1 w-full min-w-0 max-w-none">
                 {gastosOperations.length > 0 ? (
                   <OperationsList
                     operations={gastosOperations}
@@ -849,16 +863,16 @@ function FormareApp() {
 
           {/* 7. VER CÁMARA DE LA IMPRESORA (OctoEverywhere) */}
           {activeSection === 'camara' && (
-            <div className="px-3 sm:px-6 lg:px-8 py-6 max-w-4xl mx-auto space-y-6 animate-fade-in">
-              <div className="glass-card-pastel liquid-shimmer rounded-3xl p-6 sm:p-8 relative overflow-hidden">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
-                  <div className="space-y-2.5">
+            <div className="px-2.5 sm:px-6 lg:px-8 py-4 sm:py-6 max-w-4xl mx-auto space-y-6 animate-fade-in">
+              <div className="glass-card-pastel liquid-shimmer rounded-3xl p-5 sm:p-8 relative overflow-hidden">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-5">
+                  <div className="space-y-2.5 min-w-0">
                     <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full glass-pill border-theme-accent/35 text-theme-light text-xs font-semibold">
                       <span className="w-2 h-2 rounded-full bg-theme-accent animate-liquid-dot" />
                       <span>Transmisión en Directo</span>
                     </div>
                     <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight flex items-center gap-3">
-                      <Camera className="w-7 h-7 text-theme-accent animate-liquid-float-slow" />
+                      <Camera className="w-7 h-7 text-theme-accent animate-liquid-float-slow shrink-0" />
                       <span>Cámara de la Impresora 3D</span>
                     </h2>
                     <p className="text-sm text-zinc-300 max-w-xl leading-relaxed">
@@ -870,7 +884,7 @@ function FormareApp() {
                     href="https://formare3d.octoeverywhere.com/network-device-manager/network/control"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center justify-center gap-2.5 px-6 py-3.5 rounded-2xl liquid-btn-primary font-bold text-sm cursor-pointer shrink-0"
+                    className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-6 py-3.5 rounded-2xl liquid-btn-primary font-bold text-sm cursor-pointer shrink-0"
                   >
                     <Camera className="w-5 h-5" />
                     <span>Ver Cámara en OctoEverywhere</span>
@@ -879,19 +893,19 @@ function FormareApp() {
                 </div>
 
                 <div className="mt-6 pt-6 border-t border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-zinc-400">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-zinc-500 font-medium">Enlace directo:</span>
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-2 min-w-0">
+                    <span className="text-zinc-500 font-medium shrink-0">Enlace directo:</span>
                     <a
                       href="https://formare3d.octoeverywhere.com/network-device-manager/network/control"
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="px-2.5 py-1 rounded-xl liquid-btn-glass text-theme-light hover:text-theme-frost font-mono text-[11px] flex items-center gap-1.5"
+                      className="px-2.5 py-1.5 rounded-xl liquid-btn-glass text-theme-light hover:text-theme-frost font-mono text-[11px] flex items-center gap-1.5 break-all max-w-full"
                     >
-                      <span>https://formare3d.octoeverywhere.com/network-device-manager/network/control</span>
+                      <span className="break-all">https://formare3d.octoeverywhere.com/network-device-manager/network/control</span>
                       <ExternalLink className="w-3 h-3 shrink-0" />
                     </a>
                   </div>
-                  <span className="text-zinc-400 font-medium">OctoEverywhere Network Control</span>
+                  <span className="text-zinc-400 font-medium shrink-0">OctoEverywhere Network Control</span>
                 </div>
               </div>
             </div>
@@ -899,37 +913,95 @@ function FormareApp() {
         </main>
       </div>
 
-      {/* Mobile Floating Liquid Dock Navigation con Burbuja Deslizante */}
-      <nav
-        className="lg:hidden fixed bottom-3 left-3 right-3 z-30 glass-header liquid-segmented rounded-2xl p-1.5 shadow-[0_14px_40px_rgba(0,0,0,0.9)]"
-        aria-label="Navegación rápida móvil"
-      >
-        <SlidingSegmentedControl
-          options={[
-            { id: 'ventas', label: 'Panel', icon: Table2 },
-            {
-              id: 'produccion',
-              label: 'Cola',
-              icon: Printer,
-              badge: inProductionCount > 0 ? inProductionCount : undefined,
-            },
-            { id: 'gastos', label: 'Gastos', icon: Receipt },
-            { id: 'filamentos', label: 'Bobinas', icon: Disc },
-            { id: 'qr', label: 'QR', icon: QrCode },
-          ]}
-          value={
-            (['ventas', 'produccion', 'gastos', 'filamentos', 'qr'].includes(
-              activeSection
-            )
-              ? activeSection
-              : 'ventas') as ActiveSection
-          }
-          onChange={(val) => handleSectionChange(val as ActiveSection)}
-          size="sm"
-          fullWidth
-          className="!bg-transparent !border-none !shadow-none"
-        />
-      </nav>
+      {/* Mobile Floating 5-Column Liquid Dock Navigation con Burbuja Deslizante */}
+      {(() => {
+        const dockItems: {
+          id: ActiveSection;
+          label: string;
+          icon: React.ComponentType<{ className?: string }>;
+          badge?: number;
+        }[] = [
+          { id: 'ventas', label: 'Panel', icon: Table2 },
+          {
+            id: 'produccion',
+            label: 'Cola',
+            icon: Printer,
+            badge: inProductionCount > 0 ? inProductionCount : undefined,
+          },
+          { id: 'gastos', label: 'Gastos', icon: Receipt },
+          { id: 'filamentos', label: 'Bobinas', icon: Disc },
+          { id: 'qr', label: 'QR', icon: QrCode },
+        ];
+        const activeDockIndex = dockItems.findIndex((item) => item.id === activeSection);
+
+        return (
+          <nav
+            className="lg:hidden fixed bottom-[max(0.625rem,env(safe-area-inset-bottom))] left-2.5 right-2.5 z-30 glass-header liquid-segmented rounded-2xl p-1 shadow-[0_14px_40px_rgba(0,0,0,0.92)]"
+            aria-label="Navegación rápida móvil"
+          >
+            <div className="relative grid grid-cols-5 items-center">
+              {/* GPU Sliding Theme Bubble */}
+              <div
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-y-0 left-0 w-1/5 p-0.5 transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]"
+                style={{
+                  transform: `translate3d(${Math.max(0, activeDockIndex) * 100}%, 0, 0)`,
+                  opacity: activeDockIndex >= 0 ? 1 : 0,
+                  willChange: 'transform, opacity',
+                }}
+              >
+                <div
+                  className="w-full h-full rounded-xl"
+                  style={{
+                    background:
+                      'linear-gradient(135deg, var(--theme-tint) 0%, var(--theme-soft) 50%, var(--theme-deep) 100%)',
+                    boxShadow:
+                      '0 2px 14px rgba(var(--theme-rgb), 0.45), inset 0 1px 0 rgba(255,255,255,0.88)',
+                  }}
+                />
+              </div>
+
+              {dockItems.map((item) => {
+                const Icon = item.icon;
+                const isActive = activeSection === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => handleSectionChange(item.id)}
+                    aria-current={isActive ? 'page' : undefined}
+                    className={`relative z-10 min-h-[50px] flex flex-col items-center justify-center gap-0.5 rounded-xl px-1 py-1.5 transition-colors duration-200 cursor-pointer select-none ${
+                      isActive ? 'text-theme-ink font-bold' : 'text-zinc-400 active:text-white'
+                    }`}
+                  >
+                    <div className="relative flex items-center justify-center">
+                      <Icon
+                        className={`w-[18px] h-[18px] transition-transform duration-200 ${
+                          isActive ? 'scale-110 stroke-[2.25]' : ''
+                        }`}
+                      />
+                      {item.badge !== undefined && (
+                        <span
+                          className={`absolute -top-1.5 -right-2.5 min-w-[16px] h-4 px-1 rounded-full text-[9px] font-mono font-extrabold flex items-center justify-center leading-none ${
+                            isActive
+                              ? 'bg-theme-ink text-theme-frost'
+                              : 'bg-theme-accent text-theme-ink shadow-[0_0_8px_rgba(var(--theme-rgb),0.75)]'
+                          }`}
+                        >
+                          {item.badge}
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-[10px] leading-tight tracking-tight truncate max-w-full">
+                      {item.label}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </nav>
+        );
+      })()}
 
       {/* Modals & Bottom Sheets */}
       <OperationModal

@@ -102,12 +102,28 @@ export const PricingCalculatorView: React.FC<PricingCalculatorViewProps> = ({
               </label>
               <SlidingSegmentedControl
                 options={[
-                  { id: 'grams', label: 'Por gramos de pieza (báscula)' },
-                  { id: 'direct', label: 'Coste directo en euros (€)' },
+                  {
+                    id: 'grams',
+                    label: (
+                      <>
+                        <span className="sm:hidden">Por gramos (g)</span>
+                        <span className="hidden sm:inline">Por gramos de pieza (báscula)</span>
+                      </>
+                    ),
+                  },
+                  {
+                    id: 'direct',
+                    label: (
+                      <>
+                        <span className="sm:hidden">Coste directo (€)</span>
+                        <span className="hidden sm:inline">Coste directo en euros (€)</span>
+                      </>
+                    ),
+                  },
                 ]}
                 value={calcMode}
                 onChange={(val) => setCalcMode(val as 'grams' | 'direct')}
-                className="w-full"
+                fullWidth
               />
             </div>
 
@@ -329,14 +345,14 @@ export const PricingCalculatorView: React.FC<PricingCalculatorViewProps> = ({
             <label className="block text-xs font-medium text-zinc-300">
               Simular Otro Precio de Venta (€)
             </label>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2">
               <input
                 type="number"
                 step="0.5"
                 value={customPriceStr}
                 onChange={(e) => setCustomPriceStr(e.target.value)}
                 placeholder="Ej: 18.00"
-                className="flex-1 liquid-input rounded-xl px-3 py-2 text-xs text-white font-mono tabular-nums"
+                className="flex-1 liquid-input rounded-xl px-3.5 min-h-[42px] sm:min-h-0 sm:py-2 text-sm sm:text-xs text-white font-mono tabular-nums"
               />
               {customPrice > 0 && (
                 <button
@@ -349,7 +365,7 @@ export const PricingCalculatorView: React.FC<PricingCalculatorViewProps> = ({
                       materialSummary
                     )
                   }
-                  className="px-3.5 py-2 rounded-xl liquid-btn-pastel-glass font-semibold text-xs whitespace-nowrap cursor-pointer"
+                  className="px-4 min-h-[42px] sm:min-h-0 sm:py-2 rounded-xl liquid-btn-pastel-glass font-semibold text-xs whitespace-nowrap cursor-pointer"
                 >
                   Usar {formatEuro(customPrice)}
                 </button>

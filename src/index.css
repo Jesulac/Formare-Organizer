@@ -414,6 +414,15 @@
   scrollbar-color: rgba(var(--theme-rgb), 0.32) rgba(255, 255, 255, 0.02);
 }
 
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
 /* Input styling override for dark mode look */
 input, select, textarea {
   color-scheme: dark;

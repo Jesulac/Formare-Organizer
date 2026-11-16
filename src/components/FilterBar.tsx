@@ -18,11 +18,15 @@ import {
 } from '../types/operation';
 import { OledSelect } from './OledSelect';
 import { SlidingSegmentedControl } from './SlidingSegmentedControl';
+import { ViewMode } from './Header';
+import { LayoutGrid, Table } from 'lucide-react';
 
 interface FilterBarProps {
   filters: FilterOptions;
   onFilterChange: (updated: FilterOptions) => void;
   uniqueSellers: string[];
+  viewMode?: ViewMode;
+  onViewModeChange?: (mode: ViewMode) => void;
 }
 
 const timeFilterLabels: { id: TimeFilter; label: string }[] = [
@@ -69,6 +73,8 @@ export const FilterBar: React.FC<FilterBarProps> = ({
   filters,
   onFilterChange,
   uniqueSellers,
+  viewMode,
+  onViewModeChange,
 }) => {
   const [showMobileFilterSheet, setShowMobileFilterSheet] = useState(false);
 
@@ -117,26 +123,27 @@ export const FilterBar: React.FC<FilterBarProps> = ({
   ];
 
   return (
-    <section className="px-2 sm:px-3 lg:px-4 py-2.5 w-full max-w-none">
+    <section className="px-2.5 sm:px-3 lg:px-4 py-2.5 w-full max-w-none">
       <div className="w-full flex flex-col md:flex-row items-stretch md:items-center justify-between gap-2.5">
         {/* Search Bar & Filter Trigger */}
-        <div className="flex items-center gap-2 flex-1">
-          <div className="relative flex-1">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-theme-accent/75" />
+        <div className="flex items-center gap-2 flex-1 min-w-0">
+          <div className="relative flex-1 min-w-0">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-theme-accent/75 pointer-events-none" />
             <input
               type="text"
               value={filters.search}
               onChange={(e) => onFilterChange({ ...filters, search: e.target.value })}
-              placeholder="Buscar por producto, material, vendedor..."
-              className="w-full liquid-input rounded-xl pl-9 pr-8 py-2 text-xs sm:text-sm text-zinc-100 placeholder-zinc-500"
+              placeholder="Buscar producto, material, vendedor..."
+              className="w-full liquid-input rounded-xl pl-9 pr-9 py-2.5 sm:py-2 min-h-[42px] sm:min-h-0 text-sm sm:text-sm text-zinc-100 placeholder-zinc-500"
             />
             {filters.search && (
               <button
                 type="button"
                 onClick={() => onFilterChange({ ...filters, search: '' })}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white p-0.5 cursor-pointer"
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white p-1.5 cursor-pointer"
+                aria-label="Limpiar búsqueda"
               >
-                <X className="w-3.5 h-3.5" />
+                <X className="w-4 h-4" />
               </button>
             )}
           </div>
@@ -145,7 +152,8 @@ export const FilterBar: React.FC<FilterBarProps> = ({
           <button
             type="button"
             onClick={() => setShowMobileFilterSheet(true)}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl liquid-btn-glass text-xs text-zinc-100 font-medium shrink-0 cursor-pointer"
+            className="flex items-center justify-center gap-1.5 px-3.5 min-h-[42px] sm:min-h-0 sm:py-2 rounded-xl liquid-btn-glass text-xs text-zinc-100 font-medium shrink-0 cursor-pointer"
+            aria-label="Abrir filtros"
           >
             <SlidersHorizontal className="w-4 h-4 text-theme-accent" />
             <span className="hidden sm:inline">Filtros</span>
@@ -158,7 +166,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
         </div>
 
         {/* Quick Time Filter Segmented Buttons & Custom OLED Dropdowns */}
-        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-0.5">
+        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-0.5 max-w-full">
           <SlidingSegmentedControl
             options={timeFilterLabels}
             value={filters.timeFilter}
@@ -203,7 +211,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
                   sortOrder: filters.sortOrder === 'asc' ? 'desc' : 'asc',
                 })
               }
-              className="p-1 hover:text-theme-light text-zinc-400 rounded-md cursor-pointer transition-colors"
+              className="p-1.5 sm:p-1 hover:text-theme-light text-zinc-400 rounded-md cursor-pointer transition-colors"
               title={
                 filters.sortOrder === 'asc'
                   ? 'Orden ascendente (más antigua arriba)'
@@ -224,7 +232,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
             onClick={() => setShowMobileFilterSheet(false)}
           />
 
-          <div className="relative w-full max-w-lg glass-modal rounded-t-3xl sm:rounded-3xl p-5 shadow-2xl z-10 max-h-[90vh] overflow-y-auto">
+          <div className="relative w-full max-w-lg glass-modal rounded-t-3xl sm:rounded-3xl p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-2xl z-10 max-h-[90dvh] overflow-y-auto">
             {/* Grab Handle */}
             <div className="w-10 h-1 bg-white/25 rounded-full mx-auto -mt-1 mb-4 sm:hidden" />
 
@@ -349,6 +357,23 @@ export const FilterBar: React.FC<FilterBarProps> = ({
                   </button>
                 </div>
               </div>
+              {/* View Mode Toggle for Mobile */}
+              {viewMode && onViewModeChange && (
+                <div className="sm:hidden">
+                  <label className="block text-zinc-400 font-medium mb-1.5">
+                    Modo de presentación
+                  </label>
+                  <SlidingSegmentedControl
+                    options={[
+                      { id: 'iphone', label: 'Tarjetas', icon: LayoutGrid },
+                      { id: 'desktop', label: 'Tabla', icon: Table },
+                    ]}
+                    value={viewMode === 'desktop' ? 'desktop' : 'iphone'}
+                    onChange={(val) => onViewModeChange(val as ViewMode)}
+                    fullWidth
+                  />
+                </div>
+              )}
             </div>
 
             {/* Bottom Actions */}
@@ -356,7 +381,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
               <button
                 type="button"
                 onClick={resetFilters}
-                className="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl liquid-btn-glass text-zinc-200 font-medium text-xs flex-1 cursor-pointer"
+                className="flex items-center justify-center gap-1.5 px-4 min-h-[44px] rounded-xl liquid-btn-glass text-zinc-200 font-medium text-xs flex-1 cursor-pointer"
               >
                 <RotateCcw className="w-3.5 h-3.5" />
                 <span>Limpiar</span>
@@ -364,7 +389,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
               <button
                 type="button"
                 onClick={() => setShowMobileFilterSheet(false)}
-                className="px-4 py-2.5 rounded-xl liquid-btn-primary font-bold text-xs flex-1 cursor-pointer"
+                className="px-4 min-h-[44px] rounded-xl liquid-btn-primary font-bold text-xs flex-1 cursor-pointer"
               >
                 Aplicar
               </button>

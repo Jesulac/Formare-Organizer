@@ -52,7 +52,7 @@ export const ThemeSelector: React.FC<ThemeSelectorProps> = ({
         <button
           type="button"
           onClick={() => setIsOpen((prev) => !prev)}
-          className="inline-flex items-center gap-1.5 px-2.5 py-2 rounded-xl liquid-btn-glass cursor-pointer"
+          className="inline-flex items-center justify-center gap-1.5 px-2.5 h-10 sm:h-auto sm:py-2 rounded-xl liquid-btn-glass cursor-pointer"
           title={`Color: ${activeThemeObj.name}`}
           aria-label="Cambiar color del tema"
         >
@@ -67,7 +67,7 @@ export const ThemeSelector: React.FC<ThemeSelectorProps> = ({
         </button>
 
         {isOpen && (
-          <div className="absolute right-0 mt-2 w-60 rounded-2xl liquid-popover p-2.5 z-50 space-y-1.5">
+          <div className="fixed sm:absolute right-2 sm:right-0 top-14 sm:top-auto sm:mt-2 w-[min(15.5rem,calc(100vw-1rem))] max-h-[72dvh] overflow-y-auto custom-table-scroll rounded-2xl liquid-popover p-2.5 z-50 space-y-1.5">
             <div className="px-2 py-1 flex items-center justify-between border-b border-white/[0.08]">
               <span className="text-[11px] font-bold text-zinc-200 tracking-wide">
                 Colores
@@ -88,7 +88,7 @@ export const ThemeSelector: React.FC<ThemeSelectorProps> = ({
                       onSelectTheme(theme.id);
                       setIsOpen(false);
                     }}
-                    className={`w-full flex items-center justify-between gap-2.5 px-2.5 py-2 rounded-xl text-left transition-all duration-200 cursor-pointer ${
+                    className={`w-full flex items-center justify-between gap-2.5 px-2.5 py-2.5 sm:py-2 rounded-xl text-left transition-all duration-200 cursor-pointer ${
                       isSelected
                         ? 'bg-white/12 border border-white/25'
                         : 'hover:bg-white/[0.07] border border-transparent'
@@ -207,7 +207,7 @@ export const StyleSelector: React.FC<StyleSelectorProps> = ({
       <button
         type="button"
         onClick={() => setIsOpen((prev) => !prev)}
-        className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl liquid-btn-glass text-xs font-medium text-zinc-100 cursor-pointer whitespace-nowrap"
+        className="inline-flex items-center justify-center gap-1.5 px-2.5 h-10 sm:h-auto sm:py-1.5 rounded-xl liquid-btn-glass text-xs font-medium text-zinc-100 cursor-pointer whitespace-nowrap"
         title={`Estilo visual: ${activeStyleObj.name}`}
         aria-label="Seleccionar estilo de tema"
       >
@@ -221,7 +221,7 @@ export const StyleSelector: React.FC<StyleSelectorProps> = ({
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-64 rounded-2xl liquid-popover p-2.5 z-50 space-y-1.5">
+        <div className="fixed sm:absolute right-2 sm:right-0 top-14 sm:top-auto sm:mt-2 w-[min(16rem,calc(100vw-1rem))] max-h-[72dvh] overflow-y-auto custom-table-scroll rounded-2xl liquid-popover p-2.5 z-50 space-y-1.5">
           <div className="px-2 py-1 flex items-center justify-between border-b border-white/[0.08]">
             <span className="text-[11px] font-bold text-zinc-200 tracking-wide">
               Estilos de Tema

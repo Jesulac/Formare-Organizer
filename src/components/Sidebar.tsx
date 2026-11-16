@@ -386,7 +386,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </nav>
 
         {/* Bottom Summary & Data Management Footer */}
-        <div className="p-3 border-t border-white/[0.09] bg-black/35 space-y-3 shrink-0 backdrop-blur-xl">
+        <div className="p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] border-t border-white/[0.09] bg-black/35 space-y-3 shrink-0 backdrop-blur-xl">
           {!collapsed && (
             <div className="px-4 py-3 rounded-2xl glass-card flex items-center justify-between">
               <div>

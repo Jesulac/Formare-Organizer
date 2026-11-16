@@ -132,12 +132,29 @@ export const QrStorageView: React.FC<QrStorageViewProps> = ({
         <div className="shrink-0 w-full sm:w-auto">
           <SlidingSegmentedControl
             options={[
-              { id: 'activos', label: 'Activos / Recientes' },
-              { id: 'todas', label: 'Todas las ventas' },
+              {
+                id: 'activos',
+                label: (
+                  <>
+                    <span className="sm:hidden">Activos</span>
+                    <span className="hidden sm:inline">Activos / Recientes</span>
+                  </>
+                ),
+              },
+              {
+                id: 'todas',
+                label: (
+                  <>
+                    <span className="sm:hidden">Todas</span>
+                    <span className="hidden sm:inline">Todas las ventas</span>
+                  </>
+                ),
+              },
             ]}
             value={filterMode}
             onChange={(val) => setFilterMode(val as 'activos' | 'todas')}
-            className="w-full sm:w-auto"
+            fullWidth
+            className="sm:w-auto"
           />
         </div>
       </div>
@@ -239,14 +256,14 @@ export const QrStorageView: React.FC<QrStorageViewProps> = ({
                       <button
                         type="button"
                         onClick={() => handleTriggerUpload(op.id)}
-                        className="px-2 py-1 rounded-lg liquid-btn-glass text-zinc-200 cursor-pointer"
+                        className="px-2.5 min-h-[32px] rounded-lg liquid-btn-glass text-zinc-200 cursor-pointer"
                       >
                         Cambiar
                       </button>
                       <button
                         type="button"
                         onClick={() => onAttachQr(op.id, undefined, undefined)}
-                        className="p-1 rounded-lg bg-rose-500/20 text-rose-300 hover:bg-rose-500/30 border border-rose-400/25 cursor-pointer transition-colors"
+                        className="w-8 h-8 flex items-center justify-center rounded-lg bg-rose-500/20 text-rose-300 hover:bg-rose-500/30 border border-rose-400/25 cursor-pointer transition-colors"
                         title="Eliminar QR"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -272,18 +289,19 @@ export const QrStorageView: React.FC<QrStorageViewProps> = ({
 
       {/* Fullscreen High-Contrast Scanner Modal for Correos / InPost */}
       {scanModalOp && scanModalOp.fotoQr && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
           <div
             className="fixed inset-0 bg-black/85 backdrop-blur-md animate-backdrop-fade"
             onClick={() => setScanModalOpId(null)}
           />
-          <div className="relative z-10 w-full max-w-md glass-modal rounded-3xl p-5 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-theme-accent text-theme-ink">
+          <div className="relative z-10 w-full max-w-md glass-modal rounded-t-3xl sm:rounded-3xl p-4 sm:p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-2xl space-y-4 max-h-[92dvh] overflow-y-auto">
+            <div className="w-10 h-1 bg-white/25 rounded-full mx-auto -mt-1 mb-2 sm:hidden" />
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <span className="inline-block text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-theme-accent text-theme-ink">
                   {scanModalOp.empresaEnvio || 'Correos'} · {scanModalOp.lugarVenta}
                 </span>
-                <h3 className="text-base font-bold text-white mt-1.5">
+                <h3 className="text-base font-bold text-white mt-1.5 leading-snug">
                   {scanModalOp.producto}
                 </h3>
                 <p className="text-xs text-zinc-400">
@@ -293,17 +311,18 @@ export const QrStorageView: React.FC<QrStorageViewProps> = ({
               <button
                 type="button"
                 onClick={() => setScanModalOpId(null)}
-                className="p-2 rounded-full liquid-btn-glass text-white cursor-pointer"
+                className="w-10 h-10 flex items-center justify-center rounded-full liquid-btn-glass text-white cursor-pointer shrink-0"
+                aria-label="Cerrar escáner"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="bg-white rounded-2xl p-4 flex items-center justify-center min-h-[280px] shadow-inner">
+            <div className="bg-white rounded-2xl p-4 flex items-center justify-center min-h-[240px] sm:min-h-[280px] shadow-inner">
               <img
                 src={scanModalOp.fotoQr}
                 alt="Código QR para escaneo"
-                className="max-h-[65vh] w-auto object-contain"
+                className="max-h-[58dvh] sm:max-h-[65vh] w-auto object-contain"
               />
             </div>
 

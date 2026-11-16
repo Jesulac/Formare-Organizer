@@ -31,34 +31,41 @@ interface HeaderProps {
 
 const SECTION_META: Record<
   ActiveSection,
-  { title: string; subtitle: string }
+  { title: string; shortTitle: string; subtitle: string }
 > = {
   ventas: {
     title: 'Panel General de Operaciones',
+    shortTitle: 'Panel General',
     subtitle: 'Control completo de ventas, producción, compras y cierres mensuales',
   },
   produccion: {
     title: 'Cola de Producción',
+    shortTitle: 'Producción',
     subtitle: 'Pedidos actualmente en fabricación e impresión 3D',
   },
   gastos: {
     title: 'Gastos en General y Compras',
+    shortTitle: 'Gastos',
     subtitle: 'Compras de bobinas, material, inversiones y comisión 15% Sandra',
   },
   filamentos: {
     title: 'Stock de Filamentos (1000g)',
+    shortTitle: 'Filamentos',
     subtitle: 'Inventario en gramos por bobina, consumo real y reposición',
   },
   qr: {
     title: 'Almacén de QR y Etiquetas',
+    shortTitle: 'Almacén QR',
     subtitle: 'Códigos de envío listos para escanear en Correos, InPost, Seur y Vinted Go',
   },
   calculadora: {
     title: 'Calculadora de Precios 3D',
+    shortTitle: 'Calculadora',
     subtitle: 'Cálculo de costes por gramos de filamento, tornillería y multiplicadores',
   },
   camara: {
     title: 'Cámara de la Impresora 3D',
+    shortTitle: 'Cámara 3D',
     subtitle: 'Control y transmisión en directo a través de OctoEverywhere',
   },
 };
@@ -83,21 +90,22 @@ export const Header: React.FC<HeaderProps> = ({
     activeSection === 'gastos';
 
   return (
-    <header className="sticky top-0 z-20 glass-header border-b border-white/[0.1] px-3 sm:px-5 lg:px-6 h-16 flex items-center justify-between gap-3 transition-all duration-300">
+    <header className="sticky top-0 z-20 glass-header border-b border-white/[0.1] px-2.5 sm:px-5 lg:px-6 h-14 sm:h-16 flex items-center justify-between gap-2 sm:gap-3 transition-all duration-300">
       {/* Zone 1: Mobile Menu Trigger + Section Breadcrumb & Title */}
-      <div className="flex items-center gap-3 min-w-0">
+      <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
         <button
           type="button"
           onClick={onOpenMobileSidebar}
-          className="lg:hidden p-2 -ml-1 rounded-xl text-zinc-200 hover:text-white liquid-btn-glass cursor-pointer shrink-0"
+          className="lg:hidden w-10 h-10 flex items-center justify-center rounded-xl text-zinc-200 hover:text-white liquid-btn-glass cursor-pointer shrink-0"
           aria-label="Abrir menú de navegación"
         >
           <Menu className="w-5 h-5" />
         </button>
 
-        <div className="min-w-0">
-          <h1 className="text-sm sm:text-base lg:text-lg font-bold tracking-tight text-white truncate">
-            {currentMeta.title}
+        <div className="min-w-0 flex-1">
+          <h1 className="text-[15px] sm:text-base lg:text-lg font-bold tracking-tight text-white truncate">
+            <span className="sm:hidden">{currentMeta.shortTitle}</span>
+            <span className="hidden sm:inline">{currentMeta.title}</span>
           </h1>
           <p className="text-[11px] text-zinc-400 truncate hidden sm:block">
             {currentMeta.subtitle}
@@ -106,9 +114,9 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
 
       {/* Zone 3: Contextual Controls & Primary Actions */}
-      <div className="flex items-center gap-2 shrink-0">
+      <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
         {/* Color Theme Circles + Visual Style Selector (al lado de Tarjetas / Tabla) */}
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1 sm:gap-1.5">
           <ThemeSelector
             currentTheme={currentTheme}
             onSelectTheme={onSelectTheme}
@@ -162,7 +170,7 @@ export const Header: React.FC<HeaderProps> = ({
           href="https://formare3d.octoeverywhere.com/network-device-manager/network/control"
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium liquid-btn-pastel-glass cursor-pointer whitespace-nowrap"
+          className="hidden sm:inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium liquid-btn-pastel-glass cursor-pointer whitespace-nowrap"
           title="Ver cámara de la impresora (OctoEverywhere)"
         >
           <Camera className="w-3.5 h-3.5 text-theme-light shrink-0 animate-liquid-float-slow" />
@@ -174,7 +182,7 @@ export const Header: React.FC<HeaderProps> = ({
           <button
             type="button"
             onClick={onExportMonthlyPDF}
-            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium liquid-btn-pastel-glass cursor-pointer whitespace-nowrap"
+            className="hidden sm:inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium liquid-btn-pastel-glass cursor-pointer whitespace-nowrap"
             title="Descargar resumen mensual en PDF"
           >
             <FileText className="w-3.5 h-3.5 text-theme-accent shrink-0" />
@@ -186,10 +194,11 @@ export const Header: React.FC<HeaderProps> = ({
         <button
           type="button"
           onClick={onNewOperation}
-          className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl liquid-btn-primary font-bold text-xs cursor-pointer whitespace-nowrap"
+          className="inline-flex items-center gap-1 sm:gap-1.5 px-3 sm:px-3.5 h-10 sm:h-auto sm:py-2 rounded-xl liquid-btn-primary font-bold text-xs cursor-pointer whitespace-nowrap"
         >
           <Plus className="w-4 h-4 stroke-[2.75] shrink-0" />
-          <span>Nueva Operación</span>
+          <span className="sm:hidden">Nueva</span>
+          <span className="hidden sm:inline">Nueva Operación</span>
         </button>
       </div>
     </header>
