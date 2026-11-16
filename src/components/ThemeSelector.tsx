@@ -134,7 +134,7 @@ export const ThemeSelector: React.FC<ThemeSelectorProps> = ({
 
   return (
     <div
-      className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full glass-pill ${className}`}
+      className={`${className.includes('hidden') ? '' : 'inline-flex '}items-center gap-1.5 px-2.5 py-1.5 rounded-full glass-pill ${className}`}
       role="group"
       aria-label="Selector de color del tema"
     >

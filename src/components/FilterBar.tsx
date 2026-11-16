@@ -357,9 +357,9 @@ export const FilterBar: React.FC<FilterBarProps> = ({
                   </button>
                 </div>
               </div>
-              {/* View Mode Toggle for Mobile */}
+              {/* View Mode Toggle for Tablet (sm to md) */}
               {viewMode && onViewModeChange && (
-                <div className="sm:hidden">
+                <div className="hidden sm:block md:hidden">
                   <label className="block text-zinc-400 font-medium mb-1.5">
                     Modo de presentación
                   </label>

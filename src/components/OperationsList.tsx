@@ -107,9 +107,9 @@ export const OperationsList: React.FC<OperationsListProps> = ({
   });
 
   const showMobileCards =
-    viewMode === 'iphone' ? 'block' : viewMode === 'desktop' ? 'hidden' : 'block lg:hidden';
+    viewMode === 'iphone' ? 'block' : viewMode === 'desktop' ? 'block md:hidden' : 'block lg:hidden';
   const showDesktopTable =
-    viewMode === 'desktop' ? 'block' : viewMode === 'iphone' ? 'hidden' : 'hidden lg:block';
+    viewMode === 'desktop' ? 'hidden md:block' : viewMode === 'iphone' ? 'hidden' : 'hidden lg:block';
 
   const handleTriggerPhotoUpload = (opId: string, e: React.MouseEvent) => {
     e.stopPropagation();

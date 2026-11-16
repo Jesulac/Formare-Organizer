@@ -139,7 +139,7 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* View Mode Switcher (Tarjetas / Tabla) con Burbuja Deslizante */}
         {showViewSwitcher && (
-          <div className="hidden sm:block">
+          <div className="hidden md:block">
             <SlidingSegmentedControl
               options={[
                 { id: 'iphone', label: 'Tarjetas', icon: LayoutGrid },

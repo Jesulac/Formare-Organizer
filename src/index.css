@@ -46,6 +46,7 @@
 
 
 
+@layer components {
 /* Frosted Pill & Segmented Capsule Track */
 .glass-pill {
   background: rgba(255, 255, 255, 0.06);
@@ -209,6 +210,7 @@
     0 0 32px -16px rgba(var(--theme-rgb), 0.25);
   animation: liquidPopoverIn 220ms var(--spring-ease);
 }
+}
 
 /* ============================================================================
    CONTINUOUS LOOP MICRO-ANIMATIONS (Always Alive & Organic)
@@ -275,6 +277,7 @@
   transition: background-image 350ms ease;
 }
 
+@layer components {
 .glass-card {
   background: linear-gradient(
     160deg,
@@ -290,7 +293,6 @@
 }
 
 .glass-card-pastel {
-  position: relative;
   overflow: hidden;
   background: linear-gradient(
     150deg,
@@ -322,7 +324,6 @@
 }
 
 .glass-header {
-  position: relative;
   background: rgba(7, 10, 16, 0.82);
   backdrop-filter: blur(16px) saturate(175%);
   -webkit-backdrop-filter: blur(16px) saturate(175%);
@@ -378,6 +379,7 @@
   pointer-events: none;
   animation: liquidSheenSweep 7.5s ease-in-out infinite;
   will-change: transform, opacity;
+}
 }
 
 /* Safe areas for mobile notch & home bar */
